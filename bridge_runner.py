@@ -244,8 +244,17 @@ class BridgeRunner:
     def set_listen_address(self, ip: str, port: int):
         self._pending_listen = (ip, int(port))
         if self.is_running():
-            self.stop()
-            self.start()
+            threading.Thread(target=self._restart_for_listen, daemon=True).start()
+
+    def _restart_for_listen(self):
+        self.bridge.stop()
+        # Wait for listener_loop to exit so the port is released
+        for _ in range(30):
+            if not self.bridge.running:
+                break
+            time.sleep(0.1)
+        self.bridge = None
+        self.start()
 
     def set_forwarding(self, enabled: bool, host: str, port: int):
         if self.bridge is not None:
