@@ -1,0 +1,474 @@
+import importlib.util
+import json
+import os
+import sys
+import threading
+import time
+from pathlib import Path
+
+_BASE_DIR = Path(__file__).resolve().parent
+GROUPS_FILE = str(_BASE_DIR / "lifx_groups.json")
+GUI_SETTINGS_FILE = str(_BASE_DIR / "f1lifx_gui_settings.json")
+
+
+class BridgeRunner:
+    """
+    Runs bridge_core.F1LifxBridgeCore in-process, on a background thread,
+    instead of as a subprocess. bridge_core.py already accepts a
+    log_callback - that's the hook this uses, so there's no text
+    protocol to invent: Quick Effects and stats are direct Python calls
+    and attribute reads.
+
+    bridge_core.py is imported lazily, by file path, the first time it's
+    needed. That way a missing file, or 'lifxlan' not being installed,
+    shows up as a log line in the GUI instead of crashing the app before
+    the window even opens.
+    """
+
+    EFFECT_METHODS = {
+        "Start Lights":   lambda lifx: lifx.start_lights(5),
+        "Lights Out":     lambda lifx: lifx.lights_out(),
+        "Yellow Flag":    lambda lifx: lifx.yellow_flag(),
+        "Blue Flag":      lambda lifx: lifx.blue_flag(),
+        "Red Flag":       lambda lifx: lifx.red_flag(),
+        "Fastest Lap":    lambda lifx: lifx.fastest_lap(),
+        "Chequered Flag": lambda lifx: lifx.chequered_flag(),
+        "White Warning":  lambda lifx: lifx.white_warning(),
+        "Neutral":        lambda lifx: lifx.neutral(),
+    }
+
+    def __init__(self, bridge_script: Path,
+                 on_log=None, on_state_change=None, on_status_text=None,
+                 on_stat=None, on_lights_discovered=None, on_discovering=None,
+                 on_selection_changed=None):
+        self.bridge_script = Path(bridge_script)
+
+        self.on_log = on_log or (lambda line: None)
+        self.on_state_change = on_state_change or (lambda running: None)
+        self.on_status_text = on_status_text or (lambda text: None)
+        self.on_stat = on_stat or (lambda key, value: None)
+        self.on_lights_discovered = on_lights_discovered or (lambda lights: None)
+        self.on_discovering = on_discovering or (lambda active: None)
+        self.on_selection_changed = on_selection_changed or (lambda labels: None)
+
+        self.bridge = None   # F1LifxBridgeCore instance, created on first use
+        self._module = None
+        self._active_group_name = None
+        self._pending_enabled_events = None  # applied to bridge on first construction
+        self._pending_brightness = None     # (min_b, max_b) in HSBK units
+        self._pending_stagger = None        # (enabled, ms)
+        self._pending_idle = None           # (hsbk, pulse)
+        self._pending_forwarding = None       # (enabled, host, port)
+        self._pending_mz_startlights = None  # (direction, mode)
+
+        self._stat_stop = threading.Event()
+        self._stat_thread = None
+        self._lock = threading.Lock()
+
+    def is_running(self) -> bool:
+        return self.bridge is not None and self.bridge.running
+
+    # ---- module / bridge bootstrapping ----
+
+    def _ensure_bridge(self) -> bool:
+        if self.bridge is not None:
+            return True
+
+        if self._module is None:
+            if not self.bridge_script.exists():
+                self.on_log(f"ERROR: Bridge script not found: {self.bridge_script}")
+                self.on_status_text("Script Missing")
+                return False
+
+            try:
+                spec = importlib.util.spec_from_file_location("bridge_core", self.bridge_script)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules["bridge_core"] = module
+                spec.loader.exec_module(module)
+                self._module = module
+            except (Exception, SystemExit) as exc:
+                self.on_log(f"ERROR: could not load {self.bridge_script.name}: {exc}")
+                self.on_status_text("Import Error")
+                return False
+
+        try:
+            self.bridge = self._module.F1LifxBridgeCore(
+                udp_ip=self._module.UDP_IP,
+                udp_port=self._module.UDP_PORT,
+                bulb_count=self._module.LIFX_BULB_COUNT,
+                dry_run=self._module.DRY_RUN,
+                log_callback=self.on_log,
+            )
+        except Exception as exc:
+            self.on_log(f"ERROR: could not construct bridge: {exc}")
+            self.on_status_text("Error")
+            return False
+
+        if self._pending_enabled_events is not None:
+            self.bridge.enabled_events = self._pending_enabled_events
+
+        if self._pending_stagger is not None and self.bridge.lifx is not None:
+            enabled, ms = self._pending_stagger
+            self.bridge.lifx.stagger_ms = ms if enabled else 0
+
+        if self._pending_idle is not None and self.bridge.lifx is not None:
+            hsbk, pulse = self._pending_idle
+            self.bridge.lifx.idle_hsbk = hsbk
+            self.bridge.lifx.idle_pulse = pulse
+
+        if self._pending_forwarding is not None:
+            enabled, host, port = self._pending_forwarding
+            self.bridge.forward_enabled = enabled
+            self.bridge.forward_host = host
+            self.bridge.forward_port = port
+
+        if self._pending_mz_startlights is not None and self.bridge.lifx is not None:
+            direction, mode = self._pending_mz_startlights
+            self.bridge.lifx.mz_startlights_direction = direction
+            self.bridge.lifx.mz_startlights_mode = mode
+
+        return True
+
+    # ---- GUI-facing actions ----
+
+    def start(self):
+        with self._lock:
+            if self.is_running():
+                self.on_log("Bridge is already running.")
+                return
+            if not self._ensure_bridge():
+                self.on_state_change(False)
+                return
+
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def stop(self):
+        if not self.is_running():
+            self.on_log("Bridge is already stopped.")
+            return
+        self.bridge.stop()
+
+    def discover_lights(self):
+        threading.Thread(target=self._discover_worker, daemon=True).start()
+
+    def test_selected(self):
+        threading.Thread(target=self._test_worker, daemon=True).start()
+
+    def test_multizone(self):
+        threading.Thread(target=self._test_mz_worker, daemon=True).start()
+
+    def trigger_effect(self, name: str):
+        threading.Thread(target=self._effect_worker, args=(name,), daemon=True).start()
+
+    def get_discovered_lights(self) -> list[dict]:
+        """Return [{label, ip, zones}, ...] for every discovered bulb.
+        zones > 0 means the device is a multizone strip."""
+        if self.bridge is None or self.bridge.lifx is None:
+            return []
+        result = []
+        for light in self.bridge.lifx.discovered_lights:
+            try:
+                label = light.get_label() or "Unknown LIFX"
+            except Exception:
+                label = "Unknown LIFX"
+            try:
+                ip = light.get_ip_addr() or ""
+            except Exception:
+                ip = ""
+            zones = self.bridge.lifx.get_zone_count(light)
+            result.append({"label": label, "ip": ip, "zones": zones})
+        return result
+
+    def set_selected_lights(self, labels: list[str], group_name: str | None = None):
+        """Set active lights to those matching the given label list."""
+        if self.bridge is None or self.bridge.lifx is None:
+            self.on_log("[GUI] No lights discovered yet — cannot apply selection.")
+            return
+        wanted = {l.lower() for l in labels}
+        selected = [
+            light for light in self.bridge.lifx.discovered_lights
+            if self._safe_label(light).lower() in wanted
+        ]
+        self.bridge.lifx.lights = selected
+        self._active_group_name = group_name
+        self.on_log(f"[GUI] Applied {len(selected)} selected light(s) to bridge.")
+        self._push_light_stats()
+        self.on_selection_changed(self._get_active_labels())
+
+    # ---- group persistence ----
+
+    def set_idle_state(self, color_hex: str, pulse: bool):
+        hsbk = self._hex_to_hsbk(color_hex)
+        if self.bridge is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.idle_hsbk = hsbk
+            self.bridge.lifx.idle_pulse = pulse
+            if not pulse and self.bridge.lifx.is_effect_active("idle_pulse"):
+                self.bridge.lifx.clear_active_effect()
+        self._pending_idle = (hsbk, pulse)
+
+    @staticmethod
+    def _hex_to_hsbk(hex_color: str) -> list:
+        hex_color = hex_color.lstrip('#')
+        r, g, b = (int(hex_color[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+        max_c, min_c = max(r, g, b), min(r, g, b)
+        delta = max_c - min_c
+        if delta == 0:
+            h = 0.0
+        elif max_c == r:
+            h = ((g - b) / delta) % 6
+        elif max_c == g:
+            h = (b - r) / delta + 2
+        else:
+            h = (r - g) / delta + 4
+        h = (h / 6.0) % 1.0
+        s = 0.0 if max_c == 0 else delta / max_c
+        return [int(h * 65535), int(s * 65535), int(max_c * 65535), 3500]
+
+    def set_mz_startlights(self, direction: str, mode: str):
+        """direction: 'ltr' | 'rtl'.  mode: 'sweep' | 'solid'."""
+        self._pending_mz_startlights = (direction, mode)
+        if self.bridge is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.mz_startlights_direction = direction
+            self.bridge.lifx.mz_startlights_mode = mode
+
+    def set_forwarding(self, enabled: bool, host: str, port: int):
+        if self.bridge is not None:
+            self.bridge.forward_enabled = enabled
+            self.bridge.forward_host = host
+            self.bridge.forward_port = int(port)
+        self._pending_forwarding = (enabled, host, int(port))
+
+    def set_stagger(self, enabled: bool, ms: int):
+        self._pending_stagger = (enabled, int(ms))
+        if self.bridge is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.stagger_ms = int(ms) if enabled else 0
+
+    def set_brightness_range(self, min_pct: int, max_pct: int):
+        """Set master brightness range. min_pct and max_pct are 0–100."""
+        min_b = int(min_pct / 100 * 65535)
+        max_b = int(max_pct / 100 * 65535)
+        self._pending_brightness = (min_b, max_b)
+        if self.bridge is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.brightness_min = min_b
+            self.bridge.lifx.brightness_max = max_b
+
+    def set_enabled_events(self, names: list[str] | None):
+        """Pass None to enable everything, or a list of event key strings to restrict."""
+        enabled = frozenset(names) if names is not None else None
+        if self.bridge is not None:
+            self.bridge.enabled_events = enabled
+        # Store so it can be applied when the bridge is created later.
+        self._pending_enabled_events = enabled
+
+    def get_groups(self) -> dict:
+        return self._read_json(GROUPS_FILE, {})
+
+    def save_group(self, name: str, labels: list[str]):
+        groups = self.get_groups()
+        groups[name] = labels
+        self._write_json(GROUPS_FILE, groups)
+        self.on_log(f"[GROUP] Saved group '{name}' ({len(labels)} light(s)).")
+
+    def delete_group(self, name: str):
+        groups = self.get_groups()
+        if name in groups:
+            del groups[name]
+            self._write_json(GROUPS_FILE, groups)
+            self.on_log(f"[GROUP] Deleted group '{name}'.")
+
+    def load_group(self, name: str):
+        """Apply a saved group to the bridge and persist it as the last-used group."""
+        groups = self.get_groups()
+        if name not in groups:
+            self.on_log(f"[GROUP] Group '{name}' not found.")
+            return
+        labels = groups[name]
+        self.set_selected_lights(labels, group_name=name)
+        self.save_gui_settings({"last_group": name})
+        self.on_log(f"[GROUP] Loaded group: {name} ({len(labels)} light(s))")
+
+    # ---- GUI settings persistence ----
+
+    def get_gui_settings(self) -> dict:
+        return self._read_json(GUI_SETTINGS_FILE, {})
+
+    def save_gui_settings(self, data: dict):
+        current = self.get_gui_settings()
+        current.update(data)
+        self._write_json(GUI_SETTINGS_FILE, current)
+
+    # ---- background workers ----
+
+    def _run(self):
+        if self.bridge.lifx is None:
+            try:
+                self._do_discover()
+            except Exception as exc:
+                self.on_log(f"ERROR during discovery: {exc}")
+                self.on_state_change(False)
+                self.on_status_text("Error")
+                return
+        else:
+            # Lights already discovered — still auto-apply last group if none active.
+            self._maybe_apply_last_group()
+            self._push_light_stats()
+            self.on_lights_discovered(self.get_discovered_lights())
+
+        self.on_state_change(True)
+        self.on_status_text("Running")
+
+        self._stat_stop.clear()
+        self._stat_thread = threading.Thread(target=self._stat_loop, daemon=True)
+        self._stat_thread.start()
+
+        try:
+            self.bridge.start()  # blocks until bridge.stop()
+        except Exception as exc:
+            self.on_log(f"ERROR: bridge crashed: {exc}")
+        finally:
+            self._stat_stop.set()
+            self.on_state_change(False)
+            self.on_status_text("Stopped")
+
+    def _discover_worker(self):
+        if not self._ensure_bridge():
+            return
+        try:
+            self._do_discover()
+        except Exception as exc:
+            self.on_log(f"ERROR during discovery: {exc}")
+        finally:
+            self.on_discovering(False)
+
+    def _maybe_apply_last_group(self):
+        """Apply the last saved group if no group is currently active."""
+        if self._active_group_name is not None:
+            return
+        settings = self.get_gui_settings()
+        last_group = settings.get("last_group")
+        groups = self.get_groups()
+        if last_group and last_group in groups:
+            labels = groups[last_group]
+            wanted = {l.lower() for l in labels}
+            selected = [
+                light for light in self.bridge.lifx.discovered_lights
+                if self._safe_label(light).lower() in wanted
+            ]
+            if selected:
+                self.bridge.lifx.lights = selected
+                self._active_group_name = last_group
+                self.on_log(f"[GROUP] Auto-loaded last group: {last_group} ({len(selected)} light(s))")
+                self.on_selection_changed(self._get_active_labels())
+
+    def _do_discover(self):
+        """Discover lights, auto-apply last saved group, then push to UI."""
+        self.on_discovering(True)
+        self.on_status_text("Discovering lights...")
+        self.bridge.discover_lights()
+
+        settings = self.get_gui_settings()
+        last_group = settings.get("last_group")
+        groups = self.get_groups()
+
+        if last_group and last_group in groups:
+            labels = groups[last_group]
+            wanted = {l.lower() for l in labels}
+            selected = [
+                light for light in self.bridge.lifx.discovered_lights
+                if self._safe_label(light).lower() in wanted
+            ]
+            if selected:
+                self.bridge.lifx.lights = selected
+                self._active_group_name = last_group
+                self.on_log(f"[GROUP] Auto-loaded last group: {last_group} ({len(selected)} light(s))")
+
+        if self._pending_brightness is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.brightness_min, self.bridge.lifx.brightness_max = self._pending_brightness
+
+        self._push_light_stats()
+        self.on_lights_discovered(self.get_discovered_lights())
+        self.on_selection_changed(self._get_active_labels())
+        self.on_discovering(False)
+        self.on_status_text("Stopped")
+
+    def _test_worker(self):
+        if self.bridge is None or self.bridge.lifx is None:
+            self.on_log("No lights discovered yet - click Discover Lights first.")
+            return
+        try:
+            self.bridge.lifx.start_lights_test()
+        except Exception as exc:
+            self.on_log(f"ERROR during test: {exc}")
+
+    def _test_mz_worker(self):
+        if self.bridge is None or self.bridge.lifx is None:
+            self.on_log("No lights discovered yet - click Discover Lights first.")
+            return
+        try:
+            self.bridge.lifx.multizone_color_test()
+        except Exception as exc:
+            self.on_log(f"ERROR during multizone test: {exc}")
+
+    def _effect_worker(self, name):
+        if self.bridge is None or self.bridge.lifx is None:
+            self.on_log(f"Cannot run '{name}' - no lights discovered yet. Click Discover Lights first.")
+            return
+
+        action = self.EFFECT_METHODS.get(name)
+        if action is None:
+            self.on_log(f"Unknown effect: {name}")
+            return
+
+        try:
+            action(self.bridge.lifx)
+        except Exception as exc:
+            self.on_log(f"ERROR running '{name}': {exc}")
+
+    def _stat_loop(self):
+        last_packets = -1
+        while not self._stat_stop.is_set():
+            if self.bridge is not None and self.bridge.total_packets != last_packets:
+                last_packets = self.bridge.total_packets
+                self.on_stat("f1_packets", str(last_packets))
+            time.sleep(1.0)
+
+    def _push_light_stats(self):
+        if self.bridge is not None and self.bridge.lifx is not None:
+            found = len(self.bridge.lifx.discovered_lights)
+            selected = len(self.bridge.lifx.lights)
+            self.on_stat("lifx_lights", f"{found} found")
+            if self._active_group_name:
+                self.on_stat("active_group", self._active_group_name)
+            else:
+                self.on_stat("active_group", f"{selected} selected")
+
+    def _get_active_labels(self) -> list[str]:
+        if self.bridge is None or self.bridge.lifx is None:
+            return []
+        return [self._safe_label(l) for l in self.bridge.lifx.lights]
+
+    def _safe_label(self, light) -> str:
+        try:
+            return light.get_label() or "Unknown LIFX"
+        except Exception:
+            return "Unknown LIFX"
+
+    # ---- JSON helpers ----
+
+    def _read_json(self, path: str, default):
+        if not os.path.exists(path):
+            return default
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, type(default)) else default
+        except Exception as exc:
+            self.on_log(f"[WARNING] Could not read {path}: {exc}")
+            return default
+
+    def _write_json(self, path: str, data):
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+        except Exception as exc:
+            self.on_log(f"[ERROR] Could not write {path}: {exc}")

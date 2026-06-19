@@ -1,0 +1,4196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>F1 LIFX Bridge</title>
+<style>
+  :root{
+    --purple:#8b7cf6;
+    --glass-fill: rgba(255,255,255,0.07);
+    --glass-fill-strong: rgba(255,255,255,0.10);
+    --glass-border: rgba(255,255,255,0.16);
+    --text-main:#f3f5f9;
+    --text-muted:#aab2c5;
+    --green:#3ddc84;
+    --gray-dot:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    height:100%;
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:#0b1020;
+    color:var(--text-main);
+    overflow:hidden;
+  }
+  .scene{
+    position:relative;
+    width:100%;
+    height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .bg{
+    position:absolute;
+    inset:0;
+    overflow:hidden;
+    background:linear-gradient(160deg,#0d1126 0%, #161b3a 55%, #0d1126 100%);
+  }
+  .blob{
+    position:absolute;
+    border-radius:50%;
+    filter:blur(90px);
+    opacity:0.55;
+    will-change:transform;
+  }
+  .blob.b1{ width:520px; height:520px; top:-140px; left:-100px; background:#5b4fe0; animation:drift1 26s ease-in-out infinite; }
+  .blob.b2{ width:480px; height:480px; top:-60px; right:-120px; background:#e0568f; animation:drift2 32s ease-in-out infinite; }
+  .blob.b3{ width:460px; height:460px; bottom:-160px; left:10%; background:#2a8fd6; animation:drift3 30s ease-in-out infinite; }
+  .blob.b4{ width:420px; height:420px; bottom:-140px; right:8%; background:#7a4fe0; animation:drift1 22s ease-in-out infinite reverse; }
+  @keyframes drift1{ 0%,100%{transform:translate(0,0);} 50%{transform:translate(40px,30px);} }
+  @keyframes drift2{ 0%,100%{transform:translate(0,0);} 50%{transform:translate(-30px,40px);} }
+  @keyframes drift3{ 0%,100%{transform:translate(0,0);} 50%{transform:translate(30px,-30px);} }
+
+  .app{
+    position:relative;
+    z-index:1;
+    width:min(1280px, 100%);
+    height:min(800px, 100%);
+    display:flex;
+    gap:16px;
+    opacity:0;
+  }
+  .app.app-entering,
+  .app.app-ready{ opacity:1; }
+
+  .glass{
+    background:var(--glass-fill);
+    backdrop-filter:blur(22px) saturate(150%);
+    -webkit-backdrop-filter:blur(22px) saturate(150%);
+    border:1px solid var(--glass-border);
+    border-radius:22px;
+    overflow: hidden;
+  }
+
+  /* ---- splash screen ---- */
+  #splash{
+    position:fixed; inset:0; z-index:99999;
+    background:#0b1020;
+    display:flex; align-items:center; justify-content:center;
+    transition:opacity .6s ease;
+  }
+  #splash.hidden{ opacity:0; pointer-events:none; }
+  #splashCanvas{ position:absolute; inset:0; width:100%; height:100%; }
+  #splashContent{
+    position:relative; z-index:1;
+    display:flex; flex-direction:column; align-items:center; gap:24px;
+    text-align:center;
+  }
+  #splashLogo{ position:relative; width:260px; height:260px; }
+  #splashTitle{
+    font-size:36px; font-weight:700; color:#f3f5f9;
+    letter-spacing:2px; margin:0;
+    text-shadow:0 0 60px rgba(139,124,246,0.8), 0 0 20px rgba(139,124,246,0.4);
+    animation:titleGlow 2.4s ease-in-out infinite;
+  }
+  #splashSub{
+    font-size:11px; color:rgba(255,255,255,0.3); margin:-16px 0 0;
+    letter-spacing:5px; text-transform:uppercase;
+  }
+  /* SVG animation helpers */
+  .sl-ring{ transform-box:fill-box; transform-origin:center; }
+  .sl-r1{ animation:slSpin  14s linear infinite; }
+  .sl-r2{ animation:slSpin2  8s linear infinite; }
+  .sl-r3{ animation:slSpin   5s linear infinite; }
+  .sl-orb{ transform-origin:80px 80px; animation:slSpin 5s linear infinite; }
+  .sl-halo{ transform-box:fill-box; transform-origin:center; animation:slHalo 2.4s ease-in-out infinite; }
+  .sl-core{ transform-box:fill-box; transform-origin:center; animation:slCore 2.4s ease-in-out infinite; }
+  .sl-pip { transform-box:fill-box; transform-origin:center; animation:slCore 2.4s ease-in-out infinite; }
+  .sl-rays{ transform-origin:80px 80px; animation:slRays 2.4s ease-in-out infinite; }
+
+  @keyframes slSpin  { to{ transform:rotate( 360deg); } }
+  @keyframes slSpin2 { to{ transform:rotate(-360deg); } }
+  @keyframes slHalo{
+    0%,100%{ opacity:.5; transform:scale(1);    }
+    50%{     opacity:1;  transform:scale(1.08); }
+  }
+  @keyframes slCore{
+    0%,100%{ opacity:.85; transform:scale(1);    filter:drop-shadow(0 0 8px rgba(139,124,246,.7)); }
+    50%{     opacity:1;   transform:scale(1.14); filter:drop-shadow(0 0 22px rgba(167,139,250,1)); }
+  }
+  @keyframes slRays{
+    0%,100%{ opacity:.55; transform:scale(1);    }
+    50%{     opacity:1;   transform:scale(1.12); }
+  }
+  @keyframes titleGlow{
+    0%,100%{ text-shadow:0 0 40px rgba(139,124,246,.5), 0 0 12px rgba(139,124,246,.3); }
+    50%{     text-shadow:0 0 80px rgba(167,139,250,.9), 0 0 30px rgba(139,124,246,.6); }
+  }
+
+  /* ---- brand selector ---- */
+  #brandSelect{
+    position:fixed; inset:0; z-index:9998;
+    background:#0b1020;
+    backdrop-filter:blur(28px) saturate(1.4);
+    -webkit-backdrop-filter:blur(28px) saturate(1.4);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none;
+    transition:opacity .5s ease;
+  }
+  #brandSelect.visible{ opacity:1; pointer-events:auto; }
+  #brandSelect.hiding { opacity:0; pointer-events:none; }
+  #brandSelectInner{ display:flex; flex-direction:column; align-items:center; }
+  #brandCards{ display:flex; gap:24px; }
+  .brand-card{
+    width:240px; padding:36px 28px 30px;
+    border-radius:24px;
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.14);
+    cursor:pointer; text-align:center;
+    position:relative; overflow:hidden;
+    transition:transform .15s ease, border-color .2s ease,
+               background .2s ease, box-shadow .2s ease;
+  }
+  .brand-card:hover{
+    transform:translateY(-5px);
+    border-color:var(--purple);
+    background:rgba(139,124,246,0.10);
+    box-shadow:0 12px 40px rgba(139,124,246,0.22);
+  }
+  .brand-card-locked{ opacity:0.38; cursor:not-allowed; pointer-events:none; }
+  .brand-card-icon-wrap{
+    width:72px; height:72px; border-radius:50%;
+    background:rgba(139,124,246,0.14);
+    border:1px solid rgba(139,124,246,0.28);
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 22px;
+    box-shadow:0 0 28px rgba(139,124,246,0.18);
+  }
+  .brand-card-name{ font-size:20px; font-weight:700; margin-bottom:8px; }
+  .brand-card-tagline{ font-size:12px; color:var(--text-muted); line-height:1.6; }
+  .brand-card-note{
+    font-size:11px; color:var(--text-muted); font-style:italic;
+    margin-top:14px; padding-top:14px;
+    border-top:1px solid rgba(255,255,255,0.07);
+  }
+  .brand-coming-soon{
+    position:absolute; top:14px; right:14px;
+    font-size:10px; font-weight:600; letter-spacing:.4px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.18);
+    border-radius:99px; padding:3px 10px;
+    color:var(--text-muted);
+  }
+  /* spotlight on brand cards */
+  .brand-card::before{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at var(--sx,50%) var(--sy,50%), rgba(255,255,255,0.10) 0%, transparent 65%);
+    opacity:0; transition:opacity .25s ease; pointer-events:none; border-radius:inherit;
+  }
+  .brand-card:hover::before{ opacity:1; }
+  .brand-card > *{ position:relative; z-index:1; }
+
+  /* ---- tutorial ---- */
+  #tutorial{ position:fixed; inset:0; z-index:9400; pointer-events:none; display:none; }
+  #tutorial.active{ display:block; }
+  #tutBlocker{ position:fixed; inset:0; z-index:9401; pointer-events:auto; cursor:default; }
+  #tutSpotlight{
+    position:fixed; pointer-events:none; z-index:9402;
+    border-radius:14px;
+    transition: left .38s cubic-bezier(.4,0,.2,1),
+                top  .38s cubic-bezier(.4,0,.2,1),
+                width  .38s cubic-bezier(.4,0,.2,1),
+                height .38s cubic-bezier(.4,0,.2,1);
+  }
+  #tutSpotlight.shown{ animation: tutGlow 2s ease-in-out infinite; }
+  @keyframes tutGlow{
+    0%,100%{ box-shadow:0 0 0 9999px rgba(11,16,32,.82), 0 0 0 2px rgba(139,124,246,.45); }
+    50%    { box-shadow:0 0 0 9999px rgba(11,16,32,.82), 0 0 0 5px rgba(167,139,250,.75), 0 0 22px rgba(139,124,246,.25); }
+  }
+  #tutPointer{
+    position:fixed; z-index:9403; pointer-events:none;
+    width:28px; height:28px;
+    display:flex; align-items:center; justify-content:center;
+    transform:translate(-50%,-50%);
+  }
+  #tutPointer.dir-up    { animation:tutBounceUp    1.1s ease-in-out infinite; }
+  #tutPointer.dir-down  { animation:tutBounceDown  1.1s ease-in-out infinite; }
+  #tutPointer.dir-left  { animation:tutBounceLeft  1.1s ease-in-out infinite; }
+  #tutPointer.dir-right { animation:tutBounceRight 1.1s ease-in-out infinite; }
+  @keyframes tutBounceUp    { 0%,100%{transform:translate(-50%,-50%) translateY(5px);}  50%{transform:translate(-50%,-50%) translateY(-5px);} }
+  @keyframes tutBounceDown  { 0%,100%{transform:translate(-50%,-50%) translateY(-5px);} 50%{transform:translate(-50%,-50%) translateY(5px);} }
+  @keyframes tutBounceLeft  { 0%,100%{transform:translate(-50%,-50%) translateX(5px);}  50%{transform:translate(-50%,-50%) translateX(-5px);} }
+  @keyframes tutBounceRight { 0%,100%{transform:translate(-50%,-50%) translateX(-5px);} 50%{transform:translate(-50%,-50%) translateX(5px);} }
+  #tutCard{
+    position:fixed; z-index:9404; pointer-events:auto;
+    width:min(340px,86vw);
+    background:#131829; border:1px solid rgba(255,255,255,.13);
+    border-radius:20px; padding:22px 24px 18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.65);
+    transition: left .38s cubic-bezier(.4,0,.2,1), top .38s cubic-bezier(.4,0,.2,1), opacity .2s ease;
+  }
+  #tutPointer{ transition: opacity .2s ease; }
+  #tutStepLabel{ font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--purple); font-weight:600; margin-bottom:10px; }
+  #tutProgress{ display:flex; gap:4px; margin-bottom:14px; }
+  .tut-pip{ height:2px; border-radius:99px; flex:1; background:rgba(255,255,255,.10); transition:background .3s ease; }
+  .tut-pip.past{ background:var(--purple); }
+  .tut-pip.current{ background:rgba(139,124,246,.5); }
+  #tutTitle{ font-size:17px; font-weight:700; margin:0 0 8px; color:var(--text-main); }
+  #tutBody{ font-size:13px; color:var(--text-muted); line-height:1.72; margin:0 0 20px; }
+  #tutActions{ display:flex; gap:8px; align-items:center; justify-content:space-between; }
+
+  /* ---- setup: discover page ---- */
+  #setupDiscover{
+    position:fixed; inset:0; z-index:9997;
+    background:#0b1020;
+    backdrop-filter:blur(28px) saturate(1.4);
+    -webkit-backdrop-filter:blur(28px) saturate(1.4);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none;
+    transition:opacity .5s ease;
+  }
+  #setupDiscover.visible{ opacity:1; pointer-events:auto; }
+  #setupDiscover.hiding { opacity:0; pointer-events:none; }
+  #setupDiscoverInner{
+    display:flex; flex-direction:column; align-items:center;
+    width:min(560px,90vw);
+  }
+  #setupDiscoverList{
+    width:100%; max-height:280px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:8px;
+    margin:0 0 24px;
+  }
+  .setup-light-item{
+    display:flex; align-items:center; gap:12px;
+    padding:12px 16px; border-radius:14px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.12);
+    cursor:pointer; transition:background .12s; user-select:none;
+  }
+  .setup-light-item:hover{ background:rgba(255,255,255,0.09); }
+  .setup-light-item input[type=checkbox]{ width:16px;height:16px;accent-color:var(--purple);cursor:pointer;flex-shrink:0; }
+  #setupDiscoverScanRow{
+    display:flex; align-items:center; gap:14px;
+    margin-bottom:24px; justify-content:center;
+  }
+
+  /* ---- setup: group page ---- */
+  #setupGroup{
+    position:fixed; inset:0; z-index:9996;
+    background:#0b1020;
+    backdrop-filter:blur(28px) saturate(1.4);
+    -webkit-backdrop-filter:blur(28px) saturate(1.4);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none;
+    transition:opacity .5s ease;
+  }
+  #setupGroup.visible{ opacity:1; pointer-events:auto; }
+  #setupGroup.hiding { opacity:0; pointer-events:none; }
+  #setupGroupInner{
+    display:flex; flex-direction:column; align-items:center;
+    width:min(520px,90vw);
+  }
+  #setupGroupLightChips{
+    display:flex; flex-wrap:wrap; gap:8px;
+    justify-content:center; margin-bottom:28px;
+  }
+  .setup-group-chip{
+    font-size:12px; font-weight:500;
+    background:rgba(139,124,246,0.12);
+    border:1px solid rgba(139,124,246,0.28);
+    color:#c4b5fd; border-radius:99px;
+    padding:5px 14px;
+  }
+  #setupGroupNameInput{
+    width:100%; max-width:320px;
+    background:rgba(255,255,255,0.07);
+    border:1.5px solid rgba(255,255,255,0.16);
+    border-radius:14px; color:var(--text-main);
+    font-family:inherit; font-size:18px; font-weight:600;
+    padding:14px 20px; outline:none; text-align:center;
+    transition:border-color .2s ease;
+    margin-bottom:12px;
+  }
+  #setupGroupNameInput:focus{ border-color:var(--purple); }
+  #setupGroupNameInput::placeholder{ color:rgba(255,255,255,0.22); font-weight:400; }
+
+  /* ---- walkthrough prompt ---- */
+  #walkthroughPrompt{
+    position:fixed; inset:0; z-index:9000;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+    opacity:0; transition:opacity .4s ease;
+  }
+  #walkthroughPrompt.visible{ opacity:1; pointer-events:auto; }
+  #walkthroughCard{
+    background:#131829;
+    border:1px solid rgba(255,255,255,0.14);
+    border-radius:24px; padding:36px 40px 32px;
+    width:min(420px,90vw);
+    text-align:center;
+    box-shadow:0 24px 80px rgba(0,0,0,0.7);
+    transform:translateY(12px) scale(0.97);
+    transition:transform .4s cubic-bezier(.22,.8,.36,1), opacity .4s ease;
+    opacity:0;
+  }
+  #walkthroughPrompt.visible #walkthroughCard{
+    transform:translateY(0) scale(1); opacity:1;
+  }
+  #walkthroughCard .wt-icon{
+    width:56px; height:56px; border-radius:50%;
+    background:rgba(139,124,246,0.14);
+    border:1px solid rgba(139,124,246,0.28);
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 20px;
+  }
+  #walkthroughCard h3{ margin:0 0 10px; font-size:22px; font-weight:700; }
+  #walkthroughCard p{ margin:0 0 28px; font-size:14px; color:var(--text-muted); line-height:1.7; }
+  .wt-actions{ display:flex; flex-direction:column; gap:10px; }
+
+  /* ---- custom color picker ---- */
+  #colorPickerTrigger{
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.07); border:1px solid var(--glass-border);
+    border-radius:10px; padding:6px 12px 6px 8px;
+    cursor:pointer; color:var(--text-main); font-size:13px; font-family:inherit;
+    transition:border-color .15s, background .15s;
+  }
+  #colorPickerTrigger:hover{ background:rgba(255,255,255,0.11); border-color:rgba(255,255,255,0.28); }
+  #colorPickerSwatch{
+    width:20px; height:20px; border-radius:6px;
+    border:1px solid rgba(255,255,255,0.2); flex-shrink:0;
+    background:#ffd9a0;
+  }
+  #colorPickerPanel{
+    position:absolute; right:0; top:calc(100% + 8px); z-index:200;
+    width:244px; padding:14px; display:flex; flex-direction:column; gap:10px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.5);
+  }
+  #cpCanvas{
+    width:220px; height:140px; border-radius:8px; cursor:crosshair; display:block;
+  }
+  #cpHuebar{
+    position:relative; height:12px; border-radius:6px; cursor:pointer;
+    background:linear-gradient(to right,
+      #f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);
+  }
+  #cpHueCursor{
+    position:absolute; top:50%; width:14px; height:14px;
+    border-radius:50%; border:2px solid #fff;
+    transform:translate(-50%,-50%);
+    box-shadow:0 0 4px rgba(0,0,0,0.6);
+    pointer-events:none;
+  }
+  #cpFooter{
+    display:flex; align-items:center; gap:10px;
+  }
+  #cpPreview{
+    width:28px; height:28px; border-radius:8px; flex-shrink:0;
+    border:1px solid rgba(255,255,255,0.2);
+    background:#ffd9a0;
+  }
+  #cpHexLabel{
+    font-size:13px; color:var(--text-muted); font-family:monospace; letter-spacing:1px;
+  }
+
+  /* ---- custom scrollbar ---- */
+  ::-webkit-scrollbar{ width:6px; height:6px; }
+  ::-webkit-scrollbar-track{ background:rgba(255,255,255,0.04); border-radius:99px; margin:22px 0; }
+  ::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,0.18);
+    border-radius:99px;
+    transition:background .2s;
+  }
+  ::-webkit-scrollbar-thumb:hover{ background:rgba(139,124,246,0.7); }
+  ::-webkit-scrollbar-corner{ background:transparent; }
+
+  /* ---- sidebar ---- */
+  .sidebar{
+    width:72px;
+    flex-shrink:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:18px 0;
+    gap:14px;
+  }
+  .nav-btn{
+    width:44px; height:44px;
+    border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted);
+    cursor:pointer;
+    transition: background .15s, color .15s;
+    position:relative; overflow:hidden;
+  }
+  .nav-btn.active{ background:var(--purple); color:white; }
+  .nav-btn:hover:not(.active){ background:rgba(255,255,255,0.08); }
+  .sidebar .spacer{ flex:1; }
+  .toggle-pill{
+    width:36px; height:64px;
+    border-radius:18px;
+    background:var(--glass-fill-strong);
+    border:1px solid var(--glass-border);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px;
+  }
+  .status-dot{ width:9px; height:9px; border-radius:50%; background:var(--gray-dot); transition:background .2s, box-shadow .2s; }
+  .status-dot.running{ background:var(--green); box-shadow:0 0 6px var(--green); }
+  .toggle-pill span{ font-size:11px; font-weight:600; color:var(--text-muted); letter-spacing:0.5px; }
+
+  /* ---- main area ---- */
+  .main{ flex:1; display:flex; flex-direction:column; gap:16px; min-width:0; }
+
+  .topbar{ padding:20px 28px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .topbar h1{ margin:0; font-size:26px; font-weight:600; }
+  .topbar .status-row{ display:flex; align-items:center; gap:8px; margin-top:4px; }
+  .topbar .status{ font-size:13px; color:var(--text-muted); margin:0; }
+  .topbar-actions{ display:flex; gap:10px; }
+
+  .spinner{
+    width:13px; height:13px; flex-shrink:0;
+    border:2px solid rgba(255,255,255,0.15);
+    border-top-color:var(--purple);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    display:none;
+  }
+  .spinner.active{ display:block; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  button{ font-family:inherit; cursor:pointer; }
+  .btn{ border:none; border-radius:999px; padding:11px 22px; font-size:14px; font-weight:600; color:white; }
+  .btn-primary{ background:linear-gradient(135deg,#9d8cf8,#6f5be0); }
+  .btn-ghost{ background:var(--glass-fill-strong); border:1px solid var(--glass-border); color:var(--text-main); }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn-sm{ padding:8px 16px; font-size:13px; }
+
+  /* ---- page switching ---- */
+  .page{ display:none; flex:1; flex-direction:column; gap:16px; min-height:0; }
+  .page.active{ display:flex; }
+  /* Incoming page rises up from a hair below — no opacity change so
+     backdrop-filter on glass panels never grays out. */
+  .page.entering{
+    animation: pageRiseIn .22s cubic-bezier(.22,.8,.36,1) both;
+  }
+  @keyframes pageRiseIn{
+    from{ transform: translateY(10px) scale(0.993); }
+    to{   transform: translateY(0)     scale(1);     }
+  }
+
+  /* ---- panel entrance animation (triggered after splash dismisses) ---- */
+  @keyframes panelRise{
+    from{ opacity:0; transform:translateY(18px) scale(0.985); }
+    to{   opacity:1; transform:translateY(0)     scale(1);     }
+  }
+  .app-entering .sidebar,
+  .app-entering .topbar,
+  .app-entering .stats-row > *,
+  .app-entering .glass:not(.topbar){
+    animation: panelRise .52s cubic-bezier(.22,.8,.36,1) both;
+  }
+  .app-entering .sidebar          { animation-delay: .05s; }
+  .app-entering .topbar           { animation-delay: .10s; }
+  .app-entering .stats-row > *:nth-child(1){ animation-delay: .16s; }
+  .app-entering .stats-row > *:nth-child(2){ animation-delay: .22s; }
+  .app-entering .stats-row > *:nth-child(3){ animation-delay: .28s; }
+  .app-entering .stats-row > *:nth-child(4){ animation-delay: .34s; }
+  .app-entering .glass:not(.topbar):not(.stat-card){ animation-delay: .22s; }
+
+  /* ---- dashboard ---- */
+  .stats-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; flex-shrink:0; }
+  .stat-card{ padding:18px 20px; }
+  .stat-card .label{ font-size:13px; color:var(--text-muted); margin:0 0 10px; }
+  .stat-card .value{ font-size:26px; font-weight:600; margin:0; }
+
+  .lower-row{ flex:1; display:grid; grid-template-columns:1.7fr 1fr; gap:16px; min-height:0; }
+
+  .race-control{ padding:24px 28px; display:flex; flex-direction:column; min-height:0; }
+  .race-control h2{ margin:0; font-size:22px; font-weight:600; }
+  .race-control .sub{ margin:6px 0 18px; font-size:13px; color:var(--text-muted); }
+  .race-control .waiting{ font-size:16px; font-weight:600; margin:0 0 16px; }
+  .rc-actions{ display:flex; gap:10px; margin-bottom:18px; }
+  .log-box{
+    flex:1; border-radius:16px; background:rgba(0,0,0,0.18);
+    border:1px solid var(--glass-border); padding:16px 18px; overflow-y:auto;
+    font-family:"SF Mono",Consolas,monospace; font-size:13px; color:#cfd6e6; line-height:1.7;
+  }
+  .log-box p{ margin:0 0 4px; white-space:pre-wrap; word-break:break-word; }
+  .log-box p.muted{ color:var(--text-muted); }
+
+  .quick-effects{ padding:24px 24px; display:flex; flex-direction:column; gap:12px; }
+  .quick-effects h2{ margin:0 0 6px; font-size:22px; font-weight:600; }
+  .effect-btn{ border:none; border-radius:999px; padding:14px; font-size:14px; font-weight:600; width:100%; cursor:pointer; }
+  .effect-btn.coral{ background:linear-gradient(135deg,#ff9d8a,#ff6f6f); color:#3a0d0d;}
+  .effect-btn.green{ background:linear-gradient(135deg,#7be8a8,#3ddc84); color:#0c321b;}
+  .effect-btn.amber{ background:linear-gradient(135deg,#ffd76b,#f3b73f); color:#3a2700;}
+  .effect-btn.blue{ background:linear-gradient(135deg,#7bb0f5,#4f8cf0); color:#0d2548;}
+  .effect-btn.red{ background:linear-gradient(135deg,#ff7b87,#f0455a); color:#3a0c12;}
+  .effect-btn.purple{ background:linear-gradient(135deg,#b3a4ff,#8b7cf6); color:#241a52;}
+  .effect-btn.white{ background:linear-gradient(135deg,#e8eaf6,#c5cae9); color:#1a1a2e;}
+  .effect-btn.dark{ background:linear-gradient(135deg,#37474f,#263238); color:#cfd8dc;}
+
+  /* ---- lights page ---- */
+  .page-content{ flex:1; padding:28px; display:flex; flex-direction:column; gap:20px; min-height:0; overflow-y:auto; }
+  .section-title{ font-size:18px; font-weight:600; margin:0 0 14px; }
+  .lights-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .lights-header h2{ margin:0; font-size:18px; font-weight:600; }
+  .lights-sub{ font-size:13px; color:var(--text-muted); margin:0 0 18px; }
+  .light-list{ display:flex; flex-direction:column; gap:8px; }
+  .light-item{
+    display:flex; align-items:center; gap:12px;
+    padding:12px 16px; border-radius:14px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid var(--glass-border);
+    cursor:pointer; transition:background .12s;
+  }
+  .light-item:hover{ background:rgba(255,255,255,0.09); }
+  .light-item input[type=checkbox]{ width:16px; height:16px; accent-color:var(--purple); cursor:pointer; flex-shrink:0; }
+  .light-index{ font-size:12px; color:var(--text-muted); width:22px; flex-shrink:0; }
+  .light-name{ font-weight:600; flex:1; }
+  .light-ip{ font-size:12px; color:var(--text-muted); }
+  .light-status{ font-size:12px; color:var(--green); }
+  .empty-state{ color:var(--text-muted); font-size:14px; padding:20px 0; }
+  .checkbox-row{ display:flex; align-items:center; gap:10px; padding:10px 0; font-size:14px; }
+  .checkbox-row input[type=checkbox]{ width:16px; height:16px; accent-color:var(--purple); cursor:pointer; }
+
+  /* ---- modal ---- */
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; z-index:100;
+    background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center;
+  }
+  .modal-backdrop.open{ display:flex; }
+  .modal{
+    background:#1a1f38; border:1px solid var(--glass-border);
+    border-radius:20px; padding:28px; width:360px; max-width:90vw;
+    display:flex; flex-direction:column; gap:16px;
+  }
+  .modal h3{ margin:0; font-size:18px; font-weight:600; }
+  .modal p{ margin:0; font-size:13px; color:var(--text-muted); }
+  .modal input[type=text]{
+    background:rgba(0,0,0,0.3); border:1px solid var(--glass-border);
+    border-radius:10px; color:var(--text-main); font-family:inherit;
+    font-size:14px; padding:10px 14px; width:100%; outline:none;
+  }
+  .modal input[type=text]:focus{ border-color:var(--purple); }
+  .modal select{
+    background:#0f1428; border:1px solid var(--glass-border);
+    border-radius:10px; color:var(--text-main); font-family:inherit;
+    font-size:14px; padding:10px 14px; width:100%; outline:none; cursor:pointer;
+  }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; }
+  .modal-actions .btn{ min-width:90px; }
+
+  /* ---- effects page ---- */
+  .effects-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .effect-card{
+    border-radius:18px; padding:20px 18px;
+    display:flex; flex-direction:column; gap:8px;
+    background:var(--glass-fill-strong); border:1px solid var(--glass-border);
+    cursor:pointer; transition:transform .12s, border-color .12s;
+    position:relative; overflow:hidden;
+  }
+  .effect-card:hover{ transform:translateY(-2px); border-color:rgba(255,255,255,0.28); }
+  .effect-card .icon{ font-size:24px; }
+  .effect-card .name{ font-size:15px; font-weight:600; }
+  .effect-card .desc{ font-size:12px; color:var(--text-muted); }
+
+  /* ---- cursor spotlight on interactive panels ---- */
+  .effect-card::before,
+  .collapsible-header::before,
+  .nav-btn::before {
+    content:'';
+    position:absolute; inset:0;
+    background: radial-gradient(
+      circle at var(--sx, 50%) var(--sy, 50%),
+      rgba(255,255,255,0.11) 0%,
+      transparent 65%
+    );
+    opacity:0;
+    transition:opacity .25s ease;
+    pointer-events:none;
+    border-radius:inherit;
+    z-index:0;
+  }
+  .effect-card:hover::before,
+  .collapsible-header:hover::before,
+  .nav-btn:hover::before { opacity:1; }
+
+  /* ensure card content sits above the glow layer */
+  .effect-card > *, .collapsible-header > *, .nav-btn > * { position:relative; z-index:1; }
+
+  /* ---- effects page sections ---- */
+  .effects-section{ padding:18px 28px; }
+  .effects-collapse-header{ padding:0; margin-bottom:0; border-radius:0; }
+  .effects-collapse-header:hover{ background:rgba(255,255,255,0.04); border-radius:10px; }
+  .collapsible-body#effectsManualBody > *:first-child,
+  .collapsible-body#effectsAutoBody > *:first-child,
+  .collapsible-body#effectsPreviewBody > *:first-child{ margin-top:14px; }
+  .effects-section-divider{ height:1px; background:rgba(255,255,255,0.07); margin:0 20px; }
+
+  /* ---- light assignment ---- */
+  #laContent{ padding:4px 0 8px; }
+  .la-header-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .la-header-row span{ font-size:11px; color:var(--text-muted); }
+  .la-empty{ font-size:12px; color:var(--text-muted); text-align:center; padding:20px 0; }
+  .la-cards{ display:flex; flex-direction:column; gap:10px; }
+  .la-card{
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09);
+    border-radius:14px; padding:14px 16px;
+  }
+  .la-card-header{ display:flex; align-items:center; gap:8px; margin-bottom:11px; justify-content:space-between; }
+  .la-card-icon{ font-size:15px; line-height:1; }
+  .la-card-name{ font-size:13px; font-weight:600; color:var(--text-main); }
+  .la-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .la-chip{
+    font-size:11px; padding:4px 11px; border-radius:99px; cursor:pointer;
+    user-select:none; transition:background .12s, border-color .12s, color .12s;
+    border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.35);
+    background:rgba(255,255,255,0.04);
+  }
+  .la-chip:hover{ background:rgba(255,255,255,0.09); color:rgba(255,255,255,0.6); }
+  .la-chip.on{
+    background:rgba(139,124,246,0.18); border-color:rgba(139,124,246,0.5);
+    color:#c4b5fd;
+  }
+  .la-chip.on:hover{ background:rgba(139,124,246,0.26); }
+
+  /* ---- profiles page ---- */
+  .profile-active-banner{
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(139,124,246,0.1); border:1px solid rgba(139,124,246,0.3);
+    border-radius:16px; padding:16px 20px; margin-bottom:20px;
+  }
+  .profile-active-left{ display:flex; align-items:center; gap:14px; }
+  .profile-active-dot{
+    width:10px; height:10px; border-radius:50%;
+    background:#a78bfa; box-shadow:0 0 8px rgba(167,139,250,0.8); flex-shrink:0;
+  }
+  .profile-active-label{ font-size:11px; color:var(--text-muted); margin-bottom:2px; }
+  .profile-active-name{ font-size:16px; font-weight:700; color:#e9d5ff; }
+  .profile-list{ display:flex; flex-direction:column; gap:10px; }
+  .profile-card{
+    display:flex; align-items:center; gap:14px;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09);
+    border-radius:14px; padding:14px 16px; cursor:pointer;
+    transition:background .15s, border-color .15s;
+  }
+  .profile-card:hover{ background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.16); }
+  .profile-card.active-profile{
+    background:rgba(139,124,246,0.12); border-color:rgba(139,124,246,0.4);
+  }
+  .profile-card-radio{
+    width:18px; height:18px; border-radius:50%; border:2px solid rgba(255,255,255,0.25);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    transition:border-color .15s;
+  }
+  .profile-card.active-profile .profile-card-radio{ border-color:#a78bfa; }
+  .profile-card-radio-dot{
+    width:8px; height:8px; border-radius:50%; background:#a78bfa;
+    display:none;
+  }
+  .profile-card.active-profile .profile-card-radio-dot{ display:block; }
+  .profile-card-info{ flex:1; min-width:0; }
+  .profile-card-name{ font-size:14px; font-weight:600; color:var(--text-main); }
+  .profile-card-meta{ font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .profile-card-actions{ display:flex; gap:6px; opacity:0; transition:opacity .15s; }
+  .profile-card:hover .profile-card-actions{ opacity:1; }
+  .profile-card.active-profile .profile-card-actions{ opacity:1; }
+  .profile-empty{
+    font-size:13px; color:var(--text-muted); text-align:center; padding:28px 0;
+  }
+  .profile-saves-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px;
+  }
+  .profile-saves-item{
+    display:flex; align-items:center; gap:10px;
+    font-size:13px; color:var(--text-muted);
+    background:rgba(255,255,255,0.03); border-radius:10px; padding:10px 12px;
+  }
+  .profile-saves-icon{ font-size:15px; line-height:1; flex-shrink:0; }
+  /* new profile modal */
+  .profile-modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
+    z-index:900; display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .18s;
+  }
+  .profile-modal-backdrop.shown{ opacity:1; pointer-events:auto; }
+  .profile-modal{
+    background:#1a1f35; border:1px solid rgba(255,255,255,0.12); border-radius:20px;
+    padding:28px 28px 24px; width:360px; max-width:90vw;
+    transform:translateY(12px) scale(0.97); transition:transform .18s;
+  }
+  .profile-modal-backdrop.shown .profile-modal{ transform:none; }
+  .profile-modal h4{ margin:0 0 6px; font-size:17px; font-weight:700; }
+  .profile-modal p{ margin:0 0 18px; font-size:12px; color:var(--text-muted); }
+  .profile-modal input[type=text]{
+    width:100%; box-sizing:border-box;
+    background:rgba(255,255,255,0.07); border:1px solid var(--glass-border);
+    border-radius:10px; padding:10px 14px; color:var(--text-main);
+    font-size:14px; font-family:inherit; margin-bottom:18px; outline:none;
+  }
+  .profile-modal input[type=text]:focus{ border-color:rgba(139,124,246,0.6); }
+  .profile-modal-actions{ display:flex; gap:8px; justify-content:flex-end; }
+
+  /* ---- light preview bulbs ---- */
+  #lpBulbRow{ display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin-bottom:12px; }
+  .lp-bulb-wrap{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .lp-bulb-label{ font-size:10px; color:var(--text-muted); max-width:70px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lp-bulb{
+    width:54px; height:54px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+    position:relative; transition:background .4s ease, box-shadow .4s ease;
+  }
+  .lp-bulb-inner{
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(255,255,255,0.15);
+    transition:background .4s ease;
+  }
+  .lp-bulb.lit{ border-color:transparent; }
+
+  .lp-pill{
+    font-size:11px; padding:5px 12px; border-radius:99px;
+    border:1px solid rgba(255,255,255,0.12); color:var(--text-muted);
+    cursor:pointer; background:rgba(255,255,255,0.05);
+    transition:all .15s; user-select:none;
+  }
+  .lp-pill:hover{ background:rgba(255,255,255,0.1); }
+  .lp-pill.active{ border-color:rgba(139,124,246,0.6); color:#c4b5fd; background:rgba(139,124,246,0.12); }
+  .lp-pill{ position:relative; }
+  .lp-pill.has-curve::after{
+    content:''; position:absolute; top:4px; right:4px;
+    width:5px; height:5px; border-radius:50%;
+    background:var(--purple); opacity:0.85;
+  }
+
+  /* ---- intensity curve editor ---- */
+  #curveEditor{ padding:4px 0 8px; }
+  .curve-top-row{ display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .curve-top-row label{ font-size:11px; color:var(--text-muted); font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+
+  /* custom dropdown */
+  .curve-dropdown{ position:relative; }
+  .curve-dropdown-btn{
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px; padding:6px 12px 6px 14px;
+    color:var(--text-main); font-size:13px; font-family:inherit;
+    cursor:pointer; user-select:none; transition:background .12s, border-color .12s;
+    min-width:140px;
+  }
+  .curve-dropdown-btn:hover{ background:rgba(255,255,255,0.11); }
+  .curve-dropdown-btn.open{ border-color:rgba(139,124,246,0.5); background:rgba(139,124,246,0.08); }
+  .curve-dropdown-btn svg{ margin-left:auto; opacity:0.5; transition:transform .15s; }
+  .curve-dropdown-btn.open svg{ transform:rotate(180deg); opacity:0.8; }
+  .curve-dropdown-menu{
+    position:fixed;
+    background:#131829; border:1px solid rgba(255,255,255,0.12);
+    border-radius:12px; padding:6px; z-index:9000;
+    box-shadow:0 12px 40px rgba(0,0,0,0.5);
+    max-height:220px; overflow-y:auto;
+    display:none; min-width:160px;
+  }
+  .curve-dropdown-menu.open{ display:block; }
+  .curve-dropdown-item{
+    padding:7px 12px; border-radius:7px; font-size:13px;
+    color:var(--text-muted); cursor:pointer; transition:background .1s, color .1s;
+    display:flex; align-items:center; gap:7px;
+  }
+  .curve-dropdown-item:hover{ background:rgba(255,255,255,0.08); color:var(--text-main); }
+  .curve-dropdown-item.selected{ color:#c4b5fd; background:rgba(139,124,246,0.12); }
+  .curve-dd-dot{
+    width:6px; height:6px; border-radius:50%; background:var(--purple);
+    flex-shrink:0; margin-left:auto; opacity:0.85;
+  }
+  #curveHasBadge{
+    font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+    background:rgba(139,124,246,0.2); color:#c4b5fd;
+    border:1px solid rgba(139,124,246,0.35); border-radius:99px;
+    padding:2px 8px; font-weight:600;
+  }
+  #curveCanvas{
+    display:block; width:100%; border-radius:10px;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+    cursor:crosshair;
+  }
+  .curve-bottom-row{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; flex-wrap:wrap; gap:8px; }
+  .curve-duration-wrap{ display:flex; align-items:center; gap:6px; }
+  .curve-duration-wrap label{ font-size:11px; color:var(--text-muted); }
+  .curve-duration-wrap input{
+    width:72px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+    border-radius:8px; padding:5px 8px; color:var(--text-main);
+    font-size:12px; font-family:inherit; text-align:right; outline:none;
+  }
+  .curve-duration-wrap span{ font-size:11px; color:var(--text-muted); }
+  .curve-hint{ font-size:10px; color:var(--text-muted); margin-top:8px; opacity:0.6; }
+
+  /* ---- logs page ---- */
+  .logs-toolbar{ display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .logs-toolbar h2{ margin:0; font-size:18px; font-weight:600; }
+  .log-box-full{
+    flex:1; border-radius:16px; background:rgba(0,0,0,0.22);
+    border:1px solid var(--glass-border); padding:16px 18px; overflow-y:auto;
+    font-family:"SF Mono",Consolas,monospace; font-size:13px; color:#cfd6e6; line-height:1.7;
+  }
+  .log-box-full p{ margin:0 0 4px; white-space:pre-wrap; word-break:break-word; }
+  .log-box-full p.muted{ color:var(--text-muted); }
+
+  /* ---- collapsible section ---- */
+  .collapsible-header{
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; padding:4px 0; user-select:none;
+    margin-bottom:10px;
+    position:relative; overflow:hidden; border-radius:8px;
+  }
+  .collapsible-header:hover .collapse-chevron{ color:var(--text-main); }
+  .collapse-chevron{ color:var(--text-muted); transition:transform .2s ease, color .15s; flex-shrink:0; }
+  .collapse-chevron.collapsed{ transform:rotate(-90deg); }
+  .collapsible-body{
+    overflow-y:auto;
+    max-height:900px;
+    transition:max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s ease;
+    opacity:1;
+  }
+  .collapsible-body.collapsed{ max-height:0; overflow:hidden; opacity:0; }
+
+  /* ---- brightness sliders ---- */
+  .brightness-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brightness-label{ font-size:13px; font-weight:600; color:var(--text-muted); flex-shrink:0; width:28px; }
+  .brightness-track{ flex:1; position:relative; min-width:80px; }
+  .brightness-track input[type=range]{
+    width:100%; appearance:none; -webkit-appearance:none;
+    height:4px; border-radius:2px; outline:none; cursor:pointer;
+    background: linear-gradient(to right, var(--purple) 0%, var(--purple) var(--pct, 50%), rgba(255,255,255,0.12) var(--pct, 50%));
+  }
+  .brightness-track input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:18px; height:18px; border-radius:50%;
+    background:var(--purple); cursor:pointer;
+    box-shadow:0 0 6px rgba(139,124,246,0.6);
+  }
+  .brightness-track input[type=range]::-moz-range-thumb{
+    width:18px; height:18px; border-radius:50%; border:none;
+    background:var(--purple); cursor:pointer;
+  }
+  .brightness-value{ font-size:13px; font-weight:600; color:var(--text-main); flex-shrink:0; min-width:90px; text-align:right; }
+
+  /* ---- auto-response list ---- */
+  .auto-response-list{ display:flex; flex-direction:column; gap:4px; }
+  .ar-row{
+    display:flex; align-items:center; gap:14px;
+    padding:12px 16px; border-radius:14px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--glass-border);
+    transition:background .12s;
+  }
+  .ar-row:hover{ background:rgba(255,255,255,0.07); }
+  .ar-icon{ font-size:18px; width:26px; text-align:center; flex-shrink:0; }
+  .ar-info{ flex:1; }
+  .ar-name{ font-size:14px; font-weight:600; }
+  .ar-desc{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+  /* ---- settings page ---- */
+  .settings-section{ background:var(--glass-fill); border:1px solid var(--glass-border); border-radius:18px; padding:24px 28px; }
+  .settings-section h3{ margin:0 0 18px; font-size:16px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; font-size:12px; }
+  .setting-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .setting-row:last-child{ border-bottom:none; }
+  .setting-label{ font-size:14px; font-weight:500; }
+  .setting-hint{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .setting-control input[type=text],
+  .setting-control input[type=number]{
+    background:rgba(0,0,0,0.25); border:1px solid var(--glass-border);
+    border-radius:8px; color:var(--text-main); font-family:inherit;
+    font-size:14px; padding:8px 12px; width:120px; outline:none;
+  }
+  .setting-control input:focus{ border-color:var(--purple); }
+  .toggle-switch{ position:relative; display:inline-flex; align-items:center; width:44px; height:26px; flex-shrink:0; }
+  .toggle-switch input{ opacity:0; width:0; height:0; position:absolute; }
+  .toggle-track{
+    position:absolute; inset:0; border-radius:13px;
+    background:rgba(255,255,255,0.10);
+    border:1.5px solid rgba(255,255,255,0.18);
+    cursor:pointer;
+    transition:background .22s ease, border-color .22s ease;
+  }
+  /* the dot */
+  .toggle-track::after{
+    content:''; position:absolute;
+    width:16px; height:16px; border-radius:50%;
+    top:3px; left:3px;
+    /* hollow: ring only */
+    background:transparent;
+    border:2px solid rgba(255,255,255,0.45);
+    transition:transform .22s cubic-bezier(.34,1.56,.64,1),
+               background .18s ease,
+               border-color .18s ease,
+               box-shadow .18s ease;
+  }
+  /* checked state — track */
+  .toggle-switch input:checked + .toggle-track{
+    background:var(--purple);
+    border-color:var(--purple);
+  }
+  /* checked state — dot: filled, pops with spring */
+  .toggle-switch input:checked + .toggle-track::after{
+    transform:translateX(18px);
+    background:#fff;
+    border-color:#fff;
+    box-shadow:0 0 6px rgba(139,124,246,0.7);
+  }
+  /* disabled state */
+  .toggle-switch input:disabled + .toggle-track{ opacity:0.35; cursor:not-allowed; }
+  /* ---- bulb error banner ---- */
+  #bulb-error-stack{
+    position:fixed; top:18px; right:24px; z-index:9999;
+    display:flex; flex-direction:column; gap:10px;
+    pointer-events:none;
+  }
+  .bulb-error-banner{
+    display:flex; align-items:flex-start; gap:12px;
+    background:rgba(15,10,30,0.82);
+    backdrop-filter:blur(18px) saturate(1.4);
+    -webkit-backdrop-filter:blur(18px) saturate(1.4);
+    border:1px solid rgba(255,80,80,0.35);
+    border-left:3px solid #ff5050;
+    border-radius:12px;
+    padding:12px 16px;
+    min-width:280px; max-width:360px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);
+    pointer-events:auto;
+    opacity:0; transform:translateX(24px);
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .bulb-error-banner.visible{ opacity:1; transform:translateX(0); }
+  .bulb-error-banner.hiding{ opacity:0; transform:translateX(24px); }
+  .bulb-error-icon{
+    flex-shrink:0; width:18px; height:18px; margin-top:1px;
+    color:#ff5050;
+  }
+  .bulb-error-body{ flex:1; min-width:0; }
+  .bulb-error-title{ font-size:13px; font-weight:600; color:#ff7070; margin:0 0 2px; }
+  .bulb-error-msg{ font-size:12px; color:var(--text-muted); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+</style>
+</head>
+<body>
+<div id="splash">
+  <canvas id="splashCanvas"></canvas>
+  <div id="splashContent">
+    <div id="splashLogo">
+      <svg width="260" height="260" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="slCoreGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stop-color="#ffffff"/>
+            <stop offset="30%"  stop-color="#ddd6fe"/>
+            <stop offset="65%"  stop-color="#7c3aed" stop-opacity="0.6"/>
+            <stop offset="100%" stop-color="#4c1d95" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="slGlow4" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="4" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="slGlow9" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="9" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Ring 1: outermost, slow clockwise, sparse dashes -->
+        <circle class="sl-ring sl-r1" cx="80" cy="80" r="72"
+          stroke="rgba(139,124,246,0.45)" stroke-width="1.5" stroke-dasharray="6 14"/>
+
+        <!-- Ring 2: counter-clockwise, medium dashes -->
+        <circle class="sl-ring sl-r2" cx="80" cy="80" r="60"
+          stroke="rgba(139,124,246,0.7)" stroke-width="2" stroke-dasharray="16 10"/>
+
+        <!-- Ring 3: clockwise, fast, with 4 glowing orbital dots -->
+        <g class="sl-orb">
+          <circle cx="80" cy="80" r="46"
+            stroke="rgba(167,139,250,0.55)" stroke-width="1.5" stroke-dasharray="3 20"/>
+          <circle cx="80" cy="34" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
+          <circle cx="126" cy="80" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
+          <circle cx="80" cy="126" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
+          <circle cx="34" cy="80" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
+        </g>
+
+        <!-- Inner halo ring -->
+        <circle class="sl-halo" cx="80" cy="80" r="32"
+          stroke="rgba(196,181,253,0.8)" stroke-width="2" fill="none"/>
+
+        <!-- Core radial glow -->
+        <circle class="sl-core" cx="80" cy="80" r="26"
+          fill="url(#slCoreGrad)" filter="url(#slGlow9)"/>
+
+        <!-- Core bright disc -->
+        <circle class="sl-pip" cx="80" cy="80" r="14" fill="white" opacity="0.95"/>
+        <circle cx="80" cy="80" r="7" fill="white"/>
+
+        <!-- 8-point light rays -->
+        <g class="sl-rays">
+          <line x1="80" y1="50" x2="80" y2="36"  stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="80" y1="110" x2="80" y2="124" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="50" y1="80" x2="36" y2="80"  stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="110" y1="80" x2="124" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+          <line x1="57" y1="57" x2="48" y2="48"  stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <line x1="103" y1="57" x2="112" y2="48" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <line x1="57" y1="103" x2="48" y2="112" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          <line x1="103" y1="103" x2="112" y2="112" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        </g>
+      </svg>
+    </div>
+    <h1 id="splashTitle">F1 LIFX Bridge</h1>
+    <p id="splashSub">Connecting…</p>
+  </div>
+</div>
+<div id="brandSelect">
+  <div id="brandSelectInner">
+    <div style="text-align:center;margin-bottom:52px;">
+      <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--purple);font-weight:600;margin-bottom:18px;">Setup</div>
+      <h2 style="font-size:30px;font-weight:700;margin:0 0 10px;color:var(--text-main);">Choose Your Lights</h2>
+      <p style="font-size:14px;color:var(--text-muted);margin:0;">Select the smart lighting brand you're using with F1 LIFX Bridge</p>
+    </div>
+    <div id="brandCards">
+
+      <!-- LIFX -->
+      <div class="brand-card" id="brandLifx">
+        <div class="brand-card-icon-wrap">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2a7 7 0 0 0-4.5 12.33V17a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-2.67A7 7 0 0 0 12 2z" fill="rgba(139,124,246,0.7)" stroke="#a78bfa" stroke-width="1"/>
+            <line x1="9.5" y1="19" x2="14.5" y2="19" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="10.5" y1="21" x2="13.5" y2="21" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-card-name">LIFX</div>
+        <div class="brand-card-tagline">Local LAN control<br>No hub required</div>
+      </div>
+
+      <!-- Philips Hue -->
+      <div class="brand-card brand-card-locked">
+        <span class="brand-coming-soon">Coming Soon</span>
+        <div class="brand-card-icon-wrap" style="background:rgba(255,160,50,0.1);border-color:rgba(255,160,50,0.22);box-shadow:0 0 28px rgba(255,160,50,0.1);">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="11" width="18" height="9" rx="2.5" stroke="rgba(255,160,50,0.7)" stroke-width="1.5"/>
+            <circle cx="7.5" cy="15.5" r="1.2" fill="rgba(255,160,50,0.7)"/>
+            <circle cx="12"  cy="15.5" r="1.2" fill="rgba(255,160,50,0.7)"/>
+            <circle cx="16.5" cy="15.5" r="1.2" fill="rgba(255,160,50,0.7)"/>
+            <path d="M12 11V8M9.5 9.5 12 7l2.5 2.5" stroke="rgba(255,160,50,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="brand-card-name">Philips Hue</div>
+        <div class="brand-card-tagline">Requires Hue Bridge<br>on your network</div>
+        <div class="brand-card-note">Support will be added in a future update</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="tutorial">
+  <div id="tutBlocker"></div>
+  <div id="tutSpotlight"></div>
+  <div id="tutPointer">
+    <svg id="tutPointerSvg" width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="13" fill="rgba(139,124,246,0.88)" stroke="rgba(167,139,250,0.35)" stroke-width="1"/>
+      <polyline points="8,11 14,17 20,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+  </div>
+  <div id="tutCard">
+    <div id="tutStepLabel"></div>
+    <div id="tutProgress"></div>
+    <h3 id="tutTitle"></h3>
+    <p id="tutBody"></p>
+    <div id="tutActions">
+      <button class="btn btn-ghost btn-sm" id="tutSkip">Skip tutorial</button>
+      <button class="btn btn-primary btn-sm" id="tutNext">Next →</button>
+    </div>
+  </div>
+</div>
+
+<div id="setupDiscover">
+  <div id="setupDiscoverInner">
+    <div style="text-align:center;margin-bottom:40px;">
+      <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--purple);font-weight:600;margin-bottom:18px;">Setup · Step 2</div>
+      <h2 style="font-size:28px;font-weight:700;margin:0 0 10px;color:var(--text-main);">Discover Your Lights</h2>
+      <p style="font-size:14px;color:var(--text-muted);margin:0;">Make sure your LIFX bulbs are powered on and connected to this network</p>
+    </div>
+    <div id="setupDiscoverScanRow">
+      <div class="spinner active" id="setupDiscoverSpinner"></div>
+      <span id="setupDiscoverStatus" style="font-size:13px;color:var(--text-muted);">Scanning your network…</span>
+    </div>
+    <div id="setupDiscoverList">
+      <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0;" id="setupDiscoverEmpty">Searching for LIFX bulbs…</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;">
+      <button class="btn btn-primary" id="setupDiscoverContinue" style="width:100%;max-width:280px;" disabled>Continue</button>
+      <button class="btn btn-ghost btn-sm" id="setupDiscoverRescan" style="opacity:0.7;">Scan Again</button>
+      <button class="btn btn-ghost btn-sm" id="setupDiscoverSkip" style="opacity:0.4;font-size:12px;">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<div id="setupGroup">
+  <div id="setupGroupInner">
+    <div style="text-align:center;margin-bottom:36px;">
+      <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--purple);font-weight:600;margin-bottom:18px;">Setup · Step 3</div>
+      <h2 style="font-size:28px;font-weight:700;margin:0 0 12px;color:var(--text-main);">Save Your Lights</h2>
+      <p style="font-size:14px;color:var(--text-muted);margin:0;line-height:1.7;">Give your setup a name and we'll remember it for next time.<br>You can always change this later in the Lights page.</p>
+    </div>
+
+    <div id="setupGroupLightChips"></div>
+
+    <input id="setupGroupNameInput" type="text" placeholder="e.g. My Setup, Sim Room…" maxlength="32" autocomplete="off" spellcheck="false">
+    <p style="font-size:12px;color:var(--text-muted);margin:0 0 32px;text-align:center;">This group loads automatically every time you open the app.</p>
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;">
+      <button class="btn btn-primary" id="setupGroupSave" style="width:100%;max-width:280px;">Save &amp; Finish</button>
+      <button class="btn btn-ghost btn-sm" id="setupGroupSkip" style="opacity:0.4;font-size:12px;">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<div id="walkthroughPrompt">
+  <div id="walkthroughCard">
+    <div class="wt-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <h3>Want a quick tour?</h3>
+    <p>We can walk you through how everything works — flags, effects, groups, and how to get your lights responding to your races in real time.</p>
+    <div class="wt-actions">
+      <button class="btn btn-primary" id="walkthroughYes">Yes, show me around</button>
+      <button class="btn btn-ghost" id="walkthroughNo" style="opacity:0.6;">I'll explore on my own</button>
+    </div>
+  </div>
+</div>
+
+<div id="bulb-error-stack"></div>
+
+
+<div class="scene">
+  <div class="bg">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="blob b4"></div>
+  </div>
+
+  <div class="app">
+    <!-- Sidebar -->
+    <div class="sidebar glass">
+      <div class="nav-btn active" data-page="dashboard" title="Dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12L12 4l9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+      </div>
+      <div class="nav-btn" data-page="lights" title="Lights">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-btn" data-page="effects" title="Effects">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.8L20 10l-6.2 2.2L12 18l-1.8-5.8L4 10l6.2-2.2z"/></svg>
+      </div>
+      <div class="nav-btn" data-page="logs" title="Logs">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+      </div>
+      <div class="nav-btn" data-page="profiles" title="Profiles">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="2"/><rect x="2" y="10" width="20" height="5" rx="2"/><rect x="2" y="17" width="20" height="5" rx="2"/><circle cx="18" cy="5.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="18" cy="12.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="nav-btn" data-page="settings" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+          <line x1="20" y1="12" x2="22" y2="12"/><line x1="16" y1="18.93" x2="17" y2="20.66"/>
+          <line x1="8" y1="18.93" x2="7" y2="20.66"/><line x1="4" y1="12" x2="2" y2="12"/>
+          <line x1="8" y1="5.07" x2="7" y2="3.34"/><line x1="16" y1="5.07" x2="17" y2="3.34"/>
+        </svg>
+      </div>
+      <div class="spacer"></div>
+      <div class="toggle-pill">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusDotLabel">OFF</span>
+      </div>
+    </div>
+
+    <!-- Main area -->
+    <div class="main">
+      <!-- Top bar (always visible) -->
+      <div class="topbar glass">
+        <div>
+          <h1 id="pageTitle">F1 LIFX Bridge</h1>
+          <div class="status-row">
+            <div class="spinner" id="discoverySpinner"></div>
+            <p class="status" id="statusText">Status: Stopped</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary" id="startBtn">Start Bridge</button>
+          <button class="btn btn-ghost" id="stopBtn">Stop</button>
+        </div>
+      </div>
+
+      <!-- PAGE: Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-row">
+          <div class="stat-card glass">
+            <p class="label">Bridge</p>
+            <p class="value" id="stat-bridge">Stopped</p>
+          </div>
+          <div class="stat-card glass">
+            <p class="label">LIFX Lights</p>
+            <p class="value" id="stat-lifx_lights">-</p>
+          </div>
+          <div class="stat-card glass">
+            <p class="label">Active Group</p>
+            <p class="value" id="stat-active_group">-</p>
+          </div>
+          <div class="stat-card glass">
+            <p class="label">F1 Packets</p>
+            <p class="value" id="stat-f1_packets">0</p>
+          </div>
+        </div>
+
+        <div class="lower-row">
+          <div class="race-control glass">
+            <h2>Race Control</h2>
+            <p class="sub">Live F1 events, flags, and LIFX triggers</p>
+            <p class="waiting">Waiting for F1 25 telemetry...</p>
+            <div class="rc-actions">
+              <button class="btn btn-primary btn-sm" id="discoverBtn">Discover Lights</button>
+              <button class="btn btn-ghost btn-sm" id="testBtn">Test Selected</button>
+            </div>
+            <div class="log-box" id="logBox">
+              <p class="muted">No bridge output yet. Press Start Bridge to launch.</p>
+            </div>
+          </div>
+
+          <div class="quick-effects glass">
+            <h2>Quick Effects</h2>
+            <button class="effect-btn coral" data-effect="Start Lights">Start Lights</button>
+            <button class="effect-btn green" data-effect="Lights Out">Lights Out</button>
+            <button class="effect-btn amber" data-effect="Yellow Flag">Yellow Flag</button>
+            <button class="effect-btn blue" data-effect="Blue Flag">Blue Flag</button>
+            <button class="effect-btn red" data-effect="Red Flag">Red Flag</button>
+            <button class="effect-btn purple" data-effect="Fastest Lap">Fastest Lap</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE: Lights -->
+      <div class="page" id="page-lights">
+        <div class="page-content glass">
+          <div class="lights-header">
+            <h2>LIFX Lights</h2>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-primary btn-sm" id="discoverBtn2">Discover Lights</button>
+              <button class="btn btn-ghost btn-sm" id="testBtn2">Test Selected</button>
+              <button class="btn btn-ghost btn-sm" id="saveGroupBtn">Save Group</button>
+              <button class="btn btn-ghost btn-sm" id="loadGroupBtn">Load Group</button>
+            </div>
+          </div>
+          <p class="lights-sub">Discover LIFX bulbs, select active lights, and manage saved groups.</p>
+
+          <div class="collapsible-header" id="lightsCollapseToggle">
+            <p class="section-title" style="font-size:13px;color:var(--text-muted);margin:0;">Discovered Lights</p>
+            <svg class="collapse-chevron" id="lightsChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+
+          <div class="collapsible-body" id="lightsCollapsible">
+            <div class="light-list" id="lightList">
+              <p class="empty-state">No lights discovered yet. Click Discover Lights to scan your LAN.</p>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--glass-border);padding-top:20px;margin-top:4px;">
+            <p class="section-title" style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">Master Brightness</p>
+            <div class="brightness-row">
+              <span class="brightness-label">Min</span>
+              <div class="brightness-track">
+                <input type="range" id="brightnessMin" min="0" max="100" value="0" step="1">
+                <div class="brightness-fill" id="brightnessFill"></div>
+              </div>
+              <span class="brightness-label">Max</span>
+              <div class="brightness-track">
+                <input type="range" id="brightnessMax" min="0" max="100" value="100" step="1">
+                <div class="brightness-fill" id="brightnessFillMax"></div>
+              </div>
+              <span class="brightness-value" id="brightnessDisplay">0% – 100%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Save Group -->
+      <div class="modal-backdrop" id="saveGroupModal">
+        <div class="modal">
+          <h3>Save Group</h3>
+          <p>Enter a name for the selected lights. This overwrites any existing group with the same name.</p>
+          <input type="text" id="saveGroupName" placeholder="e.g. Main, Living Room…">
+          <div class="modal-actions">
+            <button class="btn btn-ghost btn-sm" id="saveGroupCancel">Cancel</button>
+            <button class="btn btn-primary btn-sm" id="saveGroupConfirm">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Load Group -->
+      <div class="modal-backdrop" id="loadGroupModal">
+        <div class="modal">
+          <h3>Load Saved Group</h3>
+          <p>Select a saved group to apply to the bridge.</p>
+          <select id="loadGroupSelect"></select>
+          <div class="modal-actions">
+            <button class="btn btn-ghost btn-sm" id="loadGroupCancel">Cancel</button>
+            <button class="btn btn-primary btn-sm" id="loadGroupConfirm">Load Group</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE: Effects -->
+      <div class="page" id="page-effects">
+        <div class="page-content glass" style="gap:0;">
+
+          <!-- Manual triggers -->
+          <div class="effects-section">
+            <div class="collapsible-header effects-collapse-header" data-target="effectsManualBody">
+              <div>
+                <div style="font-size:16px;font-weight:600;">Manual Triggers</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Fire any effect immediately</div>
+              </div>
+              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="collapsible-body collapsed" id="effectsManualBody">
+              <div class="effects-grid" style="padding-bottom:4px;">
+              <div class="effect-card" data-effect="Start Lights">
+                <div class="icon">🔴</div>
+                <div class="name">Start Lights</div>
+                <div class="desc">Red formation lights ramp up</div>
+              </div>
+              <div class="effect-card" data-effect="Lights Out">
+                <div class="icon">🟢</div>
+                <div class="name">Lights Out</div>
+                <div class="desc">Green flash — race start</div>
+              </div>
+              <div class="effect-card" data-effect="Yellow Flag">
+                <div class="icon">🟡</div>
+                <div class="name">Yellow Flag</div>
+                <div class="desc">Continuous yellow flashing</div>
+              </div>
+              <div class="effect-card" data-effect="Blue Flag">
+                <div class="icon">🔵</div>
+                <div class="name">Blue Flag</div>
+                <div class="desc">Solid blue — let faster car past</div>
+              </div>
+              <div class="effect-card" data-effect="Red Flag">
+                <div class="icon">🚩</div>
+                <div class="name">Red Flag</div>
+                <div class="desc">Session stopped</div>
+              </div>
+              <div class="effect-card" data-effect="Fastest Lap">
+                <div class="icon">💜</div>
+                <div class="name">Fastest Lap</div>
+                <div class="desc">Purple flash celebration</div>
+              </div>
+              <div class="effect-card" data-effect="Chequered Flag">
+                <div class="icon">🏁</div>
+                <div class="name">Chequered Flag</div>
+                <div class="desc">Race over — white/green flash</div>
+              </div>
+              <div class="effect-card" data-effect="White Warning">
+                <div class="icon">⚪</div>
+                <div class="name">White Warning</div>
+                <div class="desc">Penalty warning flash</div>
+              </div>
+              <div class="effect-card" data-effect="Neutral">
+                <div class="icon">💡</div>
+                <div class="name">Neutral</div>
+                <div class="desc">Warm white — reset to idle</div>
+              </div>
+            </div>
+            </div><!-- /collapsible-body -->
+          </div><!-- /effects-section -->
+
+          <div class="effects-section-divider"></div>
+
+          <!-- Auto-response toggles -->
+          <div class="effects-section">
+            <div class="collapsible-header effects-collapse-header" data-target="effectsAutoBody">
+              <div>
+                <div style="font-size:16px;font-weight:600;">Auto-Response</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Which F1 events trigger your lights</div>
+              </div>
+              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="collapsible-body collapsed" id="effectsAutoBody">
+            <div class="auto-response-list">
+              <div class="ar-row" data-event="start_lights">
+                <div class="ar-icon">🔴</div>
+                <div class="ar-info">
+                  <div class="ar-name">Start Lights</div>
+                  <div class="ar-desc">Lights ramp up as formation lights appear on track</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="start_lights" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="lights_out">
+                <div class="ar-icon">🟢</div>
+                <div class="ar-info">
+                  <div class="ar-name">Lights Out</div>
+                  <div class="ar-desc">Green flash when the race starts</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="lights_out" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="yellow_flag">
+                <div class="ar-icon">🟡</div>
+                <div class="ar-info">
+                  <div class="ar-name">Yellow Flag</div>
+                  <div class="ar-desc">Flashing yellow on caution / marshal zone</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="yellow_flag" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="blue_flag">
+                <div class="ar-icon">🔵</div>
+                <div class="ar-info">
+                  <div class="ar-name">Blue Flag</div>
+                  <div class="ar-desc">Solid blue when a faster car is behind you</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="blue_flag" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="red_flag">
+                <div class="ar-icon">🚩</div>
+                <div class="ar-info">
+                  <div class="ar-name">Red Flag</div>
+                  <div class="ar-desc">Red flash when the session is stopped</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="red_flag" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="fastest_lap">
+                <div class="ar-icon">💜</div>
+                <div class="ar-info">
+                  <div class="ar-name">Fastest Lap</div>
+                  <div class="ar-desc">Purple flash when you set the fastest lap</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="fastest_lap" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="chequered_flag">
+                <div class="ar-icon">🏁</div>
+                <div class="ar-info">
+                  <div class="ar-name">Chequered Flag</div>
+                  <div class="ar-desc">White/green flash at the end of the race</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="chequered_flag" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="white_warning">
+                <div class="ar-icon">⚪</div>
+                <div class="ar-info">
+                  <div class="ar-name">White Warning</div>
+                  <div class="ar-desc">White flash on track limit / penalty warnings</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="white_warning" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="black_flag">
+                <div class="ar-icon">🏴</div>
+                <div class="ar-info">
+                  <div class="ar-name">Black Flag</div>
+                  <div class="ar-desc">Dark pulse on disqualification</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="black_flag" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="neutral">
+                <div class="ar-icon">💡</div>
+                <div class="ar-info">
+                  <div class="ar-name">Track Clear / Neutral</div>
+                  <div class="ar-desc">Warm white when flags clear or session resets</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="neutral" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+            </div><!-- /collapsible-body -->
+          </div><!-- /effects-section -->
+
+          <div class="effects-section-divider"></div>
+
+          <!-- Light Assignment -->
+          <div class="effects-section">
+            <div class="collapsible-header effects-collapse-header" data-target="effectsAssignBody">
+              <div>
+                <div style="font-size:16px;font-weight:600;">Light Assignment</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Choose which lights respond to each effect</div>
+              </div>
+              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="collapsible-body collapsed" id="effectsAssignBody">
+              <div id="laContent">
+                <div class="la-header-row">
+                  <span>Tap an effect to toggle it on or off for that light</span>
+                  <button class="btn btn-ghost btn-sm" id="laAssignAllBtn">Assign All Lights to All Effects</button>
+                </div>
+                <div id="laCards" class="la-cards"></div>
+              </div>
+            </div>
+          </div><!-- /light assignment effects-section -->
+
+          <div class="effects-section-divider"></div>
+
+          <!-- Light Preview -->
+          <div class="effects-section">
+            <div class="collapsible-header effects-collapse-header" data-target="effectsPreviewBody">
+              <div>
+                <div style="font-size:16px;font-weight:600;">Light Preview <span style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);border-radius:99px;padding:2px 8px;vertical-align:middle;margin-left:6px;">Preview</span></div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Simulate effects without sending commands · Full real-world implementation coming soon</div>
+              </div>
+              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="collapsible-body collapsed" id="effectsPreviewBody">
+              <div id="lightPreviewContent">
+                <div id="lpBulbRow"></div>
+                <p style="font-size:11px;color:var(--text-muted);text-align:center;margin:6px 0 14px;">Preview only — no commands sent to bulbs</p>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;letter-spacing:.5px;">QUICK PREVIEW</div>
+                <div id="lpPillRow" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+              </div>
+            </div>
+          </div><!-- /light preview effects-section -->
+
+          <div class="effects-section-divider"></div>
+
+          <!-- Intensity Curves -->
+          <div class="effects-section">
+            <div class="collapsible-header effects-collapse-header" data-target="effectsCurveBody">
+              <div>
+                <div style="font-size:16px;font-weight:600;">Intensity Curves <span style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);border-radius:99px;padding:2px 8px;vertical-align:middle;margin-left:6px;">Preview</span></div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Curves are visual only for now · Real-light integration coming in a future update</div>
+              </div>
+              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="collapsible-body collapsed" id="effectsCurveBody">
+              <div id="curveEditor">
+                <div class="curve-top-row">
+                  <label>EFFECT</label>
+                  <div class="curve-dropdown" id="curveDropdown">
+                    <div class="curve-dropdown-btn" id="curveDropdownBtn">
+                      <span id="curveDropdownLabel">Idle</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="curve-dropdown-menu" id="curveDropdownMenu">
+                      <div class="curve-dropdown-item selected" data-value="Idle">Idle</div>
+                      <div class="curve-dropdown-item" data-value="Start Lights">Start Lights</div>
+                      <div class="curve-dropdown-item" data-value="Lights Out">Lights Out</div>
+                      <div class="curve-dropdown-item" data-value="Yellow Flag">Yellow Flag</div>
+                      <div class="curve-dropdown-item" data-value="Blue Flag">Blue Flag</div>
+                      <div class="curve-dropdown-item" data-value="Red Flag">Red Flag</div>
+                      <div class="curve-dropdown-item" data-value="Fastest Lap">Fastest Lap</div>
+                      <div class="curve-dropdown-item" data-value="Chequered">Chequered</div>
+                      <div class="curve-dropdown-item" data-value="White Warning">White Warning</div>
+                      <div class="curve-dropdown-item" data-value="Neutral">Neutral</div>
+                    </div>
+                  </div>
+                  <span id="curveHasBadge" style="display:none;">Custom</span>
+                </div>
+                <canvas id="curveCanvas" height="130"></canvas>
+                <div class="curve-bottom-row">
+                  <div class="curve-duration-wrap">
+                    <label>Loop</label>
+                    <input type="number" id="curveDurationInput" value="2000" min="200" max="30000" step="100">
+                    <span>ms</span>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn-ghost btn-sm" id="curveClearBtn">Clear</button>
+                    <button class="btn btn-primary btn-sm" id="curveSaveBtn">Save Curve</button>
+                  </div>
+                </div>
+                <p class="curve-hint">Click canvas to add points · Drag to move · Double-click to remove · Endpoints locked to start &amp; end</p>
+              </div>
+            </div>
+          </div><!-- /intensity curves effects-section -->
+
+        </div>
+      </div>
+
+      <!-- PAGE: Logs -->
+      <div class="page" id="page-logs">
+        <div class="glass" style="flex:1;padding:24px 28px;display:flex;flex-direction:column;min-height:0;">
+          <div class="logs-toolbar" style="margin-bottom:16px;">
+            <h2>Bridge Logs</h2>
+            <button class="btn btn-ghost btn-sm" id="clearLogsBtn">Clear</button>
+          </div>
+          <div class="log-box-full" id="logBoxFull">
+            <p class="muted">No logs yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE: Settings -->
+      <div class="page" id="page-settings">
+        <div class="page-content" style="overflow-y:auto;">
+          <div class="settings-section">
+            <h3>UDP Connection</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">UDP Port</div>
+                <div class="setting-hint">Default F1 25 telemetry port</div>
+              </div>
+              <div class="setting-control">
+                <input type="number" id="settingPort" value="20777" min="1024" max="65535">
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">UDP IP</div>
+                <div class="setting-hint">Address to listen on</div>
+              </div>
+              <div class="setting-control">
+                <input type="text" id="settingIp" value="127.0.0.1">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>UDP Forwarding</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Enable Forwarding</div>
+                <div class="setting-hint">Re-send every F1 25 packet to another address (e.g. sim dashboard software)</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="settingFwdEnabled"><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Forward Host</div>
+                <div class="setting-hint">Destination IP address</div>
+              </div>
+              <input type="text" id="settingFwdHost" value="127.0.0.1" placeholder="127.0.0.1"
+                style="width:140px;background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:10px;padding:7px 12px;color:var(--text-main);font-size:13px;font-family:inherit;">
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Forward Port</div>
+                <div class="setting-hint">Destination UDP port</div>
+              </div>
+              <input type="number" id="settingFwdPort" value="20778" min="1024" max="65535"
+                style="width:90px;background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:10px;padding:7px 12px;color:var(--text-main);font-size:13px;font-family:inherit;">
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>LIFX Discovery</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Max Bulb Count</div>
+                <div class="setting-hint">Scan limit — set higher than bulbs you own</div>
+              </div>
+              <div class="setting-control">
+                <input type="number" id="settingBulbCount" value="40" min="1" max="200">
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Dry Run</div>
+                <div class="setting-hint">Log effects without sending commands to bulbs</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingDryRun">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Light Effects</h3>
+            <div id="staggerSection">
+            <div class="setting-row" id="staggerRow">
+              <div>
+                <div class="setting-label" id="staggerLabel">Stagger Lights</div>
+                <div class="setting-hint" id="staggerHint">Cascade flash effects across bulbs instead of firing all at once. Select more than one bulb to enable.</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch" id="staggerToggleWrap">
+                  <input type="checkbox" id="settingStagger" disabled>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-row" id="staggerDelayRow">
+              <div>
+                <div class="setting-label">Stagger Delay</div>
+                <div class="setting-hint">Milliseconds between each bulb</div>
+              </div>
+              <div class="setting-control">
+                <input type="number" id="settingStaggerMs" value="50" min="10" max="300" disabled>
+              </div>
+            </div>
+            </div><!-- /staggerSection -->
+
+            <div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>
+
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Idle Color</div>
+                <div class="setting-hint">Color shown when no F1 event is active</div>
+              </div>
+              <div class="setting-control" style="position:relative;">
+                <!-- hidden native input keeps value; custom picker drives it -->
+                <input type="color" id="settingIdleColor" value="#ffd9a0" style="display:none;">
+                <button id="colorPickerTrigger" type="button" aria-label="Pick idle color">
+                  <span id="colorPickerSwatch"></span>
+                  <span id="colorPickerHex">#ffd9a0</span>
+                </button>
+                <div id="colorPickerPanel" class="glass" style="display:none;">
+                  <canvas id="cpCanvas" width="220" height="140"></canvas>
+                  <div id="cpHuebar"><div id="cpHueCursor"></div></div>
+                  <div id="cpFooter">
+                    <div id="cpPreview"></div>
+                    <span id="cpHexLabel">#ffd9a0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Slow Pulse</div>
+                <div class="setting-hint">Gently breathe the idle color in and out</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingIdlePulse">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Multizone</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Start Lights Effect</div>
+                <div class="setting-hint">Sweep zones left/right on multizone strips instead of solid color</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="settingMzSweep" checked>
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="setting-row" id="mzDirectionRow">
+              <div>
+                <div class="setting-label">Direction</div>
+                <div class="setting-hint">Which end the start lights build from</div>
+              </div>
+              <div class="setting-control">
+                <select id="settingMzDirection" style="background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:8px;color:var(--text-main);font-family:inherit;font-size:14px;padding:8px 12px;outline:none;cursor:pointer;">
+                  <option value="ltr">Left → Right</option>
+                  <option value="rtl">Right → Left</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Test Multizone</div>
+                <div class="setting-hint">Fills zones green → red in the configured direction</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="testMzBtn">Run Test</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>About</h3>
+            <div class="setting-row">
+              <div class="setting-label">F1 LIFX Bridge</div>
+              <div style="font-size:13px;color:var(--text-muted);">v1.0</div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">bridge_core.py</div>
+                <div class="setting-hint">Handles F1 25 UDP telemetry → LIFX LAN commands</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Setup</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Run Setup Again</div>
+                <div class="setting-hint">Re-run the brand selection and light discovery flow</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="runSetupAgainBtn">Run Setup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profiles page -->
+      <div class="page" id="page-profiles">
+        <div class="page-content" style="overflow-y:auto;">
+
+          <!-- Active profile banner -->
+          <div class="profile-active-banner" id="profileActiveBanner">
+            <div class="profile-active-left">
+              <div class="profile-active-dot"></div>
+              <div>
+                <div class="profile-active-label">Active Profile</div>
+                <div class="profile-active-name" id="profileActiveName">Default</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="profileSaveCurrentBtn">Save Current Settings</button>
+          </div>
+
+          <!-- Profile list -->
+          <div class="settings-section" style="margin-top:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <h3 style="margin:0;">Saved Profiles</h3>
+                <div class="setting-hint" style="margin-top:3px;">Switch between full app configurations instantly</div>
+              </div>
+              <button class="btn btn-primary btn-sm" id="profileNewBtn">+ New Profile</button>
+            </div>
+            <div id="profileList" class="profile-list"></div>
+          </div>
+
+          <!-- What's saved info -->
+          <div class="settings-section">
+            <h3>What Each Profile Saves</h3>
+            <div class="profile-saves-grid">
+              <div class="profile-saves-item"><span>Light Selection</span></div>
+              <div class="profile-saves-item"><span>Light Assignment</span></div>
+              <div class="profile-saves-item"><span>Master Brightness</span></div>
+              <div class="profile-saves-item"><span>Auto-Response Triggers</span></div>
+              <div class="profile-saves-item"><span>Manual Effects</span></div>
+              <div class="profile-saves-item"><span>Stagger Lights &amp; Delay</span></div>
+              <div class="profile-saves-item"><span>Idle Color</span></div>
+              <div class="profile-saves-item"><span>Slow Pulse</span></div>
+              <div class="profile-saves-item"><span>UDP Port &amp; IP</span></div>
+              <div class="profile-saves-item"><span>Intensity Curves</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <!-- /profiles page -->
+
+    </div><!-- .main -->
+  </div><!-- .app -->
+</div><!-- .scene -->
+
+<script>
+  // ---- page router ----
+  const pageTitles = {
+    dashboard: 'F1 LIFX Bridge',
+    lights:    'Lights',
+    effects:   'Effects',
+    logs:      'Logs',
+    profiles:  'Profiles',
+    settings:  'Settings',
+  };
+
+  function navigateTo(pageId) {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active', 'entering'));
+    document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
+    const incoming = document.getElementById('page-' + pageId);
+    incoming.classList.add('active');
+    // One frame delay so the browser registers the class before animating
+    requestAnimationFrame(() => incoming.classList.add('entering'));
+    document.getElementById('pageTitle').textContent = pageTitles[pageId] || pageId;
+  }
+
+  document.querySelectorAll('.nav-btn[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => navigateTo(btn.dataset.page));
+  });
+
+  // Initial page visibility is handled inside dismissSplash's transitionend handler.
+
+  // ---- velocity scrolling ----
+  (function () {
+    const FRICTION = 0.88;   // velocity decay per frame (lower = stops faster)
+    const BOOST    = 4.5;    // multiplier on wheel delta
+
+    const state = new WeakMap(); // per-element { velocity, rafId }
+
+    function getState(el) {
+      if (!state.has(el)) state.set(el, { velocity: 0, rafId: null });
+      return state.get(el);
+    }
+
+    function isScrollable(el) {
+      const style = getComputedStyle(el);
+      const overflow = style.overflowY;
+      return (overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight;
+    }
+
+    function findScrollParent(target) {
+      let el = target;
+      while (el && el !== document.body) {
+        if (isScrollable(el)) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+
+    function animate(el) {
+      const s = getState(el);
+      if (Math.abs(s.velocity) < 0.5) {
+        s.velocity = 0;
+        s.rafId = null;
+        return;
+      }
+      el.scrollTop += s.velocity;
+      s.velocity *= FRICTION;
+      s.rafId = requestAnimationFrame(() => animate(el));
+    }
+
+    window.addEventListener('wheel', (e) => {
+      const el = findScrollParent(e.target);
+      if (!el) return;
+
+      // Let the browser do the scroll, then add momentum on top
+      const s = getState(el);
+      s.velocity += e.deltaY * BOOST * 0.01;
+
+      if (s.rafId) cancelAnimationFrame(s.rafId);
+      s.rafId = requestAnimationFrame(() => animate(el));
+    }, { passive: true });
+  })();
+
+  // ---- shared log state ----
+  const logBox     = document.getElementById('logBox');
+  const logBoxFull = document.getElementById('logBoxFull');
+  const logLines   = [];
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderLogs() {
+    const html = logLines.length === 0
+      ? '<p class="muted">No logs yet.</p>'
+      : logLines.map(l => `<p>${escHtml(l)}</p>`).join('');
+    [logBox, logBoxFull].forEach(box => {
+      box.innerHTML = html;
+      box.scrollTop = box.scrollHeight;
+    });
+  }
+
+  // ---- splash screen fluid animation ----
+  (function() {
+    const canvas = document.getElementById('splashCanvas');
+    const ctx    = canvas.getContext('2d');
+    let W, H, blobs, raf;
+
+    const COLORS = [
+      [139, 124, 246],  // purple
+      [99,  102, 241],  // indigo
+      [168, 85,  247],  // violet
+      [59,  130, 246],  // blue
+      [236, 72,  153],  // pink
+    ];
+
+    function resize() {
+      W = canvas.width  = window.innerWidth  || document.documentElement.clientWidth  || screen.width;
+      H = canvas.height = window.innerHeight || document.documentElement.clientHeight || screen.height;
+    }
+
+    function mkBlob(i) {
+      const c = COLORS[i % COLORS.length];
+      return {
+        x:  Math.random() * W,
+        y:  Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: (Math.random() - 0.5) * 0.6,
+        r:  Math.min(W, H) * (0.22 + Math.random() * 0.18),
+        c,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.004 + Math.random() * 0.006,
+      };
+    }
+
+    function init() {
+      resize();
+      blobs = Array.from({length: 7}, (_, i) => mkBlob(i));
+    }
+
+    function draw(t) {
+      // Re-init if dimensions were 0 at script time (happens in Qt WebEngine)
+      if (!W || !H) { init(); }
+      ctx.clearRect(0, 0, W, H);
+
+      for (const b of blobs) {
+        b.phase += b.speed;
+        const pulse = 1 + 0.06 * Math.sin(b.phase);
+        b.x += b.vx; b.y += b.vy;
+        if (b.x < -b.r) b.x = W + b.r;
+        if (b.x > W + b.r) b.x = -b.r;
+        if (b.y < -b.r) b.y = H + b.r;
+        if (b.y > H + b.r) b.y = -b.r;
+
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * pulse);
+        g.addColorStop(0,   `rgba(${b.c[0]},${b.c[1]},${b.c[2]},0.30)`);
+        g.addColorStop(0.5, `rgba(${b.c[0]},${b.c[1]},${b.c[2]},0.10)`);
+        g.addColorStop(1,   `rgba(${b.c[0]},${b.c[1]},${b.c[2]},0)`);
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r * pulse, 0, Math.PI * 2);
+        ctx.fillStyle = g;
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    }
+
+    const SPLASH_START = Date.now();
+    const SPLASH_MIN_MS = 3500;
+    let splashDismissed = false;
+
+    function dismissSplash() {
+      if (splashDismissed) return;
+      const elapsed = Date.now() - SPLASH_START;
+      const remaining = SPLASH_MIN_MS - elapsed;
+      if (remaining > 0) {
+        setTimeout(dismissSplash, remaining);
+        return;
+      }
+      splashDismissed = true;
+      const el = document.getElementById('splash');
+      if (!el) return;
+      cancelAnimationFrame(raf);
+      el.classList.add('hidden');
+      el.addEventListener('transitionend', () => {
+        el.remove();
+        if (window._loadedSettings && window._loadedSettings.brand) {
+          enterApp();
+        } else {
+          showBrandSelector();
+        }
+      }, { once: true });
+    }
+
+    window.dismissSplash = dismissSplash;
+
+    window.addEventListener('resize', () => { resize(); });
+    init();
+    requestAnimationFrame(draw);
+
+    // Safety fallback: dismiss after 10 s even if pywebviewready never fires
+    setTimeout(dismissSplash, 10000);
+  })();
+
+  // JS polls Python every 250 ms instead of Python calling evaluate_js.
+  // This eliminates Qt compositor repaints that caused UI flickering.
+  function dispatchUpdates(batch) {
+    for (const [fn, args] of batch) {
+      if (typeof window[fn] === 'function') window[fn](...args);
+    }
+  }
+
+  function startUpdatePoller() {
+    setInterval(async () => {
+      if (!window.pywebview?.api) return;
+      try {
+        const batch = await pywebview.api.get_pending_updates();
+        if (batch) dispatchUpdates(batch);
+      } catch (_) {}
+    }, 250);
+  }
+
+  // ---- bulb error banners ----
+  const _bulbErrorStack = document.getElementById('bulb-error-stack');
+  const _bulbErrorSeen = new Map(); // label -> timeout id, to debounce repeat errors
+
+  function showBulbErrorBanner(label) {
+    // Debounce: if this bulb already has a visible banner, just reset its timer
+    if (_bulbErrorSeen.has(label)) {
+      clearTimeout(_bulbErrorSeen.get(label));
+    } else {
+      const banner = document.createElement('div');
+      banner.className = 'bulb-error-banner';
+      banner.innerHTML = `
+        <svg class="bulb-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div class="bulb-error-body">
+          <p class="bulb-error-title">Bulb not responding</p>
+          <p class="bulb-error-msg">${escHtml(label)}</p>
+        </div>`;
+      _bulbErrorStack.appendChild(banner);
+      requestAnimationFrame(() => banner.classList.add('visible'));
+      _bulbErrorSeen.set(label, null);
+
+      const dismiss = () => {
+        banner.classList.add('hiding');
+        banner.addEventListener('transitionend', () => banner.remove(), { once: true });
+        _bulbErrorSeen.delete(label);
+      };
+      const tid = setTimeout(dismiss, 5000);
+      _bulbErrorSeen.set(label, tid);
+    }
+  }
+
+  function appendLog(line) {
+    logLines.push(line);
+    if (logLines.length > 2000) logLines.shift();
+    renderLogs();
+    // Detect bulb errors: "[LIFX ERROR] Bulb Name: ..."
+    if (line.startsWith('[LIFX ERROR] ')) {
+      const rest = line.slice(13); // after "[LIFX ERROR] "
+      const colon = rest.indexOf(':');
+      const label = colon !== -1 ? rest.slice(0, colon).trim() : rest.trim();
+      if (label) showBulbErrorBanner(label);
+    }
+  }
+
+  // ---- status callbacks (called by Python via evaluate_js) ----
+  function setStatusText(text) {
+    document.getElementById('statusText').textContent = 'Status: ' + text;
+  }
+
+  function setBridgeRunning(running) {
+    document.getElementById('stat-bridge').textContent = running ? 'Running' : 'Stopped';
+    document.getElementById('statusDot').classList.toggle('running', running);
+    document.getElementById('statusDotLabel').textContent = running ? 'ON' : 'OFF';
+  }
+
+  function setStat(key, value) {
+    const el = document.getElementById('stat-' + key);
+    if (el) el.textContent = value;
+  }
+
+  function setDiscovering(active) {
+    const spinner = document.getElementById('discoverySpinner');
+    spinner.classList.toggle('active', active);
+    if (active) {
+      document.getElementById('statusText').textContent = 'Status: Discovering lights...';
+    }
+  }
+
+  // ---- lights page state ----
+  let _discoveredLights = []; // [{label, ip}, ...]
+
+  function setLights(lights) {
+    _discoveredLights = lights || [];
+    renderLightList();
+    renderSetupDiscoveryList(lights);
+  }
+
+  // Labels that Python says are currently active (updated by setActiveLabels).
+  let _activeLabels = new Set();
+
+  function renderLightList() {
+    const list = document.getElementById('lightList');
+    if (_discoveredLights.length === 0) {
+      list.innerHTML = '<p class="empty-state">No lights found. Make sure bulbs are powered on.</p>';
+      return;
+    }
+    // When no explicit active set has been pushed yet, default all checked.
+    const useActiveSet = _activeLabels.size > 0;
+    list.innerHTML = _discoveredLights.map((l, i) => {
+      const checked = useActiveSet ? _activeLabels.has(l.label) : true;
+      const zoneBadge = l.zones > 0
+        ? `<span style="font-size:11px;background:rgba(139,124,246,0.18);border:1px solid rgba(139,124,246,0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
+        : '';
+      return `
+        <div class="light-item" onclick="toggleLightCheck(event, ${i})">
+          <input type="checkbox" class="light-check" data-index="${i}" ${checked ? 'checked' : ''}>
+          <span class="light-index">[${i+1}]</span>
+          <span class="light-name">${escHtml(l.label)}</span>
+          ${zoneBadge}
+          <span class="light-ip">— ${escHtml(l.ip)}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // Called by Python whenever the active selection changes.
+  function setActiveLabels(labels) {
+    _activeLabels = new Set(labels);
+    // Update checkboxes in-place without rebuilding the whole list.
+    _discoveredLights.forEach((l, i) => {
+      const cb = document.querySelector(`.light-check[data-index="${i}"]`);
+      if (cb) cb.checked = _activeLabels.has(l.label);
+    });
+    updateStaggerAvailability();
+    if (window._lpRefresh) window._lpRefresh(labels);
+    if (window._laRefresh) window._laRefresh(labels);
+  }
+
+  function toggleLightCheck(event, index) {
+    // If the click landed directly on the checkbox, it already toggled itself.
+    // Just sync the selection and return so the div onclick doesn't double-flip it.
+    if (event.target.type === 'checkbox') {
+      pushSelectedLights();
+      return;
+    }
+    const cb = document.querySelector(`.light-check[data-index="${index}"]`);
+    if (cb) cb.checked = !cb.checked;
+    pushSelectedLights();
+  }
+
+  function getCheckedLabels() {
+    return Array.from(document.querySelectorAll('.light-check:checked'))
+      .map(cb => _discoveredLights[parseInt(cb.dataset.index)]?.label)
+      .filter(Boolean);
+  }
+
+  function pushSelectedLights() {
+    callApi('set_selected_lights', getCheckedLabels());
+  }
+
+  // ---- API bridge ----
+  function callApi(fnName, ...args) {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api[fnName]) {
+      return window.pywebview.api[fnName](...args);
+    } else {
+      appendLog('[preview] ' + fnName + '(' + JSON.stringify(args) + ') — open via main.py to make this live.');
+      return Promise.resolve(null);
+    }
+  }
+
+  // ---- save group modal ----
+  function openSaveGroup() {
+    const labels = getCheckedLabels();
+    if (labels.length === 0) {
+      appendLog('[GUI] No lights selected — check at least one light before saving a group.');
+      return;
+    }
+    document.getElementById('saveGroupName').value = '';
+    document.getElementById('saveGroupModal').classList.add('open');
+    setTimeout(() => document.getElementById('saveGroupName').focus(), 50);
+  }
+
+  function closeSaveGroup() {
+    document.getElementById('saveGroupModal').classList.remove('open');
+  }
+
+  document.getElementById('saveGroupBtn').addEventListener('click', openSaveGroup);
+  document.getElementById('saveGroupCancel').addEventListener('click', closeSaveGroup);
+  document.getElementById('saveGroupModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeSaveGroup();
+  });
+  document.getElementById('saveGroupConfirm').addEventListener('click', () => {
+    const name = document.getElementById('saveGroupName').value.trim();
+    if (!name) return;
+    const labels = getCheckedLabels();
+    callApi('save_group', name, labels);
+    closeSaveGroup();
+  });
+  document.getElementById('saveGroupName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('saveGroupConfirm').click();
+    if (e.key === 'Escape') closeSaveGroup();
+  });
+
+  // ---- load group modal ----
+  async function openLoadGroup() {
+    const groups = await callApi('get_groups');
+    const names = groups ? Object.keys(groups) : [];
+    const sel = document.getElementById('loadGroupSelect');
+    if (names.length === 0) {
+      appendLog('[GUI] No saved groups found. Discover lights and use Save Group first.');
+      return;
+    }
+    sel.innerHTML = names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+    document.getElementById('loadGroupModal').classList.add('open');
+  }
+
+  function closeLoadGroup() {
+    document.getElementById('loadGroupModal').classList.remove('open');
+  }
+
+  document.getElementById('loadGroupBtn').addEventListener('click', openLoadGroup);
+  document.getElementById('loadGroupCancel').addEventListener('click', closeLoadGroup);
+  document.getElementById('loadGroupModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeLoadGroup();
+  });
+  document.getElementById('loadGroupConfirm').addEventListener('click', () => {
+    const name = document.getElementById('loadGroupSelect').value;
+    if (!name) return;
+    callApi('load_group', name);
+    closeLoadGroup();
+  });
+
+  // ---- button wiring ----
+  document.getElementById('startBtn').addEventListener('click', () => callApi('start_bridge'));
+  document.getElementById('stopBtn').addEventListener('click', () => callApi('stop_bridge'));
+
+  document.getElementById('discoverBtn').addEventListener('click', () => callApi('discover_lights'));
+  document.getElementById('testBtn').addEventListener('click', () => callApi('test_selected'));
+  document.getElementById('discoverBtn2').addEventListener('click', () => callApi('discover_lights'));
+  document.getElementById('testBtn2').addEventListener('click', () => callApi('test_selected'));
+
+  document.getElementById('clearLogsBtn').addEventListener('click', () => {
+    logLines.length = 0;
+    renderLogs();
+  });
+
+  document.querySelectorAll('.effect-btn[data-effect]').forEach(btn => {
+    btn.addEventListener('click', () => callApi('trigger_effect', btn.dataset.effect));
+  });
+
+  document.querySelectorAll('.effect-card[data-effect]').forEach(card => {
+    card.addEventListener('click', () => callApi('trigger_effect', card.dataset.effect));
+  });
+
+  // ---- collapsible lights list ----
+  (function() {
+    const toggle = document.getElementById('lightsCollapseToggle');
+    const body   = document.getElementById('lightsCollapsible');
+    const chevron = document.getElementById('lightsChevron');
+    let collapsed = false;
+
+    toggle.addEventListener('click', () => {
+      collapsed = !collapsed;
+      body.classList.toggle('collapsed', collapsed);
+      chevron.classList.toggle('collapsed', collapsed);
+    });
+  })();
+
+  // ---- brightness sliders ----
+  const sliderMin = document.getElementById('brightnessMin');
+  const sliderMax = document.getElementById('brightnessMax');
+  const brightnessDisplay = document.getElementById('brightnessDisplay');
+
+  function updateBrightnessUI() {
+    let lo = parseInt(sliderMin.value);
+    let hi = parseInt(sliderMax.value);
+    // Clamp so min never exceeds max
+    if (lo > hi) { lo = hi; sliderMin.value = lo; }
+    if (hi < lo) { hi = lo; sliderMax.value = hi; }
+    sliderMin.style.setProperty('--pct', lo + '%');
+    sliderMax.style.setProperty('--pct', hi + '%');
+    brightnessDisplay.textContent = lo + '% – ' + hi + '%';
+  }
+
+  function saveBrightness() {
+    const lo = parseInt(sliderMin.value);
+    const hi = parseInt(sliderMax.value);
+    callApi('save_gui_settings', { brightness_min: lo, brightness_max: hi });
+    callApi('set_brightness_range', lo, hi);
+  }
+
+  sliderMin.addEventListener('input', () => { updateBrightnessUI(); saveBrightness(); });
+  sliderMax.addEventListener('input', () => { updateBrightnessUI(); saveBrightness(); });
+  updateBrightnessUI();
+
+  // ---- auto-response toggles ----
+  const ALL_EVENTS = [
+    'start_lights','lights_out','yellow_flag','blue_flag','red_flag',
+    'fastest_lap','chequered_flag','white_warning','black_flag','neutral'
+  ];
+
+  function getEnabledEvents() {
+    return ALL_EVENTS.filter(key => {
+      const cb = document.querySelector(`.event-toggle[data-event="${key}"]`);
+      return cb && cb.checked;
+    });
+  }
+
+  function applyEnabledEvents(enabledList) {
+    // null / missing = all on
+    const enabled = enabledList ? new Set(enabledList) : null;
+    ALL_EVENTS.forEach(key => {
+      const cb = document.querySelector(`.event-toggle[data-event="${key}"]`);
+      if (cb) cb.checked = enabled === null ? true : enabled.has(key);
+    });
+  }
+
+  function saveEnabledEvents() {
+    const enabled = getEnabledEvents();
+    // If all are on, store null so future "all events added" are on by default
+    const value = enabled.length === ALL_EVENTS.length ? null : enabled;
+    callApi('save_gui_settings', { enabled_events: value });
+    callApi('set_enabled_events', value);
+  }
+
+  document.querySelectorAll('.event-toggle').forEach(cb => {
+    cb.addEventListener('change', saveEnabledEvents);
+  });
+
+  // Load saved enabled_events when pywebview is ready
+  window.addEventListener('pywebviewready', async () => {
+    startUpdatePoller();
+    const settings = await callApi('get_gui_settings');
+    window._loadedSettings = settings || {};
+    dismissSplash();
+    if (!settings) return;
+
+    if (Object.prototype.hasOwnProperty.call(settings, 'enabled_events')) {
+      applyEnabledEvents(settings.enabled_events);
+      callApi('set_enabled_events', settings.enabled_events);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(settings, 'brightness_min')) {
+      sliderMin.value = settings.brightness_min;
+    }
+    if (Object.prototype.hasOwnProperty.call(settings, 'brightness_max')) {
+      sliderMax.value = settings.brightness_max;
+    }
+    updateBrightnessUI();
+    callApi('set_brightness_range',
+      parseInt(sliderMin.value), parseInt(sliderMax.value));
+
+    if (settings.idle_color) document.getElementById('settingIdleColor').value = settings.idle_color;
+    if (Object.prototype.hasOwnProperty.call(settings, 'idle_pulse')) {
+      document.getElementById('settingIdlePulse').checked = !!settings.idle_pulse;
+    }
+    applyIdleStateToBackend();
+
+    // Load stagger settings
+    if (Object.prototype.hasOwnProperty.call(settings, 'stagger_enabled')) {
+      document.getElementById('settingStagger').checked = !!settings.stagger_enabled;
+    }
+    if (settings.stagger_ms) {
+      document.getElementById('settingStaggerMs').value = settings.stagger_ms;
+    }
+    applyStaggerToBackend();
+
+    // Load multizone start-lights settings
+    if (settings.mz_startlights_mode) {
+      document.getElementById('settingMzSweep').checked = settings.mz_startlights_mode !== 'solid';
+    }
+    if (settings.mz_startlights_direction) {
+      document.getElementById('settingMzDirection').value = settings.mz_startlights_direction;
+    }
+    applyMzStartlightsToBackend();
+    updateMzDirectionRowVisibility();
+
+    // Load forwarding settings
+    if (Object.prototype.hasOwnProperty.call(settings, 'fwd_enabled')) {
+      document.getElementById('settingFwdEnabled').checked = !!settings.fwd_enabled;
+    }
+    if (settings.fwd_host) document.getElementById('settingFwdHost').value = settings.fwd_host;
+    if (settings.fwd_port) document.getElementById('settingFwdPort').value = settings.fwd_port;
+    applyForwardingToBackend();
+  });
+
+  // ---- stagger lights ----
+  function updateStaggerAvailability() {
+    const multipleSelected = _activeLabels.size > 1;
+    const toggleInput = document.getElementById('settingStagger');
+    const delayInput  = document.getElementById('settingStaggerMs');
+    const section     = document.getElementById('staggerSection');
+
+    toggleInput.disabled = !multipleSelected;
+    delayInput.disabled  = !multipleSelected || !toggleInput.checked;
+    section.style.opacity   = multipleSelected ? '1' : '0.45';
+    section.style.transition = 'opacity .2s ease';
+    section.style.pointerEvents = multipleSelected ? '' : 'none';
+  }
+
+  function applyStaggerToBackend() {
+    const enabled = document.getElementById('settingStagger').checked;
+    const ms      = parseInt(document.getElementById('settingStaggerMs').value) || 50;
+    callApi('set_stagger', enabled, ms);
+  }
+
+  function saveStaggerSettings() {
+    const enabled = document.getElementById('settingStagger').checked;
+    const ms      = parseInt(document.getElementById('settingStaggerMs').value) || 50;
+    callApi('save_gui_settings', { stagger_enabled: enabled, stagger_ms: ms });
+    applyStaggerToBackend();
+  }
+
+  document.getElementById('settingStagger').addEventListener('change', () => {
+    document.getElementById('settingStaggerMs').disabled =
+      !document.getElementById('settingStagger').checked ||
+      document.getElementById('settingStagger').disabled;
+    saveStaggerSettings();
+  });
+  document.getElementById('settingStaggerMs').addEventListener('change', saveStaggerSettings);
+
+  updateStaggerAvailability();
+
+  // ---- idle state ----
+  function applyIdleStateToBackend() {
+    const color = document.getElementById('settingIdleColor').value;
+    const pulse = document.getElementById('settingIdlePulse').checked;
+    callApi('set_idle_state', color, pulse);
+  }
+
+  function saveIdleState() {
+    const color = document.getElementById('settingIdleColor').value;
+    const pulse = document.getElementById('settingIdlePulse').checked;
+    callApi('save_gui_settings', { idle_color: color, idle_pulse: pulse });
+    applyIdleStateToBackend();
+  }
+
+  // ---- custom color picker ----
+  (function () {
+    const hidden   = document.getElementById('settingIdleColor');
+    const trigger  = document.getElementById('colorPickerTrigger');
+    const swatch   = document.getElementById('colorPickerSwatch');
+    const hexLabel = document.getElementById('colorPickerHex');
+    const panel    = document.getElementById('colorPickerPanel');
+    const canvas   = document.getElementById('cpCanvas');
+    const ctx      = canvas.getContext('2d');
+    const huebar   = document.getElementById('cpHuebar');
+    const hueCursor= document.getElementById('cpHueCursor');
+    const preview  = document.getElementById('cpPreview');
+    const cpHex    = document.getElementById('cpHexLabel');
+
+    let hue = 38, sat = 0.35, val = 1.0;
+    let open = false;
+
+    function hsvToHex(h, s, v) {
+      let r, g, b;
+      const i = Math.floor(h / 60) % 6;
+      const f = h / 60 - Math.floor(h / 60);
+      const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+      [r,g,b] = [[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i];
+      return '#' + [r,g,b].map(x => Math.round(x*255).toString(16).padStart(2,'0')).join('');
+    }
+
+    function hexToHsv(hex) {
+      let r = parseInt(hex.slice(1,3),16)/255;
+      let g = parseInt(hex.slice(3,5),16)/255;
+      let b = parseInt(hex.slice(5,7),16)/255;
+      const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+      let h = 0;
+      if (d) {
+        if (max===r) h = ((g-b)/d)%6;
+        else if (max===g) h = (b-r)/d + 2;
+        else h = (r-g)/d + 4;
+        h = ((h * 60) + 360) % 360;
+      }
+      return { h, s: max ? d/max : 0, v: max };
+    }
+
+    function drawCanvas() {
+      const W = canvas.width, H = canvas.height;
+      const grad1 = ctx.createLinearGradient(0,0,W,0);
+      grad1.addColorStop(0, '#fff');
+      grad1.addColorStop(1, `hsl(${hue},100%,50%)`);
+      ctx.fillStyle = grad1; ctx.fillRect(0,0,W,H);
+      const grad2 = ctx.createLinearGradient(0,0,0,H);
+      grad2.addColorStop(0, 'rgba(0,0,0,0)');
+      grad2.addColorStop(1, '#000');
+      ctx.fillStyle = grad2; ctx.fillRect(0,0,W,H);
+    }
+
+    function updateUI() {
+      const hex = hsvToHex(hue, sat, val);
+      swatch.style.background = hex;
+      hexLabel.textContent = hex;
+      preview.style.background = hex;
+      cpHex.textContent = hex;
+      hueCursor.style.left = (hue / 360 * 100) + '%';
+      hidden._v = hex; // write directly, bypassing the setter to avoid re-entrance
+      hidden.dispatchEvent(new Event('input'));
+    }
+
+    function pickFromCanvas(e) {
+      const r = canvas.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      const y = Math.max(0, Math.min(1, (e.clientY - r.top)  / r.height));
+      sat = x; val = 1 - y;
+      updateUI();
+    }
+
+    function pickFromHuebar(e) {
+      const r = huebar.getBoundingClientRect();
+      hue = Math.max(0, Math.min(360, (e.clientX - r.left) / r.width * 360));
+      drawCanvas(); updateUI();
+    }
+
+    // canvas drag
+    let dragCanvas = false;
+    canvas.addEventListener('mousedown', e => { dragCanvas = true; pickFromCanvas(e); });
+    document.addEventListener('mousemove', e => { if (dragCanvas) pickFromCanvas(e); });
+    document.addEventListener('mouseup',   () => { dragCanvas = false; });
+
+    // hue drag
+    let dragHue = false;
+    huebar.addEventListener('mousedown', e => { dragHue = true; pickFromHuebar(e); });
+    document.addEventListener('mousemove', e => { if (dragHue) pickFromHuebar(e); });
+    document.addEventListener('mouseup',   () => { dragHue = false; });
+
+    // open / close
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      open = !open;
+      panel.style.display = open ? 'flex' : 'none';
+      if (open) { drawCanvas(); updateUI(); }
+    });
+    document.addEventListener('click', e => {
+      if (open && !panel.contains(e.target) && e.target !== trigger) {
+        open = false; panel.style.display = 'none';
+      }
+    });
+
+    // initialise from saved value
+    const init = hexToHsv(hidden.value || '#ffd9a0');
+    hue = init.h; sat = init.s; val = init.v;
+    updateUI();
+
+    // keep in sync when value is set programmatically (e.g. settings restore)
+    Object.defineProperty(hidden, 'value', {
+      get() { return this._v || '#ffd9a0'; },
+      set(v) {
+        this._v = v;
+        const h = hexToHsv(v); hue = h.h; sat = h.s; val = h.v;
+        swatch.style.background = v;
+        hexLabel.textContent = v;
+        if (open) { drawCanvas(); updateUI(); }
+      }
+    });
+  })();
+
+  document.getElementById('settingIdlePulse').addEventListener('change', saveIdleState);
+
+  // ---- multizone start lights ----
+  function applyMzStartlightsToBackend() {
+    const mode      = document.getElementById('settingMzSweep').checked ? 'sweep' : 'solid';
+    const direction = document.getElementById('settingMzDirection').value;
+    callApi('set_mz_startlights', direction, mode);
+  }
+
+  function updateMzDirectionRowVisibility() {
+    const sweepOn = document.getElementById('settingMzSweep').checked;
+    const row = document.getElementById('mzDirectionRow');
+    row.style.opacity      = sweepOn ? '1' : '0.45';
+    row.style.pointerEvents = sweepOn ? '' : 'none';
+    row.style.transition   = 'opacity .2s ease';
+  }
+
+  function saveMzStartlights() {
+    const mode      = document.getElementById('settingMzSweep').checked ? 'sweep' : 'solid';
+    const direction = document.getElementById('settingMzDirection').value;
+    callApi('save_gui_settings', { mz_startlights_mode: mode, mz_startlights_direction: direction });
+    applyMzStartlightsToBackend();
+    updateMzDirectionRowVisibility();
+  }
+
+  document.getElementById('settingMzSweep').addEventListener('change', saveMzStartlights);
+  document.getElementById('settingMzDirection').addEventListener('change', saveMzStartlights);
+  document.getElementById('testMzBtn').addEventListener('click', () => callApi('test_multizone'));
+  updateMzDirectionRowVisibility();
+
+  // ---- UDP forwarding ----
+  function applyForwardingToBackend() {
+    const enabled = document.getElementById('settingFwdEnabled').checked;
+    const host    = document.getElementById('settingFwdHost').value.trim() || '127.0.0.1';
+    const port    = parseInt(document.getElementById('settingFwdPort').value) || 20778;
+    callApi('set_forwarding', enabled, host, port);
+  }
+
+  function saveForwarding() {
+    const enabled = document.getElementById('settingFwdEnabled').checked;
+    const host    = document.getElementById('settingFwdHost').value.trim() || '127.0.0.1';
+    const port    = parseInt(document.getElementById('settingFwdPort').value) || 20778;
+    callApi('save_gui_settings', { fwd_enabled: enabled, fwd_host: host, fwd_port: port });
+    applyForwardingToBackend();
+    // grey out inputs when disabled
+    document.getElementById('settingFwdHost').disabled = !enabled;
+    document.getElementById('settingFwdPort').disabled = !enabled;
+  }
+
+  document.getElementById('settingFwdEnabled').addEventListener('change', saveForwarding);
+  document.getElementById('settingFwdHost').addEventListener('change', saveForwarding);
+  document.getElementById('settingFwdPort').addEventListener('change', saveForwarding);
+
+  // ---- effects page collapsibles ----
+  document.querySelectorAll('.effects-collapse-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body = document.getElementById(header.dataset.target);
+      const chevron = header.querySelector('.collapse-chevron');
+      const isCollapsed = body.classList.toggle('collapsed');
+      chevron.classList.toggle('collapsed', isCollapsed);
+    });
+  });
+
+  // ---- profiles ----
+  (function () {
+    const STORAGE_KEY = 'lifx_profiles';
+    const ACTIVE_KEY  = 'lifx_active_profile';
+
+    // Snapshot keys — what a profile captures from localStorage / the DOM
+    const SNAPSHOT_KEYS = [
+      'lifx_light_assignments',
+      'lifx_intensity_curves',
+    ];
+    // DOM-backed settings read/written via helper
+    // (real read/save wired to backend later; for now we snapshot their raw localStorage values)
+    const SETTINGS_KEYS = [
+      'lifx_gui_settings',     // brightness, stagger, idle color, pulse, events, port, ip
+    ];
+
+    let _profiles = {};   // { id: { name, createdAt, snapshot: {} } }
+    let _activeId  = null;
+
+    function load() {
+      try { _profiles = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { _profiles = {}; }
+      _activeId = localStorage.getItem(ACTIVE_KEY) || null;
+      // Seed a Default profile if none exist
+      if (!Object.keys(_profiles).length) {
+        const id = 'profile_default';
+        _profiles[id] = { name: 'Default', createdAt: Date.now(), snapshot: {} };
+        _activeId = id;
+        persist();
+      }
+    }
+
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(_profiles));
+      if (_activeId) localStorage.setItem(ACTIVE_KEY, _activeId);
+    }
+
+    function captureSnapshot() {
+      const snap = {};
+      [...SNAPSHOT_KEYS, ...SETTINGS_KEYS].forEach(k => {
+        const v = localStorage.getItem(k);
+        if (v !== null) snap[k] = v;
+      });
+      return snap;
+    }
+
+    function applySnapshot(snap) {
+      [...SNAPSHOT_KEYS, ...SETTINGS_KEYS].forEach(k => {
+        if (snap[k] !== undefined) localStorage.setItem(k, snap[k]);
+        else localStorage.removeItem(k);
+      });
+    }
+
+    function uid() { return 'profile_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7); }
+
+    function formatDate(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // ---- render ----
+    const listEl     = document.getElementById('profileList');
+    const activeNameEl = document.getElementById('profileActiveName');
+
+    function render() {
+      const ids = Object.keys(_profiles);
+      const active = _activeId && _profiles[_activeId];
+      activeNameEl.textContent = active ? active.name : '—';
+
+      listEl.innerHTML = '';
+      if (!ids.length) {
+        listEl.innerHTML = '<p class="profile-empty">No profiles yet. Create one above.</p>';
+        return;
+      }
+
+      ids.forEach(id => {
+        const p = _profiles[id];
+        const isActive = id === _activeId;
+
+        const card = document.createElement('div');
+        card.className = 'profile-card' + (isActive ? ' active-profile' : '');
+        card.innerHTML = `
+          <div class="profile-card-radio"><div class="profile-card-radio-dot"></div></div>
+          <div class="profile-card-info">
+            <div class="profile-card-name">${p.name}</div>
+            <div class="profile-card-meta">Created ${formatDate(p.createdAt)}</div>
+          </div>
+          <div class="profile-card-actions">
+            <button class="btn btn-ghost btn-sm" data-action="rename" data-id="${id}">Rename</button>
+            <button class="btn btn-ghost btn-sm" data-action="duplicate" data-id="${id}">Duplicate</button>
+            ${ids.length > 1 ? `<button class="btn btn-ghost btn-sm" style="color:#f87171;" data-action="delete" data-id="${id}">Delete</button>` : ''}
+          </div>`;
+
+        // Click card body to switch
+        card.addEventListener('click', e => {
+          if (e.target.closest('[data-action]')) return;
+          switchTo(id);
+        });
+
+        // Action buttons
+        card.querySelectorAll('[data-action]').forEach(btn => {
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            const pid    = btn.dataset.id;
+            if (action === 'rename')    openRenameModal(pid);
+            if (action === 'duplicate') duplicateProfile(pid);
+            if (action === 'delete')    deleteProfile(pid);
+          });
+        });
+
+        listEl.appendChild(card);
+      });
+    }
+
+    function switchTo(id) {
+      if (!_profiles[id]) return;
+      // Save current state into the active profile before switching
+      if (_activeId && _profiles[_activeId]) {
+        _profiles[_activeId].snapshot = captureSnapshot();
+      }
+      _activeId = id;
+      applySnapshot(_profiles[id].snapshot || {});
+      persist();
+      render();
+      // Notify other IIFEs to re-read localStorage
+      window._refreshPillIndicators && window._refreshPillIndicators();
+      window._laRefresh && window._laRefresh(typeof _activeLabels !== 'undefined' ? [..._activeLabels] : []);
+    }
+
+    function saveCurrentSettings() {
+      if (!_activeId || !_profiles[_activeId]) return;
+      _profiles[_activeId].snapshot = captureSnapshot();
+      persist();
+      // Flash the banner to confirm
+      const banner = document.getElementById('profileActiveBanner');
+      banner.style.borderColor = 'rgba(139,124,246,0.8)';
+      setTimeout(() => { banner.style.borderColor = ''; }, 800);
+    }
+
+    function duplicateProfile(id) {
+      const src = _profiles[id];
+      if (!src) return;
+      const newId = uid();
+      _profiles[newId] = { name: src.name + ' Copy', createdAt: Date.now(), snapshot: { ...src.snapshot } };
+      persist(); render();
+    }
+
+    function deleteProfile(id) {
+      if (!_profiles[id] || Object.keys(_profiles).length <= 1) return;
+      delete _profiles[id];
+      if (_activeId === id) {
+        _activeId = Object.keys(_profiles)[0];
+        applySnapshot(_profiles[_activeId].snapshot || {});
+      }
+      persist(); render();
+    }
+
+    // ---- modal ----
+    const backdrop = document.createElement('div');
+    backdrop.className = 'profile-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="profile-modal">
+        <h4 id="profileModalTitle">New Profile</h4>
+        <p id="profileModalDesc">Give this profile a name. It will capture your current settings.</p>
+        <input type="text" id="profileModalInput" placeholder="e.g. Race Night, Living Room, Cockpit…" maxlength="40">
+        <div class="profile-modal-actions">
+          <button class="btn btn-ghost btn-sm" id="profileModalCancel">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="profileModalConfirm">Create</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    const modalInput   = document.getElementById('profileModalInput');
+    const modalConfirm = document.getElementById('profileModalConfirm');
+    const modalCancel  = document.getElementById('profileModalCancel');
+    const modalTitle   = document.getElementById('profileModalTitle');
+    const modalDesc    = document.getElementById('profileModalDesc');
+
+    let _modalMode = 'new';   // 'new' | 'rename'
+    let _modalTargetId = null;
+
+    function openModal() {
+      backdrop.classList.add('shown');
+      setTimeout(() => modalInput.focus(), 60);
+    }
+    function closeModal() {
+      backdrop.classList.remove('shown');
+      modalInput.value = '';
+    }
+
+    function openNewModal() {
+      _modalMode = 'new'; _modalTargetId = null;
+      modalTitle.textContent   = 'New Profile';
+      modalDesc.textContent    = 'Give this profile a name. It will capture your current settings.';
+      modalConfirm.textContent = 'Create';
+      modalInput.value = '';
+      openModal();
+    }
+
+    function openRenameModal(id) {
+      _modalMode = 'rename'; _modalTargetId = id;
+      modalTitle.textContent   = 'Rename Profile';
+      modalDesc.textContent    = 'Enter a new name for this profile.';
+      modalConfirm.textContent = 'Rename';
+      modalInput.value = _profiles[id]?.name || '';
+      openModal();
+      modalInput.select();
+    }
+
+    modalConfirm.addEventListener('click', () => {
+      const name = modalInput.value.trim();
+      if (!name) return;
+      if (_modalMode === 'new') {
+        const id = uid();
+        _profiles[id] = { name, createdAt: Date.now(), snapshot: captureSnapshot() };
+        persist(); render();
+      } else if (_modalMode === 'rename' && _modalTargetId) {
+        if (_profiles[_modalTargetId]) _profiles[_modalTargetId].name = name;
+        persist(); render();
+      }
+      closeModal();
+    });
+
+    modalInput.addEventListener('keydown', e => { if (e.key === 'Enter') modalConfirm.click(); if (e.key === 'Escape') closeModal(); });
+    modalCancel.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+
+    document.getElementById('profileNewBtn').addEventListener('click', openNewModal);
+    document.getElementById('profileSaveCurrentBtn').addEventListener('click', saveCurrentSettings);
+
+    load();
+    render();
+  })();
+
+  // ---- light assignment ----
+  (function () {
+    const STORAGE_KEY = 'lifx_light_assignments';
+    const EFFECTS = [
+      { key: 'start_lights',   label: 'Start Lights',    icon: '🔴' },
+      { key: 'lights_out',     label: 'Lights Out',      icon: '🟢' },
+      { key: 'yellow_flag',    label: 'Yellow Flag',     icon: '🟡' },
+      { key: 'blue_flag',      label: 'Blue Flag',       icon: '🔵' },
+      { key: 'red_flag',       label: 'Red Flag',        icon: '🚩' },
+      { key: 'fastest_lap',    label: 'Fastest Lap',     icon: '💜' },
+      { key: 'chequered_flag', label: 'Chequered Flag',  icon: '🏁' },
+      { key: 'white_warning',  label: 'White Warning',   icon: '⚪' },
+      { key: 'black_flag',     label: 'Black Flag',      icon: '🏴' },
+      { key: 'neutral',        label: 'Track Clear',     icon: '💡' },
+    ];
+
+    // null = all effects; Set = specific effects enabled
+    let _assignments = {};  // { lightLabel: null | Set<effectKey> }
+
+    function load() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        _assignments = {};
+        for (const [label, val] of Object.entries(raw)) {
+          _assignments[label] = val === null ? null : new Set(val);
+        }
+      } catch { _assignments = {}; }
+    }
+
+    function save() {
+      const out = {};
+      for (const [label, val] of Object.entries(_assignments)) {
+        out[label] = val === null ? null : [...val];
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+    }
+
+    function isOn(lightLabel, effectKey) {
+      const v = _assignments[lightLabel];
+      return v === undefined || v === null || v.has(effectKey);
+    }
+
+    function toggle(lightLabel, effectKey) {
+      const v = _assignments[lightLabel];
+      // If currently all-on (null/undefined), expand to explicit full set minus this one
+      if (v === undefined || v === null) {
+        _assignments[lightLabel] = new Set(EFFECTS.map(e => e.key).filter(k => k !== effectKey));
+      } else {
+        if (v.has(effectKey)) {
+          v.delete(effectKey);
+        } else {
+          v.add(effectKey);
+          // If all effects now on, collapse back to null
+          if (v.size === EFFECTS.length) _assignments[lightLabel] = null;
+        }
+      }
+      save();
+    }
+
+    function assignAll() {
+      for (const label of Object.keys(_assignments)) {
+        _assignments[label] = null;
+      }
+      save();
+      render(Object.keys(_assignments));
+    }
+
+    const cardsEl = document.getElementById('laCards');
+
+    function render(labels) {
+      cardsEl.innerHTML = '';
+      if (!labels || !labels.length) {
+        cardsEl.innerHTML = '<p class="la-empty">No lights selected — go to Lights to discover and select your bulbs.</p>';
+        return;
+      }
+      // Ensure every label has an entry
+      labels.forEach(label => {
+        if (!(label in _assignments)) _assignments[label] = null;
+      });
+      // Remove stale labels
+      for (const key of Object.keys(_assignments)) {
+        if (!labels.includes(key)) delete _assignments[key];
+      }
+
+      labels.forEach(label => {
+        const card = document.createElement('div');
+        card.className = 'la-card';
+
+        const header = document.createElement('div');
+        header.className = 'la-card-header';
+        const assignOneBtn = document.createElement('button');
+        assignOneBtn.className = 'btn btn-ghost btn-sm';
+        assignOneBtn.textContent = 'Assign to All Effects';
+        assignOneBtn.addEventListener('click', () => {
+          _assignments[label] = null;
+          save();
+          card.querySelectorAll('.la-chip').forEach(c => c.classList.add('on'));
+        });
+        header.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><span class="la-card-icon">💡</span><span class="la-card-name">${label}</span></div>`;
+        header.appendChild(assignOneBtn);
+        card.appendChild(header);
+
+        const chips = document.createElement('div');
+        chips.className = 'la-chips';
+        EFFECTS.forEach(eff => {
+          const chip = document.createElement('div');
+          chip.className = 'la-chip' + (isOn(label, eff.key) ? ' on' : '');
+          chip.textContent = eff.label;
+          chip.addEventListener('click', () => {
+            toggle(label, eff.key);
+            chip.classList.toggle('on', isOn(label, eff.key));
+          });
+          chips.appendChild(chip);
+        });
+        card.appendChild(chips);
+        cardsEl.appendChild(card);
+      });
+    }
+
+    document.getElementById('laAssignAllBtn').addEventListener('click', assignAll);
+
+    // Expose refresh so it's called when active lights change
+    window._laRefresh = function(labels) { render(labels); };
+
+    load();
+    // Init with currently active lights if any
+    const initLabels = typeof _activeLabels !== 'undefined' ? [..._activeLabels] : [];
+    render(initLabels);
+  })();
+
+  // ---- light preview ----
+  (function () {
+    const bulbRow = document.getElementById('lpBulbRow');
+    const pillRow = document.getElementById('lpPillRow');
+    let activePill = null;
+    let _animDead  = false;
+    let _animRafs  = [];
+    let _animTimers = [];
+
+    function stopAnim() {
+      _animDead = true;
+      _animRafs.forEach(h => cancelAnimationFrame(h));
+      _animTimers.forEach(h => { clearTimeout(h); clearInterval(h); });
+      _animRafs = []; _animTimers = [];
+      getBulbs().forEach(b => { b.style.filter = ''; });
+    }
+
+    function _runWithCurve(defaultAnim, curvePts, dur) {
+      defaultAnim();
+      const t0 = performance.now();
+      function curveTick() {
+        const t = ((performance.now() - t0) % dur) / dur;
+        const b = window._evalCurvePts ? window._evalCurvePts(curvePts, t) : 1;
+        getBulbs().forEach(bulb => { bulb.style.filter = `brightness(${b.toFixed(3)})`; });
+        raf(curveTick);
+      }
+      raf(curveTick);
+    }
+
+    function startAnim(fn) {
+      stopAnim();
+      _animDead = false;
+      fn();
+    }
+
+    function raf(fn) {
+      if (_animDead) return;
+      const h = requestAnimationFrame(() => { if (!_animDead) fn(); });
+      _animRafs.push(h);
+    }
+
+    function after(ms, fn) {
+      if (_animDead) return;
+      const h = setTimeout(() => { if (!_animDead) fn(); }, ms);
+      _animTimers.push(h);
+    }
+
+    function every(ms, fn) {
+      const h = setInterval(() => { if (_animDead) { clearInterval(h); return; } fn(); }, ms);
+      _animTimers.push(h);
+    }
+
+    function getBulbs() { return Array.from(document.querySelectorAll('.lp-bulb')); }
+
+    function lit(bulb, color, glowColor, innerA) {
+      bulb.style.background = color;
+      bulb.style.boxShadow  = glowColor ? `0 0 20px 6px ${glowColor}` : 'none';
+      bulb.classList.add('lit');
+      bulb.querySelector('.lp-bulb-inner').style.background = `rgba(255,255,255,${innerA ?? 0.4})`;
+    }
+
+    function dim(bulb) {
+      bulb.style.background = 'rgba(255,255,255,0.06)';
+      bulb.style.boxShadow  = 'none';
+      bulb.classList.remove('lit');
+      bulb.querySelector('.lp-bulb-inner').style.background = 'rgba(255,255,255,0.15)';
+    }
+
+    function dimAll() { getBulbs().forEach(dim); }
+
+    // --- per-effect animations ---
+
+    function animIdle() {
+      const idleHex = document.getElementById('settingIdleColor')?.value || '#ffd9a0';
+      let t = 0;
+      function tick() {
+        const pulse = 0.5 + 0.5 * Math.sin(t);
+        const glow  = `rgba(255,217,160,${(0.18 + 0.42 * pulse).toFixed(2)})`;
+        const inner = (0.15 + 0.3 * pulse).toFixed(2);
+        getBulbs().forEach(b => lit(b, idleHex, glow, parseFloat(inner)));
+        t += 0.022;
+        raf(tick);
+      }
+      raf(tick);
+    }
+
+    function animStartLights() {
+      // Lights appear one by one (stagger 180 ms), hold red, then go out
+      const bulbs = getBulbs();
+      dimAll();
+      bulbs.forEach((b, i) => {
+        after(i * 180, () => lit(b, '#e83030', 'rgba(232,48,48,0.65)', 0.5));
+      });
+      // After all on, hold then flash off + back on (simulate lights-out coming)
+      const holdMs = bulbs.length * 180 + 1200;
+      after(holdMs, () => {
+        dimAll();
+        after(180, () => {
+          dimAll();
+          // loop: keep pulsing red slowly
+          let t = 0;
+          function tick() {
+            const pulse = 0.5 + 0.5 * Math.sin(t);
+            getBulbs().forEach(b => lit(b, '#e83030', `rgba(232,48,48,${(0.25 + 0.4 * pulse).toFixed(2)})`, 0.3 + 0.2 * pulse));
+            t += 0.03;
+            raf(tick);
+          }
+          raf(tick);
+        });
+      });
+    }
+
+    function animLightsOut() {
+      // Bright green burst, hold, then settle to warm white idle
+      getBulbs().forEach(b => lit(b, '#22c55e', 'rgba(34,197,94,0.75)', 0.6));
+      after(900, () => {
+        // quick dim flash
+        dimAll();
+        after(80, () => {
+          getBulbs().forEach(b => lit(b, '#22c55e', 'rgba(34,197,94,0.65)', 0.5));
+          after(500, () => animIdle());
+        });
+      });
+    }
+
+    function animYellowFlag() {
+      let on = true;
+      every(420, () => {
+        on = !on;
+        if (on) getBulbs().forEach(b => lit(b, '#f5c518', 'rgba(245,197,24,0.65)', 0.45));
+        else     dimAll();
+      });
+      // start immediately on
+      getBulbs().forEach(b => lit(b, '#f5c518', 'rgba(245,197,24,0.65)', 0.45));
+    }
+
+    function animBlueFlag() {
+      let t = 0;
+      function tick() {
+        const pulse = 0.5 + 0.5 * Math.sin(t);
+        getBulbs().forEach(b => lit(b, '#3b82f6', `rgba(59,130,246,${(0.3 + 0.4 * pulse).toFixed(2)})`, 0.35 + 0.15 * pulse));
+        t += 0.018;
+        raf(tick);
+      }
+      raf(tick);
+    }
+
+    function animRedFlag() {
+      let on = true;
+      every(200, () => {
+        on = !on;
+        if (on) getBulbs().forEach(b => lit(b, '#e83030', 'rgba(232,48,48,0.7)', 0.55));
+        else     dimAll();
+      });
+      getBulbs().forEach(b => lit(b, '#e83030', 'rgba(232,48,48,0.7)', 0.55));
+    }
+
+    function animFastestLap() {
+      // 4 purple bursts, then hold with slow pulse
+      const burst = (i) => {
+        after(i * 250, () => {
+          getBulbs().forEach(b => lit(b, '#a855f7', 'rgba(168,85,247,0.75)', 0.55));
+          after(120, () => dimAll());
+        });
+      };
+      for (let i = 0; i < 4; i++) burst(i);
+      after(4 * 250 + 150, () => {
+        let t = 0;
+        function tick() {
+          const pulse = 0.5 + 0.5 * Math.sin(t);
+          getBulbs().forEach(b => lit(b, '#a855f7', `rgba(168,85,247,${(0.25 + 0.45 * pulse).toFixed(2)})`, 0.3 + 0.2 * pulse));
+          t += 0.022;
+          raf(tick);
+        }
+        raf(tick);
+      });
+    }
+
+    function animChequered() {
+      // Alternate white / green rapidly, then settle white
+      let phase = 0;
+      const colors = ['#ffffff', '#22c55e'];
+      const glows  = ['rgba(255,255,255,0.5)', 'rgba(34,197,94,0.6)'];
+      let count = 0;
+      const maxFlashes = 10;
+      every(280, () => {
+        if (count >= maxFlashes) { stopAnim(); getBulbs().forEach(b => lit(b, '#ffffff', 'rgba(255,255,255,0.4)', 0.5)); return; }
+        phase = (phase + 1) % 2;
+        getBulbs().forEach(b => lit(b, colors[phase], glows[phase], 0.5));
+        count++;
+      });
+      getBulbs().forEach(b => lit(b, colors[0], glows[0], 0.5));
+    }
+
+    function animWhiteWarning() {
+      let on = true;
+      let count = 0;
+      every(220, () => {
+        on = !on; count++;
+        if (on) getBulbs().forEach(b => lit(b, '#e8eaf6', 'rgba(220,224,240,0.55)', 0.5));
+        else     dimAll();
+        if (count >= 8) { stopAnim(); getBulbs().forEach(b => lit(b, '#e8eaf6', 'rgba(220,224,240,0.3)', 0.3)); }
+      });
+      getBulbs().forEach(b => lit(b, '#e8eaf6', 'rgba(220,224,240,0.55)', 0.5));
+    }
+
+    function animNeutral() {
+      getBulbs().forEach(b => lit(b, '#ffd9a0', 'rgba(255,217,160,0.4)', 0.35));
+    }
+
+    const EFFECTS = [
+      { label: 'Idle',          anim: animIdle         },
+      { label: 'Start Lights',  anim: animStartLights   },
+      { label: 'Lights Out',    anim: animLightsOut     },
+      { label: 'Yellow Flag',   anim: animYellowFlag    },
+      { label: 'Blue Flag',     anim: animBlueFlag      },
+      { label: 'Red Flag',      anim: animRedFlag       },
+      { label: 'Fastest Lap',   anim: animFastestLap    },
+      { label: 'Chequered',     anim: animChequered     },
+      { label: 'White Warning', anim: animWhiteWarning  },
+      { label: 'Neutral',       anim: animNeutral       },
+    ];
+
+    function renderBulbs(labels) {
+      bulbRow.innerHTML = '';
+      if (!labels || !labels.length) {
+        bulbRow.innerHTML = '<p style="font-size:12px;color:var(--text-muted);text-align:center;width:100%;margin:8px 0;">No bulbs selected — go to Lights to select some.</p>';
+        return;
+      }
+      labels.forEach(label => {
+        const wrap  = document.createElement('div'); wrap.className = 'lp-bulb-wrap';
+        const bulb  = document.createElement('div'); bulb.className = 'lp-bulb'; bulb.dataset.label = label;
+        const inner = document.createElement('div'); inner.className = 'lp-bulb-inner';
+        bulb.appendChild(inner);
+        const lbl = document.createElement('div'); lbl.className = 'lp-bulb-label'; lbl.textContent = label;
+        wrap.appendChild(bulb); wrap.appendChild(lbl); bulbRow.appendChild(wrap);
+      });
+      // Re-apply active animation to new bulbs
+      if (activePill && _currentAnim) startAnim(_currentAnim);
+    }
+
+    let _currentAnim = null;
+
+    EFFECTS.forEach(eff => {
+      const pill = document.createElement('div');
+      pill.className = 'lp-pill';
+      pill.textContent = eff.label;
+      pill.dataset.effect = eff.label;
+      pill.addEventListener('click', () => {
+        if (activePill === pill) {
+          pill.classList.remove('active');
+          activePill = null; _currentAnim = null;
+          stopAnim(); dimAll();
+        } else {
+          if (activePill) activePill.classList.remove('active');
+          pill.classList.add('active');
+          activePill = pill;
+          const curvePts = window._getCurvePoints && window._getCurvePoints(eff.label);
+          if (curvePts) {
+            const dur = (window._getCurveDuration && window._getCurveDuration(eff.label)) || 2000;
+            _currentAnim = () => _runWithCurve(eff.anim, curvePts, dur);
+          } else {
+            _currentAnim = eff.anim;
+          }
+          startAnim(_currentAnim);
+        }
+      });
+      pillRow.appendChild(pill);
+    });
+
+    window._refreshPillIndicators = function() {
+      document.querySelectorAll('#lpPillRow .lp-pill').forEach(pill => {
+        const hasCurve = !!(window._getCurvePoints && window._getCurvePoints(pill.dataset.effect));
+        pill.classList.toggle('has-curve', hasCurve);
+      });
+    };
+
+    window._lpRefresh = function(labels) {
+      renderBulbs(labels);
+      stopAnim(); dimAll();
+      if (activePill) { activePill.classList.remove('active'); activePill = null; _currentAnim = null; }
+    };
+    renderBulbs([...(_activeLabels || new Set())]);
+  })();
+
+  // ---- intensity curves ----
+  (function () {
+    const STORAGE_KEY = 'lifx_intensity_curves';
+    let _curves = {};
+    let _editLabel = null;
+    let _editPoints = [];
+    let _editDuration = 2000;
+    let _dragging = null;  // index into sorted points being dragged
+
+    function load() {
+      try { _curves = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { _curves = {}; }
+    }
+
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(_curves));
+    }
+
+    function evalPts(pts, t) {
+      if (!pts || pts.length < 2) return 1;
+      if (t <= pts[0][0]) return pts[0][1];
+      if (t >= pts[pts.length - 1][0]) return pts[pts.length - 1][1];
+      for (let i = 1; i < pts.length; i++) {
+        if (t <= pts[i][0]) {
+          const [t0, v0] = pts[i - 1], [t1, v1] = pts[i];
+          return v0 + (v1 - v0) * ((t - t0) / (t1 - t0));
+        }
+      }
+      return 1;
+    }
+
+    // Exposed globals used by light preview IIFE
+    window._getCurvePoints  = label => (_curves[label]?.points?.length >= 2) ? _curves[label].points : null;
+    window._getCurveDuration = label => _curves[label]?.duration || 2000;
+    window._evalCurvePts    = evalPts;
+
+    // --- canvas setup ---
+    const canvas  = document.getElementById('curveCanvas');
+    const ctx     = canvas.getContext('2d');
+    const durEl   = document.getElementById('curveDurationInput');
+    const badge   = document.getElementById('curveHasBadge');
+    const saveBtn = document.getElementById('curveSaveBtn');
+    const clrBtn  = document.getElementById('curveClearBtn');
+
+    // custom dropdown wiring
+    const ddBtn   = document.getElementById('curveDropdownBtn');
+    const ddMenu  = document.getElementById('curveDropdownMenu');
+    const ddLabel = document.getElementById('curveDropdownLabel');
+    let _selectedEffect = 'Idle';
+
+    // Portal menu into body so position:fixed isn't broken by transformed ancestors
+    document.body.appendChild(ddMenu);
+
+    function openDDMenu() {
+      const r = ddBtn.getBoundingClientRect();
+      ddMenu.style.left    = r.left + 'px';
+      ddMenu.style.top     = (r.bottom + 6) + 'px';
+      ddMenu.style.width   = r.width + 'px';
+      ddMenu.style.display = 'block';
+      ddBtn.classList.add('open');
+    }
+    function closeDDMenu() {
+      ddMenu.style.display = 'none';
+      ddBtn.classList.remove('open');
+    }
+
+    ddBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      ddMenu.style.display === 'block' ? closeDDMenu() : openDDMenu();
+    });
+    document.addEventListener('click', () => closeDDMenu());
+    ddMenu.addEventListener('click', e => {
+      const item = e.target.closest('.curve-dropdown-item');
+      if (!item) return;
+      ddMenu.querySelectorAll('.curve-dropdown-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      ddLabel.textContent = item.dataset.value;
+      _selectedEffect = item.dataset.value;
+      closeDDMenu();
+      loadEffect(_selectedEffect);
+    });
+
+    const PAD = { l: 28, r: 14, t: 14, b: 26 };
+    let W = 560, H = 130;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const cw  = canvas.parentElement.clientWidth || 560;
+      W = cw; H = 130;
+      canvas.width  = cw * dpr;
+      canvas.height = H  * dpr;
+      canvas.style.width  = cw + 'px';
+      canvas.style.height = H  + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      render();
+    }
+
+    function cw() { return W - PAD.l - PAD.r; }
+    function ch() { return H - PAD.t - PAD.b; }
+
+    function toC(t, v) { return [PAD.l + t * cw(), PAD.t + (1 - v) * ch()]; }
+    function fromC(x, y) {
+      return [
+        Math.max(0, Math.min(1, (x - PAD.l) / cw())),
+        Math.max(0, Math.min(1, 1 - (y - PAD.t) / ch())),
+      ];
+    }
+
+    function sorted() { return [..._editPoints].sort((a, b) => a[0] - b[0]); }
+
+    function render() {
+      ctx.clearRect(0, 0, W, H);
+
+      // grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const x = PAD.l + (i / 4) * cw();
+        ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ch()); ctx.stroke();
+        const y = PAD.t + (i / 4) * ch();
+        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + cw(), y); ctx.stroke();
+      }
+
+      // axis labels
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('100%', PAD.l - 4, PAD.t + 4);
+      ctx.fillText('0%',   PAD.l - 4, PAD.t + ch() + 4);
+      ctx.textAlign = 'center';
+      ctx.fillText('0',    PAD.l,          PAD.t + ch() + 16);
+      ctx.fillText('50%',  PAD.l + cw()/2, PAD.t + ch() + 16);
+      ctx.fillText('100%', PAD.l + cw(),   PAD.t + ch() + 16);
+
+      const pts = sorted();
+      if (pts.length >= 2) {
+        // fill
+        ctx.beginPath();
+        ctx.moveTo(...toC(pts[0][0], 0));
+        pts.forEach(([t, v]) => ctx.lineTo(...toC(t, v)));
+        ctx.lineTo(...toC(pts[pts.length - 1][0], 0));
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(139,124,246,0.1)';
+        ctx.fill();
+
+        // line
+        ctx.beginPath();
+        pts.forEach(([t, v], i) => { const [cx, cy] = toC(t, v); if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); });
+        ctx.strokeStyle = 'rgba(139,124,246,0.85)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // handles
+      pts.forEach(([t, v], i) => {
+        const [cx, cy] = toC(t, v);
+        const isEnd = i === 0 || i === pts.length - 1;
+        ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(11,16,32,0.85)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = (i === _dragging) ? '#c4b5fd' : (isEnd ? '#a78bfa' : '#8b7cf6');
+        ctx.fill();
+      });
+    }
+
+    function hitTest(x, y) {
+      const pts = sorted();
+      for (let i = 0; i < pts.length; i++) {
+        const [cx, cy] = toC(pts[i][0], pts[i][1]);
+        if (Math.hypot(x - cx, y - cy) <= 10) return i;
+      }
+      return -1;
+    }
+
+    function canvasXY(e) {
+      const r = canvas.getBoundingClientRect();
+      const sx = W / r.width, sy = H / r.height;
+      const src = e.touches ? e.touches[0] : e;
+      return [(src.clientX - r.left) * sx, (src.clientY - r.top) * sy];
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const [x, y] = canvasXY(e);
+      const hit = hitTest(x, y);
+      if (hit >= 0) {
+        _dragging = hit;
+      } else {
+        const [t, v] = fromC(x, y);
+        _editPoints.push([t, v]);
+        render();
+      }
+    });
+
+    canvas.addEventListener('dblclick', e => {
+      const [x, y] = canvasXY(e);
+      const hit = hitTest(x, y);
+      const pts = sorted();
+      if (hit > 0 && hit < pts.length - 1) {
+        const [ft, fv] = pts[hit];
+        const idx = _editPoints.findIndex(p => p[0] === ft && p[1] === fv);
+        if (idx >= 0) { _editPoints.splice(idx, 1); _dragging = null; render(); }
+      }
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (_dragging === null) return;
+      const [x, y] = canvasXY(e);
+      const [newT, newV] = fromC(x, y);
+      const pts = sorted();
+      const [ft, fv] = pts[_dragging];
+      const idx = _editPoints.findIndex(p => p[0] === ft && p[1] === fv);
+      if (idx < 0) return;
+      const lockedT = (_dragging === 0) ? 0 : (_dragging === pts.length - 1) ? 1 : newT;
+      _editPoints[idx] = [lockedT, newV];
+      render();
+    });
+
+    window.addEventListener('mouseup', () => { _dragging = null; });
+
+    function loadEffect(label) {
+      _editLabel = label;
+      const stored = _curves[label];
+      if (stored?.points?.length >= 2) {
+        _editPoints = stored.points.map(p => [...p]);
+        _editDuration = stored.duration || 2000;
+        badge.style.display = '';
+      } else {
+        _editPoints = [[0, 1], [1, 1]];
+        _editDuration = 2000;
+        badge.style.display = 'none';
+      }
+      durEl.value = _editDuration;
+      render();
+    }
+
+    durEl.addEventListener('change', () => { _editDuration = parseInt(durEl.value) || 2000; });
+
+    function refreshDropdownIndicators() {
+      ddMenu.querySelectorAll('.curve-dropdown-item').forEach(item => {
+        const hasCurve = !!(_curves[item.dataset.value]?.points?.length >= 2);
+        let dot = item.querySelector('.curve-dd-dot');
+        if (hasCurve && !dot) {
+          dot = document.createElement('span');
+          dot.className = 'curve-dd-dot';
+          item.appendChild(dot);
+        } else if (!hasCurve && dot) {
+          dot.remove();
+        }
+      });
+    }
+
+    saveBtn.addEventListener('click', () => {
+      if (_editPoints.length < 2) return;
+      _curves[_editLabel] = { points: sorted(), duration: _editDuration };
+      persist();
+      badge.style.display = '';
+      refreshDropdownIndicators();
+      window._refreshPillIndicators && window._refreshPillIndicators();
+    });
+
+    clrBtn.addEventListener('click', () => {
+      delete _curves[_editLabel];
+      persist();
+      _editPoints = [[0, 1], [1, 1]];
+      durEl.value = 2000;
+      badge.style.display = 'none';
+      render();
+      refreshDropdownIndicators();
+      window._refreshPillIndicators && window._refreshPillIndicators();
+    });
+
+    new ResizeObserver(resize).observe(canvas.parentElement);
+    load();
+    requestAnimationFrame(() => {
+      resize();
+      loadEffect(_selectedEffect);
+      refreshDropdownIndicators();
+      window._refreshPillIndicators && window._refreshPillIndicators();
+    });
+  })();
+
+  // ---- brand selector + app entry ----
+  function enterApp(fromSetup) {
+    const app = document.querySelector('.app');
+    if (app) {
+      app.classList.add('app-entering');
+      setTimeout(() => {
+        app.classList.remove('app-entering');
+        app.classList.add('app-ready');
+        if (fromSetup) showWalkthroughPrompt();
+      }, 950);
+    }
+  }
+
+  function showWalkthroughPrompt() {
+    const el = document.getElementById('walkthroughPrompt');
+    if (!el) return;
+    requestAnimationFrame(() => el.classList.add('visible'));
+  }
+
+  function hideWalkthroughPrompt() {
+    const el = document.getElementById('walkthroughPrompt');
+    if (!el) return;
+    el.classList.remove('visible');
+    el.addEventListener('transitionend', () => el.style.display = 'none', { once: true });
+  }
+
+  document.getElementById('walkthroughYes').addEventListener('click', () => {
+    hideWalkthroughPrompt();
+    setTimeout(() => window.startTutorial && window.startTutorial(), 450);
+  });
+
+  document.getElementById('walkthroughNo').addEventListener('click', () => {
+    hideWalkthroughPrompt();
+  });
+
+  function showBrandSelector() {
+    const bs = document.getElementById('brandSelect');
+    if (!bs) { enterApp(); return; }
+    requestAnimationFrame(() => bs.classList.add('visible'));
+  }
+
+  (function () {
+    const lifxCard = document.getElementById('brandLifx');
+    if (!lifxCard) return;
+
+    lifxCard.addEventListener('click', () => {
+      callApi('save_gui_settings', { brand: 'lifx' });
+      // Cross-fade: show discover (z:9997) under brand (z:9998) as brand fades out.
+      showSetupDiscover();
+      const bs = document.getElementById('brandSelect');
+      bs.classList.add('hiding');
+      bs.classList.remove('visible');
+      bs.addEventListener('transitionend', () => {
+        bs.classList.remove('hiding');
+        bs.style.display = 'none';
+      }, { once: true });
+    });
+
+    // Cursor spotlight on brand cards
+    document.querySelectorAll('.brand-card:not(.brand-card-locked)').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--sx', `${e.clientX - r.left}px`);
+        card.style.setProperty('--sy', `${e.clientY - r.top}px`);
+      });
+    });
+  })();
+
+  // ---- reactive scroll-edge fade ----
+  // Applies a CSS mask-image gradient that fades content at the top/bottom edge
+  // only when the element is actually clipped there (scroll-aware, not static).
+  (function () {
+    const FADE = 40; // px — height of the fade zone
+
+    function update(el) {
+      const top       = el.scrollTop;
+      const remaining = el.scrollHeight - el.clientHeight - top;
+
+      const topFade    = Math.min(top       / FADE, 1);
+      const bottomFade = Math.min(remaining / FADE, 1);
+
+      if (topFade === 0 && bottomFade === 0) {
+        el.style.maskImage = '';
+        el.style.webkitMaskImage = '';
+        return;
+      }
+
+      const t = (topFade    * FADE).toFixed(1);
+      const b = (bottomFade * FADE).toFixed(1);
+
+      const mask =
+        `linear-gradient(to bottom,` +
+        ` transparent 0px,` +
+        ` black ${t}px,` +
+        ` black calc(100% - ${b}px),` +
+        ` transparent 100%)`;
+
+      el.style.maskImage = mask;
+      el.style.webkitMaskImage = mask;
+    }
+
+    function attach(el) {
+      if (!el || el._scrollFadeAttached) return;
+      el._scrollFadeAttached = true;
+      el.addEventListener('scroll', () => update(el), { passive: true });
+      new ResizeObserver(() => update(el)).observe(el);
+      update(el);
+    }
+
+    // Attach immediately to elements present at load time
+    function attachAll() {
+      document.querySelectorAll(
+        '.page-content, .log-box, .log-box-full,' +
+        ' .collapsible-body, #setupDiscoverList'
+      ).forEach(attach);
+    }
+
+    attachAll();
+
+    // Re-attach whenever new pages become active (collapsibles open, pages switch)
+    document.addEventListener('click', () => requestAnimationFrame(attachAll));
+  })();
+
+  // ---- cursor spotlight on interactive panels ----
+  (function () {
+    const SELECTORS = '.effect-card, .collapsible-header, .nav-btn';
+    document.addEventListener('mousemove', e => {
+      const el = e.target.closest(SELECTORS);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--sx', `${e.clientX - r.left}px`);
+      el.style.setProperty('--sy', `${e.clientY - r.top}px`);
+    });
+  })();
+
+  // ---- setup: discovery page ----
+  function showSetupDiscover() {
+    const sd = document.getElementById('setupDiscover');
+    if (!sd) { enterApp(); return; }
+    // Reset state
+    sd.style.display = '';
+    document.getElementById('setupDiscoverEmpty').style.display = '';
+    document.getElementById('setupDiscoverEmpty').textContent = 'Searching for LIFX bulbs…';
+    document.getElementById('setupDiscoverList').querySelectorAll('.setup-light-item').forEach(el => el.remove());
+    document.getElementById('setupDiscoverContinue').disabled = true;
+    document.getElementById('setupDiscoverSpinner').classList.add('active');
+    document.getElementById('setupDiscoverStatus').textContent = 'Scanning your network…';
+    requestAnimationFrame(() => sd.classList.add('visible'));
+    callApi('discover_lights');
+  }
+
+  function hideSetupDiscover(cb) {
+    const sd = document.getElementById('setupDiscover');
+    if (!sd) { if (cb) cb(); return; }
+    sd.classList.add('hiding');
+    sd.classList.remove('visible');
+    sd.addEventListener('transitionend', () => {
+      sd.classList.remove('hiding');
+      sd.style.display = 'none';
+      if (cb) cb();
+    }, { once: true });
+  }
+
+  function renderSetupDiscoveryList(lights) {
+    const sd = document.getElementById('setupDiscover');
+    if (!sd || !sd.classList.contains('visible')) return;
+
+    const list    = document.getElementById('setupDiscoverList');
+    const empty   = document.getElementById('setupDiscoverEmpty');
+    const spinner = document.getElementById('setupDiscoverSpinner');
+    const status  = document.getElementById('setupDiscoverStatus');
+
+    spinner.classList.remove('active');
+
+    if (!lights || lights.length === 0) {
+      empty.style.display = '';
+      empty.textContent = 'No LIFX bulbs found. Make sure they\'re powered on.';
+      status.textContent = 'Scan complete — no bulbs found';
+      document.getElementById('setupDiscoverContinue').disabled = true;
+      return;
+    }
+
+    empty.style.display = 'none';
+    status.textContent = `Found ${lights.length} bulb${lights.length !== 1 ? 's' : ''}`;
+    list.querySelectorAll('.setup-light-item').forEach(el => el.remove());
+
+    lights.forEach((l, i) => {
+      const item = document.createElement('div');
+      item.className = 'setup-light-item';
+      const zoneBadge = l.zones > 0
+        ? `<span style="font-size:11px;background:rgba(139,124,246,0.18);border:1px solid rgba(139,124,246,0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
+        : '';
+      item.innerHTML = `
+        <input type="checkbox" class="setup-light-check" data-index="${i}" checked>
+        <span style="font-weight:600;flex:1;">${escHtml(l.label)}</span>
+        ${zoneBadge}
+        <span style="font-size:12px;color:var(--text-muted);">${escHtml(l.ip)}</span>`;
+      item.addEventListener('click', e => {
+        if (e.target.type !== 'checkbox') {
+          const cb = item.querySelector('.setup-light-check');
+          cb.checked = !cb.checked;
+        }
+        updateSetupContinueBtn();
+      });
+      list.appendChild(item);
+    });
+
+    updateSetupContinueBtn();
+  }
+
+  function updateSetupContinueBtn() {
+    const anyChecked = document.querySelectorAll('.setup-light-check:checked').length > 0;
+    document.getElementById('setupDiscoverContinue').disabled = !anyChecked;
+  }
+
+  document.getElementById('setupDiscoverContinue').addEventListener('click', () => {
+    const labels = Array.from(document.querySelectorAll('.setup-light-check:checked'))
+      .map(cb => _discoveredLights[parseInt(cb.dataset.index)]?.label)
+      .filter(Boolean);
+    callApi('set_selected_lights', labels);
+    // Cross-fade: show group page immediately, then hide discover on top of it.
+    // Group (z:9996) fades in under discover (z:9997) as discover fades out — no gap.
+    showSetupGroup(labels);
+    hideSetupDiscover(null);
+  });
+
+  document.getElementById('setupDiscoverRescan').addEventListener('click', () => {
+    document.getElementById('setupDiscoverSpinner').classList.add('active');
+    document.getElementById('setupDiscoverStatus').textContent = 'Scanning your network…';
+    document.getElementById('setupDiscoverList').querySelectorAll('.setup-light-item').forEach(el => el.remove());
+    document.getElementById('setupDiscoverEmpty').style.display = '';
+    document.getElementById('setupDiscoverEmpty').textContent = 'Searching for LIFX bulbs…';
+    document.getElementById('setupDiscoverContinue').disabled = true;
+    callApi('discover_lights');
+  });
+
+  document.getElementById('setupDiscoverSkip').addEventListener('click', () => {
+    hideSetupDiscover(() => enterApp(true));
+  });
+
+  // ---- setup: group page ----
+  function showSetupGroup(labels) {
+    const sg = document.getElementById('setupGroup');
+    if (!sg) { enterApp(); return; }
+
+    // Render light chips
+    const chips = document.getElementById('setupGroupLightChips');
+    chips.innerHTML = (labels || []).map(l =>
+      `<span class="setup-group-chip">${escHtml(l)}</span>`
+    ).join('');
+
+    // Reset name input
+    const input = document.getElementById('setupGroupNameInput');
+    input.value = '';
+    sg.style.display = '';
+    requestAnimationFrame(() => sg.classList.add('visible'));
+    setTimeout(() => input.focus(), 520);
+  }
+
+  function hideSetupGroup(cb) {
+    const sg = document.getElementById('setupGroup');
+    if (!sg) { if (cb) cb(); return; }
+    sg.classList.add('hiding');
+    sg.classList.remove('visible');
+    sg.addEventListener('transitionend', () => {
+      sg.classList.remove('hiding');
+      sg.style.display = 'none';
+      if (cb) cb();
+    }, { once: true });
+  }
+
+  document.getElementById('setupGroupSave').addEventListener('click', () => {
+    const name = document.getElementById('setupGroupNameInput').value.trim();
+    if (!name) {
+      document.getElementById('setupGroupNameInput').focus();
+      document.getElementById('setupGroupNameInput').style.borderColor = 'rgba(232,48,48,0.7)';
+      setTimeout(() => document.getElementById('setupGroupNameInput').style.borderColor = '', 1200);
+      return;
+    }
+    // Collect the labels from the chips (already pushed to backend in discover step)
+    const labels = Array.from(document.querySelectorAll('#setupGroupLightChips .setup-group-chip'))
+      .map(el => el.textContent);
+    callApi('save_group', name, labels);
+    callApi('save_gui_settings', { last_group: name });
+    hideSetupGroup(() => enterApp(true));
+  });
+
+  document.getElementById('setupGroupNameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('setupGroupSave').click();
+  });
+
+  document.getElementById('setupGroupSkip').addEventListener('click', () => {
+    hideSetupGroup(() => enterApp(true));
+  });
+
+  // ---- tutorial flow ----
+  (function () {
+    const STEPS = [
+      {
+        page: 'dashboard', target: '.stats-row',
+        title: 'Your Dashboard at a Glance',
+        body: 'These cards show live status — bridge state, how many lights are active, your current group, and how many packets your game has sent.',
+      },
+      {
+        page: 'dashboard', target: '#startBtn',
+        title: 'Start the Bridge First',
+        body: 'Hit Start Bridge once to open the UDP listener. It stays running in the background and picks up every event F1 25 broadcasts over your local network.',
+      },
+      {
+        page: 'dashboard', target: '.quick-effects',
+        title: 'Test Your Lights',
+        body: 'Fire any lighting effect instantly from here. Use these before a session to confirm your bulbs are responding the way you expect.',
+      },
+      {
+        page: 'lights', target: '#lightsCollapsible',
+        title: 'Managing Your Lights',
+        body: 'Your discovered LIFX bulbs appear here. Only checked bulbs react to race events. Hit Save Group to make your selection reload automatically next time.',
+        beforeShow() {
+          const b = document.getElementById('lightsCollapsible');
+          if (b && b.classList.contains('collapsed')) {
+            b.classList.remove('collapsed');
+            document.getElementById('lightsChevron').classList.remove('collapsed');
+          }
+        },
+      },
+      {
+        page: 'effects', target: '[data-target="effectsAutoBody"]',
+        preferSide: 'right',
+        title: 'Auto-Response Triggers',
+        body: 'These toggles decide which race events automatically fire your lights. Turn off anything you don\'t want — it\'s completely up to you.',
+        beforeShow() {
+          const b = document.getElementById('effectsAutoBody');
+          if (b && b.classList.contains('collapsed'))
+            b.closest('.effects-section').querySelector('.collapsible-header').click();
+        },
+      },
+      {
+        page: 'effects', target: '[data-target="effectsManualBody"]',
+        title: 'Manual Triggers',
+        body: 'You can also fire any effect by hand at any time — great for testing your rig.',
+        beforeShow() {
+          const b = document.getElementById('effectsManualBody');
+          if (b && b.classList.contains('collapsed'))
+            b.closest('.effects-section').querySelector('.collapsible-header').click();
+        },
+      },
+      {
+        page: 'lights', target: '.brightness-row',
+        title: 'Brightness Range',
+        body: 'Set the floor and ceiling of how bright your bulbs get during effects. A good range makes everything punchy without being blinding over a long session.',
+      },
+      {
+        page: 'settings', target: '.settings-section',
+        title: 'Match Your UDP Settings',
+        body: 'The port and IP here must match what F1 25 is broadcasting to. In-game go to Settings → Telemetry Settings and set the UDP IP Address and UDP Port to the values shown here.',
+      },
+      {
+        page: null, target: null, isLast: true,
+        title: 'You\'re Ready to Race',
+        body: 'Load into a session, hit Start Bridge, and your lights will respond to every flag, fastest lap, and moment on track. Have a good race.',
+      },
+    ];
+
+    const N   = STEPS.length;
+    let   cur = -1;
+
+    const tutEl   = document.getElementById('tutorial');
+    const spot    = document.getElementById('tutSpotlight');
+    const ptr     = document.getElementById('tutPointer');
+    const ptrSvg  = document.getElementById('tutPointerSvg');
+    const card    = document.getElementById('tutCard');
+    const lblEl   = document.getElementById('tutStepLabel');
+    const progEl  = document.getElementById('tutProgress');
+    const titleEl = document.getElementById('tutTitle');
+    const bodyEl  = document.getElementById('tutBody');
+    const nextBtn = document.getElementById('tutNext');
+    const skipBtn = document.getElementById('tutSkip');
+
+    // Build progress pips
+    for (let i = 0; i < N; i++) {
+      const d = document.createElement('div'); d.className = 'tut-pip'; progEl.appendChild(d);
+    }
+
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+
+    function updatePips(idx) {
+      progEl.querySelectorAll('.tut-pip').forEach((p, i) => {
+        p.className = 'tut-pip' + (i < idx ? ' past' : i === idx ? ' current' : '');
+      });
+    }
+
+    function computePos(sr, cW, cH, gap, preferSide) {
+      const vw = window.innerWidth, vh = window.innerHeight, m = 14;
+      const cx = sr.left + sr.width  / 2 - cW / 2;
+      const cy = sr.top  + sr.height / 2 - cH / 2;
+      const clX = l => Math.max(m, Math.min(vw - cW - m, l));
+      const clY = t => Math.max(m, Math.min(vh - cH - m, t));
+      const fits = { below: vh - sr.bottom - gap >= cH + m, above: sr.top - gap >= cH + m,
+                     right: vw - sr.right - gap  >= cW + m, left:  sr.left - cW - gap >= m };
+      if (preferSide && fits[preferSide]) {
+        if (preferSide === 'below') return { side:'below', left:clX(cx), top:sr.bottom + gap };
+        if (preferSide === 'above') return { side:'above', left:clX(cx), top:sr.top - cH - gap };
+        if (preferSide === 'right') return { side:'right', left:sr.right + gap, top:clY(cy) };
+        if (preferSide === 'left')  return { side:'left',  left:sr.left - cW - gap, top:clY(cy) };
+      }
+      if (fits.below) return { side:'below', left:clX(cx), top:sr.bottom + gap };
+      if (fits.above) return { side:'above', left:clX(cx), top:sr.top - cH - gap };
+      if (fits.right) return { side:'right', left:sr.right + gap, top:clY(cy) };
+      return                 { side:'left',  left:sr.left - cW - gap, top:clY(cy) };
+    }
+
+    function placePointer(sr, side) {
+      const cx = sr.left + sr.width  / 2;
+      const cy = sr.top  + sr.height / 2;
+      const E  = 16;
+      let px, py, rot, dir;
+      switch (side) {
+        case 'below': px = cx;          py = sr.bottom + E; rot = 180; dir = 'up';    break;
+        case 'above': px = cx;          py = sr.top - E;    rot = 0;   dir = 'down';  break;
+        case 'right': px = sr.right + E; py = cy;           rot = -90; dir = 'left';  break;
+        case 'left':  px = sr.left - E;  py = cy;           rot = 90;  dir = 'right'; break;
+      }
+      ptr.style.left = px + 'px';
+      ptr.style.top  = py + 'px';
+      ptrSvg.style.transform = `rotate(${rot}deg)`;
+      ptr.className = 'dir-' + dir;
+    }
+
+    async function goTo(idx) {
+      cur = idx;
+      const step = STEPS[idx];
+      const prev = idx > 0 ? STEPS[idx - 1] : null;
+      const isFirst = idx === 0;
+
+      // Fade card + pointer out before moving
+      if (!isFirst) {
+        card.style.opacity = '0';
+        ptr.style.opacity  = '0';
+        await wait(200);
+      }
+
+      // Navigate if page changed
+      if (step.page && step.page !== prev?.page) {
+        spot.classList.remove('shown');
+        navigateTo(step.page);
+        await wait(380);
+      }
+
+      if (step.beforeShow) { step.beforeShow(); await wait(220); }
+
+      // Update card content while invisible
+      lblEl.textContent   = `Step ${idx + 1} of ${N}`;
+      titleEl.textContent = step.title;
+      bodyEl.textContent  = step.body;
+      nextBtn.textContent = step.isLast ? 'Finish' : 'Next →';
+      skipBtn.style.display = step.isLast ? 'none' : '';
+      updatePips(idx);
+
+      // Centered final card (no target)
+      if (!step.target) {
+        spot.classList.remove('shown');
+        ptr.style.display = 'none';
+        card.style.left = '50%'; card.style.top = '50%';
+        card.style.transform = 'translate(-50%,-50%)';
+        card.style.opacity = '1';
+        return;
+      }
+      card.style.transform = '';
+
+      const tEl = document.querySelector(step.target);
+      if (!tEl) { card.style.opacity = '1'; return; }
+
+      tEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      await wait(340);
+
+      const r  = tEl.getBoundingClientRect();
+      const P  = 10;
+      const sr = { left:r.left-P, top:r.top-P, right:r.right+P, bottom:r.bottom+P, width:r.width+P*2, height:r.height+P*2 };
+
+      // Move spotlight (CSS transition handles the animation)
+      spot.style.left   = sr.left   + 'px';
+      spot.style.top    = sr.top    + 'px';
+      spot.style.width  = sr.width  + 'px';
+      spot.style.height = sr.height + 'px';
+      spot.classList.add('shown');
+
+      // Position card (while still invisible)
+      const cRect = card.getBoundingClientRect();
+      const pos   = computePos(sr, cRect.width || 340, cRect.height || 210, 20, step.preferSide);
+      card.style.left = pos.left + 'px';
+      card.style.top  = pos.top  + 'px';
+
+      // Place pointer
+      ptr.style.display = 'flex';
+      placePointer(sr, pos.side);
+
+      // Wait for spotlight to finish sliding, then fade card + pointer in
+      await wait(isFirst ? 0 : 380);
+      card.style.opacity = '1';
+      ptr.style.opacity  = '1';
+    }
+
+    function endTutorial() {
+      tutEl.classList.remove('active');
+      spot.classList.remove('shown');
+      cur = -1;
+    }
+
+    nextBtn.addEventListener('click', () => {
+      if (STEPS[cur]?.isLast) { endTutorial(); return; }
+      if (cur < N - 1) goTo(cur + 1);
+    });
+    skipBtn.addEventListener('click', endTutorial);
+
+    window.startTutorial = function () {
+      tutEl.classList.add('active');
+      // Start on dashboard
+      if (document.querySelector('.page.active')?.id !== 'page-dashboard') navigateTo('dashboard');
+      goTo(0);
+    };
+  })();
+
+  // ---- run setup again (from settings) ----
+  document.getElementById('runSetupAgainBtn').addEventListener('click', () => {
+    // Show brand selector again
+    const bs = document.getElementById('brandSelect');
+    if (bs) {
+      bs.style.display = '';
+      requestAnimationFrame(() => bs.classList.add('visible'));
+    } else {
+      // brandSelect was never hidden, go straight to discover
+      showSetupDiscover();
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Saved state (user-specific, not source)
+f1lifx_gui_settings.json
+lifx_groups.json
+
+# Claude Code session data
+.claude/
+
+# Original/legacy code archive
+Original/
+
+# OS
+.DS_Store
+Thumbs.db
