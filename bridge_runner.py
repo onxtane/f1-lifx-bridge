@@ -59,6 +59,7 @@ class BridgeRunner:
         self._pending_stagger = None        # (enabled, ms)
         self._pending_idle = None           # (hsbk, pulse)
         self._pending_forwarding = None       # (enabled, host, port)
+        self._pending_listen = None           # (ip, port)
         self._pending_mz_startlights = None  # (direction, mode)
 
         self._light_assignments = {}  # {label: None | [effect_keys]}
@@ -93,10 +94,11 @@ class BridgeRunner:
                 self.on_status_text("Import Error")
                 return False
 
+        listen_ip, listen_port = self._pending_listen or (self._module.UDP_IP, self._module.UDP_PORT)
         try:
             self.bridge = self._module.F1LifxBridgeCore(
-                udp_ip=self._module.UDP_IP,
-                udp_port=self._module.UDP_PORT,
+                udp_ip=listen_ip,
+                udp_port=listen_port,
                 bulb_count=self._module.LIFX_BULB_COUNT,
                 dry_run=self._module.DRY_RUN,
                 log_callback=self.on_log,
@@ -238,6 +240,12 @@ class BridgeRunner:
         if self.bridge is not None and self.bridge.lifx is not None:
             self.bridge.lifx.mz_startlights_direction = direction
             self.bridge.lifx.mz_startlights_mode = mode
+
+    def set_listen_address(self, ip: str, port: int):
+        self._pending_listen = (ip, int(port))
+        if self.is_running():
+            self.stop()
+            self.start()
 
     def set_forwarding(self, enabled: bool, host: str, port: int):
         if self.bridge is not None:

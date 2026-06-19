@@ -2781,6 +2781,16 @@
   document.getElementById('settingFwdHost').addEventListener('change', saveForwarding);
   document.getElementById('settingFwdPort').addEventListener('change', saveForwarding);
 
+  // ---- UDP listen address ----
+  function saveListenAddress() {
+    const ip   = document.getElementById('settingIp').value.trim() || '127.0.0.1';
+    const port = parseInt(document.getElementById('settingPort').value) || 20777;
+    callApi('save_gui_settings', { ip, port });
+    callApi('set_listen_address', ip, port);
+  }
+  document.getElementById('settingIp').addEventListener('change', saveListenAddress);
+  document.getElementById('settingPort').addEventListener('change', saveListenAddress);
+
   // ---- effects page collapsibles ----
   document.querySelectorAll('.effects-collapse-header').forEach(header => {
     header.addEventListener('click', () => {
@@ -2902,6 +2912,7 @@
       if (s.ip)         document.getElementById('settingIp').value        = s.ip;
       if (s.bulb_count) document.getElementById('settingBulbCount').value = s.bulb_count;
       if (s.dry_run != null) document.getElementById('settingDryRun').checked = s.dry_run;
+      callApi('set_listen_address', s.ip || '127.0.0.1', s.port || 20777);
       callApi('save_gui_settings', { port: s.port, ip: s.ip, bulb_count: s.bulb_count, dry_run: s.dry_run });
     }
 

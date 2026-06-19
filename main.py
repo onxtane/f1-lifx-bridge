@@ -139,6 +139,10 @@ class Api:
         self.runner.set_mz_startlights(direction, mode)
         return {"ok": True}
 
+    def set_listen_address(self, ip: str, port: int):
+        self.runner.set_listen_address(ip, int(port))
+        return {"ok": True}
+
     def set_light_assignments(self, data: dict):
         self.runner.set_light_assignments(data)
         return {"ok": True}
