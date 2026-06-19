@@ -143,6 +143,10 @@ class Api:
         self.runner.set_light_assignments(data)
         return {"ok": True}
 
+    def identify_light(self, label: str):
+        self.runner.identify_light(label)
+        return {"ok": True}
+
     # ---- internal: enqueue updates for JS to poll ----
 
     def _enqueue(self, fn_name: str, *args):

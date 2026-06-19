@@ -218,6 +218,35 @@ class LocalLifxController:
 
         self.discover_lights()
 
+    def identify_light(self, label: str):
+        """Flash a single light by label so the user can identify the physical device."""
+        target = next(
+            (l for l in self.discovered_lights if self.safe_label(l).lower() == label.lower()),
+            None,
+        )
+        if target is None:
+            if self.log_callback:
+                self.log_callback(f"[IDENTIFY] Light '{label}' not found in discovered lights.")
+            return
+        white  = [0, 0, 65535, 4500]
+        dark   = [0, 0, 200,   4500]
+        try:
+            from lifxlan import MultiZoneLight
+            for _ in range(3):
+                if isinstance(target, MultiZoneLight):
+                    target.set_zone_color(0, 255, white, 80, rapid=True)
+                else:
+                    target.set_color(white, 80)
+                time.sleep(0.18)
+                if isinstance(target, MultiZoneLight):
+                    target.set_zone_color(0, 255, dark, 80, rapid=True)
+                else:
+                    target.set_color(dark, 80)
+                time.sleep(0.18)
+        except Exception as exc:
+            if self.log_callback:
+                self.log_callback(f"[IDENTIFY] Error flashing '{label}': {exc}")
+
     def start_lights_test(self):
         for num_lights in range(0, 6):
             self.start_lights(num_lights)

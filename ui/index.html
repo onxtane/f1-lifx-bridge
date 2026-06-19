@@ -3197,16 +3197,39 @@
 
         const header = document.createElement('div');
         header.className = 'la-card-header';
+        const btnStyle = 'font-size:11px;padding:5px 10px;white-space:nowrap;';
         const assignOneBtn = document.createElement('button');
         assignOneBtn.className = 'btn btn-ghost btn-sm';
+        assignOneBtn.style.cssText = btnStyle;
         assignOneBtn.textContent = 'Assign to All Effects';
         assignOneBtn.addEventListener('click', () => {
           _assignments[label] = null;
           save();
           card.querySelectorAll('.la-chip').forEach(c => c.classList.add('on'));
         });
+        const removeOneBtn = document.createElement('button');
+        removeOneBtn.className = 'btn btn-ghost btn-sm';
+        removeOneBtn.style.cssText = btnStyle;
+        removeOneBtn.textContent = 'Remove from All Effects';
+        removeOneBtn.addEventListener('click', () => {
+          _assignments[label] = new Set();
+          save();
+          card.querySelectorAll('.la-chip').forEach(c => c.classList.remove('on'));
+        });
+        const identifyBtn = document.createElement('button');
+        identifyBtn.className = 'btn btn-ghost btn-sm';
+        identifyBtn.style.cssText = btnStyle;
+        identifyBtn.textContent = 'Identify';
+        identifyBtn.addEventListener('click', () => {
+          callApi('identify_light', label);
+        });
+        const btnGroup = document.createElement('div');
+        btnGroup.style.cssText = 'display:flex;flex-direction:column;gap:4px;flex-shrink:0;';
+        btnGroup.appendChild(assignOneBtn);
+        btnGroup.appendChild(removeOneBtn);
+        btnGroup.appendChild(identifyBtn);
         header.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><span class="la-card-icon">💡</span><span class="la-card-name">${label}</span></div>`;
-        header.appendChild(assignOneBtn);
+        header.appendChild(btnGroup);
         card.appendChild(header);
 
         const chips = document.createElement('div');

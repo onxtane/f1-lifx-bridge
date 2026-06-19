@@ -159,6 +159,9 @@ class BridgeRunner:
     def test_selected(self):
         threading.Thread(target=self._test_worker, daemon=True).start()
 
+    def identify_light(self, label: str):
+        threading.Thread(target=self._identify_worker, args=(label,), daemon=True).start()
+
     def test_multizone(self):
         threading.Thread(target=self._test_mz_worker, daemon=True).start()
 
@@ -404,6 +407,15 @@ class BridgeRunner:
         self.on_selection_changed(self._get_active_labels())
         self.on_discovering(False)
         self.on_status_text("Stopped")
+
+    def _identify_worker(self, label: str):
+        if self.bridge is None or self.bridge.lifx is None:
+            self.on_log("No lights discovered yet — click Discover Lights first.")
+            return
+        try:
+            self.bridge.lifx.identify_light(label)
+        except Exception as exc:
+            self.on_log(f"ERROR during identify: {exc}")
 
     def _test_worker(self):
         if self.bridge is None or self.bridge.lifx is None:
