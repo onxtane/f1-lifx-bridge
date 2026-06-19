@@ -14,6 +14,7 @@ env/
 # Saved state (user-specific, not source)
 f1lifx_gui_settings.json
 lifx_groups.json
+webview_storage/
 
 # Claude Code session data
 .claude/

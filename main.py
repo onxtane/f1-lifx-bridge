@@ -189,7 +189,8 @@ def main():
     )
     api.set_window(window)
 
-    webview.start()
+    storage = PROJECT_DIR / "webview_storage"
+    webview.start(private_mode=False, storage_path=str(storage))
 
 
 if __name__ == "__main__":
