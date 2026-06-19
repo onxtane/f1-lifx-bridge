@@ -1809,11 +1809,11 @@
                 <div class="setting-label">Direction</div>
                 <div class="setting-hint">Which end the start lights build from</div>
               </div>
-              <div class="setting-control">
-                <select id="settingMzDirection" style="background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:8px;color:var(--text-main);font-family:inherit;font-size:14px;padding:8px 12px;outline:none;cursor:pointer;">
-                  <option value="ltr">Left → Right</option>
-                  <option value="rtl">Right → Left</option>
-                </select>
+              <div class="curve-dropdown" id="mzDirDropdown">
+                <div class="curve-dropdown-btn" id="mzDirBtn">
+                  <span id="mzDirLabel">Left → Right</span>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2,4 6,8 10,4"/></svg>
+                </div>
               </div>
             </div>
             <div class="setting-row">
@@ -2476,7 +2476,7 @@
       document.getElementById('settingMzSweep').checked = settings.mz_startlights_mode !== 'solid';
     }
     if (settings.mz_startlights_direction) {
-      document.getElementById('settingMzDirection').value = settings.mz_startlights_direction;
+      setMzDirection(settings.mz_startlights_direction);
     }
     applyMzStartlightsToBackend();
     updateMzDirectionRowVisibility();
@@ -2488,6 +2488,10 @@
     if (settings.fwd_host) document.getElementById('settingFwdHost').value = settings.fwd_host;
     if (settings.fwd_port) document.getElementById('settingFwdPort').value = settings.fwd_port;
     applyForwardingToBackend();
+
+    // Capture the fully-loaded settings into the active profile so switching
+    // back to it after creating other profiles restores the correct state.
+    window._profileCaptureCurrent && window._profileCaptureCurrent();
   });
 
   // ---- stagger lights ----
@@ -2665,30 +2669,90 @@
   document.getElementById('settingIdlePulse').addEventListener('change', saveIdleState);
 
   // ---- multizone start lights ----
+  let _mzDirection = 'ltr';
+
+  const MZ_DIR_OPTIONS = [
+    { value: 'ltr', label: 'Left → Right' },
+    { value: 'rtl', label: 'Right → Left' },
+  ];
+
+  // Build portal menu
+  const mzDirMenu = document.createElement('div');
+  mzDirMenu.className = 'curve-dropdown-menu';
+  mzDirMenu.style.display = 'none';
+  MZ_DIR_OPTIONS.forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'curve-dropdown-item' + (opt.value === _mzDirection ? ' selected' : '');
+    item.dataset.value = opt.value;
+    item.textContent = opt.label;
+    mzDirMenu.appendChild(item);
+  });
+  document.body.appendChild(mzDirMenu);
+
+  const mzDirBtn   = document.getElementById('mzDirBtn');
+  const mzDirLabel = document.getElementById('mzDirLabel');
+
+  function setMzDirection(val) {
+    _mzDirection = val;
+    const opt = MZ_DIR_OPTIONS.find(o => o.value === val);
+    if (opt) mzDirLabel.textContent = opt.label;
+    mzDirMenu.querySelectorAll('.curve-dropdown-item').forEach(i => {
+      i.classList.toggle('selected', i.dataset.value === val);
+    });
+  }
+
+  function openMzDirMenu() {
+    const r = mzDirBtn.getBoundingClientRect();
+    mzDirMenu.style.left    = r.left + 'px';
+    mzDirMenu.style.top     = (r.bottom + 6) + 'px';
+    mzDirMenu.style.width   = r.width + 'px';
+    mzDirMenu.style.display = 'block';
+    mzDirBtn.classList.add('open');
+  }
+
+  function closeMzDirMenu() {
+    mzDirMenu.style.display = 'none';
+    mzDirBtn.classList.remove('open');
+  }
+
+  mzDirBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    mzDirMenu.style.display === 'block' ? closeMzDirMenu() : openMzDirMenu();
+  });
+
+  mzDirMenu.addEventListener('click', e => {
+    const item = e.target.closest('.curve-dropdown-item');
+    if (!item) return;
+    setMzDirection(item.dataset.value);
+    closeMzDirMenu();
+    saveMzStartlights();
+  });
+
+  document.addEventListener('click', e => {
+    if (!mzDirBtn.contains(e.target) && !mzDirMenu.contains(e.target)) closeMzDirMenu();
+  });
+
   function applyMzStartlightsToBackend() {
-    const mode      = document.getElementById('settingMzSweep').checked ? 'sweep' : 'solid';
-    const direction = document.getElementById('settingMzDirection').value;
-    callApi('set_mz_startlights', direction, mode);
+    const mode = document.getElementById('settingMzSweep').checked ? 'sweep' : 'solid';
+    callApi('set_mz_startlights', _mzDirection, mode);
   }
 
   function updateMzDirectionRowVisibility() {
     const sweepOn = document.getElementById('settingMzSweep').checked;
     const row = document.getElementById('mzDirectionRow');
-    row.style.opacity      = sweepOn ? '1' : '0.45';
+    row.style.opacity       = sweepOn ? '1' : '0.45';
     row.style.pointerEvents = sweepOn ? '' : 'none';
-    row.style.transition   = 'opacity .2s ease';
+    row.style.transition    = 'opacity .2s ease';
   }
 
   function saveMzStartlights() {
-    const mode      = document.getElementById('settingMzSweep').checked ? 'sweep' : 'solid';
-    const direction = document.getElementById('settingMzDirection').value;
-    callApi('save_gui_settings', { mz_startlights_mode: mode, mz_startlights_direction: direction });
+    const mode = document.getElementById('settingMzSweep').checked ? 'sweep' : 'solid';
+    callApi('save_gui_settings', { mz_startlights_mode: mode, mz_startlights_direction: _mzDirection });
     applyMzStartlightsToBackend();
     updateMzDirectionRowVisibility();
   }
 
   document.getElementById('settingMzSweep').addEventListener('change', saveMzStartlights);
-  document.getElementById('settingMzDirection').addEventListener('change', saveMzStartlights);
   document.getElementById('testMzBtn').addEventListener('click', () => callApi('test_multizone'));
   updateMzDirectionRowVisibility();
 
@@ -2731,14 +2795,10 @@
     const ACTIVE_KEY  = 'lifx_active_profile';
 
     // Snapshot keys — what a profile captures from localStorage / the DOM
+    // localStorage keys that travel with a profile verbatim
     const SNAPSHOT_KEYS = [
       'lifx_light_assignments',
       'lifx_intensity_curves',
-    ];
-    // DOM-backed settings read/written via helper
-    // (real read/save wired to backend later; for now we snapshot their raw localStorage values)
-    const SETTINGS_KEYS = [
-      'lifx_gui_settings',     // brightness, stagger, idle color, pulse, events, port, ip
     ];
 
     let _profiles = {};   // { id: { name, createdAt, snapshot: {} } }
@@ -2761,9 +2821,91 @@
       if (_activeId) localStorage.setItem(ACTIVE_KEY, _activeId);
     }
 
+    function captureSettings() {
+      return {
+        brightness_min:            parseInt(document.getElementById('brightnessMin')?.value ?? 0),
+        brightness_max:            parseInt(document.getElementById('brightnessMax')?.value ?? 100),
+        stagger_enabled:           !!document.getElementById('settingStagger')?.checked,
+        stagger_ms:                parseInt(document.getElementById('settingStaggerMs')?.value) || 50,
+        idle_color:                document.getElementById('settingIdleColor')?.value || '#ffa040',
+        idle_pulse:                !!document.getElementById('settingIdlePulse')?.checked,
+        enabled_events:            typeof getEnabledEvents === 'function' ? getEnabledEvents() : null,
+        mz_startlights_mode:       document.getElementById('settingMzSweep')?.checked ? 'sweep' : 'solid',
+        mz_startlights_direction:  typeof _mzDirection !== 'undefined' ? _mzDirection : 'ltr',
+        fwd_enabled:               !!document.getElementById('settingFwdEnabled')?.checked,
+        fwd_host:                  document.getElementById('settingFwdHost')?.value.trim() || '127.0.0.1',
+        fwd_port:                  parseInt(document.getElementById('settingFwdPort')?.value) || 20778,
+        port:                      parseInt(document.getElementById('settingPort')?.value) || 20777,
+        ip:                        document.getElementById('settingIp')?.value.trim() || '0.0.0.0',
+        bulb_count:                parseInt(document.getElementById('settingBulbCount')?.value) || 40,
+        dry_run:                   !!document.getElementById('settingDryRun')?.checked,
+      };
+    }
+
+    function applySettings(s) {
+      if (!s) return;
+
+      // Brightness
+      const sMin = document.getElementById('brightnessMin');
+      const sMax = document.getElementById('brightnessMax');
+      if (sMin && s.brightness_min != null) sMin.value = s.brightness_min;
+      if (sMax && s.brightness_max != null) sMax.value = s.brightness_max;
+      if (typeof updateBrightnessUI === 'function') updateBrightnessUI();
+      callApi('set_brightness_range', s.brightness_min ?? 0, s.brightness_max ?? 100);
+      callApi('save_gui_settings', { brightness_min: s.brightness_min, brightness_max: s.brightness_max });
+
+      // Stagger
+      const staggerEl = document.getElementById('settingStagger');
+      const staggerMs = document.getElementById('settingStaggerMs');
+      if (staggerEl && s.stagger_enabled != null) staggerEl.checked = s.stagger_enabled;
+      if (staggerMs && s.stagger_ms != null)      staggerMs.value  = s.stagger_ms;
+      callApi('set_stagger', !!s.stagger_enabled, s.stagger_ms ?? 50);
+      callApi('save_gui_settings', { stagger_enabled: s.stagger_enabled, stagger_ms: s.stagger_ms });
+
+      // Idle color / pulse
+      if (s.idle_color) document.getElementById('settingIdleColor').value = s.idle_color;
+      if (s.idle_pulse != null) document.getElementById('settingIdlePulse').checked = s.idle_pulse;
+      callApi('set_idle_state', s.idle_color || '#ffa040', !!s.idle_pulse);
+      callApi('save_gui_settings', { idle_color: s.idle_color, idle_pulse: s.idle_pulse });
+
+      // Enabled events
+      if (s.enabled_events !== undefined && typeof applyEnabledEvents === 'function') {
+        applyEnabledEvents(s.enabled_events);
+        callApi('set_enabled_events', s.enabled_events);
+        callApi('save_gui_settings', { enabled_events: s.enabled_events });
+      }
+
+      // Multizone
+      if (s.mz_startlights_mode != null) {
+        document.getElementById('settingMzSweep').checked = s.mz_startlights_mode !== 'solid';
+      }
+      if (s.mz_startlights_direction && typeof setMzDirection === 'function') {
+        setMzDirection(s.mz_startlights_direction);
+      }
+      if (typeof updateMzDirectionRowVisibility === 'function') updateMzDirectionRowVisibility();
+      callApi('set_mz_startlights', s.mz_startlights_direction || 'ltr', s.mz_startlights_mode || 'sweep');
+      callApi('save_gui_settings', { mz_startlights_mode: s.mz_startlights_mode, mz_startlights_direction: s.mz_startlights_direction });
+
+      // Forwarding
+      if (s.fwd_enabled != null) document.getElementById('settingFwdEnabled').checked = s.fwd_enabled;
+      if (s.fwd_host)            document.getElementById('settingFwdHost').value      = s.fwd_host;
+      if (s.fwd_port)            document.getElementById('settingFwdPort').value      = s.fwd_port;
+      document.getElementById('settingFwdHost').disabled = !s.fwd_enabled;
+      document.getElementById('settingFwdPort').disabled = !s.fwd_enabled;
+      callApi('set_forwarding', !!s.fwd_enabled, s.fwd_host || '127.0.0.1', s.fwd_port || 20778);
+      callApi('save_gui_settings', { fwd_enabled: s.fwd_enabled, fwd_host: s.fwd_host, fwd_port: s.fwd_port });
+
+      // UDP / discovery
+      if (s.port)       document.getElementById('settingPort').value      = s.port;
+      if (s.ip)         document.getElementById('settingIp').value        = s.ip;
+      if (s.bulb_count) document.getElementById('settingBulbCount').value = s.bulb_count;
+      if (s.dry_run != null) document.getElementById('settingDryRun').checked = s.dry_run;
+      callApi('save_gui_settings', { port: s.port, ip: s.ip, bulb_count: s.bulb_count, dry_run: s.dry_run });
+    }
+
     function captureSnapshot() {
-      const snap = {};
-      [...SNAPSHOT_KEYS, ...SETTINGS_KEYS].forEach(k => {
+      const snap = { _settings: captureSettings() };
+      SNAPSHOT_KEYS.forEach(k => {
         const v = localStorage.getItem(k);
         if (v !== null) snap[k] = v;
       });
@@ -2771,10 +2913,11 @@
     }
 
     function applySnapshot(snap) {
-      [...SNAPSHOT_KEYS, ...SETTINGS_KEYS].forEach(k => {
+      SNAPSHOT_KEYS.forEach(k => {
         if (snap[k] !== undefined) localStorage.setItem(k, snap[k]);
         else localStorage.removeItem(k);
       });
+      applySettings(snap._settings || null);
     }
 
     function uid() { return 'profile_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7); }
@@ -2841,11 +2984,7 @@
     }
 
     function switchTo(id) {
-      if (!_profiles[id]) return;
-      // Save current state into the active profile before switching
-      if (_activeId && _profiles[_activeId]) {
-        _profiles[_activeId].snapshot = captureSnapshot();
-      }
+      if (!_profiles[id] || id === _activeId) return;
       _activeId = id;
       applySnapshot(_profiles[id].snapshot || {});
       persist();
@@ -2859,7 +2998,6 @@
       if (!_activeId || !_profiles[_activeId]) return;
       _profiles[_activeId].snapshot = captureSnapshot();
       persist();
-      // Flash the banner to confirm
       const banner = document.getElementById('profileActiveBanner');
       banner.style.borderColor = 'rgba(139,124,246,0.8)';
       setTimeout(() => { banner.style.borderColor = ''; }, 800);
@@ -2955,6 +3093,14 @@
 
     document.getElementById('profileNewBtn').addEventListener('click', openNewModal);
     document.getElementById('profileSaveCurrentBtn').addEventListener('click', saveCurrentSettings);
+
+    // Called by pywebviewready after all settings are loaded into the DOM,
+    // so the active profile's snapshot reflects the actual user settings on first run.
+    window._profileCaptureCurrent = function() {
+      if (!_activeId || !_profiles[_activeId]) return;
+      _profiles[_activeId].snapshot = captureSnapshot();
+      persist();
+    };
 
     load();
     render();
