@@ -2087,7 +2087,9 @@
       el.classList.add('hidden');
       el.addEventListener('transitionend', () => {
         el.remove();
-        if (window._loadedSettings && window._loadedSettings.brand) {
+        const setupDone = localStorage.getItem('lifx_setup_complete') === '1'
+          || (window._loadedSettings && window._loadedSettings.setup_complete);
+        if (setupDone) {
           enterApp();
         } else {
           showBrandSelector();
@@ -3841,6 +3843,10 @@
 
   // ---- brand selector + app entry ----
   function enterApp(fromSetup) {
+    // Mark setup as done so it never runs again on subsequent launches.
+    localStorage.setItem('lifx_setup_complete', '1');
+    callApi('save_gui_settings', { setup_complete: true });
+
     const app = document.querySelector('.app');
     if (app) {
       app.classList.add('app-entering');
@@ -4363,13 +4369,14 @@
 
   // ---- run setup again (from settings) ----
   document.getElementById('runSetupAgainBtn').addEventListener('click', () => {
-    // Show brand selector again
+    // Clear the completion flag so enterApp() re-sets it after the flow finishes.
+    localStorage.removeItem('lifx_setup_complete');
+    callApi('save_gui_settings', { setup_complete: false });
     const bs = document.getElementById('brandSelect');
     if (bs) {
       bs.style.display = '';
       requestAnimationFrame(() => bs.classList.add('visible'));
     } else {
-      // brandSelect was never hidden, go straight to discover
       showSetupDiscover();
     }
   });
