@@ -202,6 +202,11 @@ class LocalLifxController:
         self._effect_lock = threading.Lock()
         self._active_effect = None
 
+        # light_assignments: {label: None | [effect_keys]}
+        # None = assigned to all effects; list = only those effects; absent = all
+        self.light_assignments = {}
+        self._current_effect_key = None
+
         if self.dry_run:
             print("[LIFX] DRY_RUN is enabled. Bulbs will NOT change.")
             return
@@ -500,6 +505,19 @@ class LocalLifxController:
         scaled = self.brightness_min + (self.brightness_max - self.brightness_min) * ratio
         return max(1, min(65535, int(scaled)))
 
+    def _effect_lights(self):
+        """Return the subset of self.lights that should receive the current effect."""
+        if not self.light_assignments or self._current_effect_key is None:
+            return self.lights
+        key = self._current_effect_key
+        result = []
+        for light in self.lights:
+            label = self.safe_label(light)
+            assignment = self.light_assignments.get(label)
+            if assignment is None or key in assignment:
+                result.append(light)
+        return result
+
     def set_color_all(self, hsbk, duration_ms=50, stagger=True):
         """
         hsbk = [hue, saturation, brightness, kelvin]
@@ -526,7 +544,8 @@ class LocalLifxController:
             print(f"[DRY RUN] Set LIFX color: hsbk={scaled}, duration_ms={duration_ms}")
             return
 
-        for i, light in enumerate(self.lights):
+        lights = self._effect_lights()
+        for i, light in enumerate(lights):
             try:
                 if isinstance(light, MultiZoneLight):
                     # Set all zones to the same color.
@@ -539,7 +558,7 @@ class LocalLifxController:
                 print(msg)
                 if self.log_callback:
                     self.log_callback(msg)
-            if stagger and self.stagger_ms > 0 and i < len(self.lights) - 1:
+            if stagger and self.stagger_ms > 0 and i < len(lights) - 1:
                 time.sleep(self.stagger_ms / 1000.0)
 
     def set_active_effect(self, effect_name):
@@ -583,6 +602,7 @@ class LocalLifxController:
 
     def start_lights(self, num_lights):
         self.clear_active_effect()
+        self._current_effect_key = 'start_lights'
         num_lights = max(0, min(5, num_lights))
 
         brightness_by_count = {0: 8000, 1: 16000, 2: 26000, 3: 38000, 4: 50000, 5: 65535}
@@ -595,7 +615,8 @@ class LocalLifxController:
             print(f"[DRY RUN] Start lights {num_lights}/5")
             return
 
-        for i, light in enumerate(self.lights):
+        lights = self._effect_lights()
+        for i, light in enumerate(lights):
             try:
                 if isinstance(light, MultiZoneLight) and self.mz_startlights_mode == "sweep":
                     zone_count = self.get_zone_count(light)
@@ -629,11 +650,12 @@ class LocalLifxController:
                 print(msg)
                 if self.log_callback:
                     self.log_callback(msg)
-            if self.stagger_ms > 0 and i < len(self.lights) - 1:
+            if self.stagger_ms > 0 and i < len(lights) - 1:
                 time.sleep(self.stagger_ms / 1000.0)
 
     def lights_out(self):
         self.clear_active_effect()
+        self._current_effect_key = 'lights_out'
         print("[LIGHTS OUT]")
 
         green = [21845, 65535, 65535, 3500]
@@ -653,6 +675,7 @@ class LocalLifxController:
 
     def neutral(self):
         self.clear_active_effect()
+        self._current_effect_key = 'neutral'
         print("[LIFX] Idle state")
         self.set_color_all(self.idle_hsbk, duration_ms=800, stagger=False)
         if self.idle_pulse:
@@ -680,16 +703,19 @@ class LocalLifxController:
                 time.sleep(0.1)
 
     def yellow_flag(self):
+        self._current_effect_key = 'yellow_flag'
         self.start_yellow_flash_effect()
 
     def blue_flag(self):
         self.clear_active_effect()
+        self._current_effect_key = 'blue_flag'
         print("[FLAG] Blue")
         blue = [43690, 65535, 65535, 3500]
         self.set_color_all(blue, duration_ms=200)
 
     def red_flag(self):
         self.clear_active_effect()
+        self._current_effect_key = 'red_flag'
         print("[FLAG] Red")
         red = [0, 65535, 65535, 3500]
         self.flash_colors([red], loops=3, hold_ms=250)
@@ -697,6 +723,7 @@ class LocalLifxController:
 
     def black_flag(self):
         self.clear_active_effect()
+        self._current_effect_key = 'black_flag'
         print("[FLAG] Black")
         # Bulbs cannot show true black, so we do a dark/off-style pulse.
         dark = [0, 0, 1, 3500]
@@ -706,6 +733,7 @@ class LocalLifxController:
 
     def white_warning(self):
         self.clear_active_effect()
+        self._current_effect_key = 'white_warning'
         print("[WARNING] White flashing")
         white = [0, 0, 65535, 4500]
         dark = [0, 0, 1, 3500]
@@ -713,6 +741,7 @@ class LocalLifxController:
         self.neutral()
 
     def fastest_lap(self):
+        self._current_effect_key = 'fastest_lap'
         print("[EVENT] Fastest lap - purple flash")
         purple = [54613, 65535, 65535, 3500]
         dark = [0, 0, 1, 3500]
@@ -722,6 +751,7 @@ class LocalLifxController:
 
     def chequered_flag(self):
         self.clear_active_effect()
+        self._current_effect_key = 'chequered_flag'
         print("[FLAG] Chequered")
         white = [0, 0, 65535, 4500]
         green = [21845, 65535, 65535, 3500]

@@ -131,7 +131,6 @@ See the [GitHub Issues](https://github.com/onxtane/f1-lifx-bridge/issues) tracke
 
 ## Roadmap
 
-- Light Assignment backend wiring ([#6](https://github.com/onxtane/f1-lifx-bridge/issues/6))
 - Profiles backend wiring ([#7](https://github.com/onxtane/f1-lifx-bridge/issues/7))
 - Intensity Curves real-world implementation ([#5](https://github.com/onxtane/f1-lifx-bridge/issues/5))
 - Formation Lap event ([#4](https://github.com/onxtane/f1-lifx-bridge/issues/4) maybe)

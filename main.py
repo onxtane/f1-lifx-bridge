@@ -139,6 +139,10 @@ class Api:
         self.runner.set_mz_startlights(direction, mode)
         return {"ok": True}
 
+    def set_light_assignments(self, data: dict):
+        self.runner.set_light_assignments(data)
+        return {"ok": True}
+
     # ---- internal: enqueue updates for JS to poll ----
 
     def _enqueue(self, fn_name: str, *args):

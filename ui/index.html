@@ -3141,6 +3141,7 @@
         out[label] = val === null ? null : [...val];
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+      callApi('set_light_assignments', out);
     }
 
     function isOn(lightLabel, effectKey) {
@@ -3227,13 +3228,26 @@
 
     document.getElementById('laAssignAllBtn').addEventListener('click', assignAll);
 
+    function pushToBackend() {
+      const out = {};
+      for (const [label, val] of Object.entries(_assignments)) {
+        out[label] = val === null ? null : [...val];
+      }
+      callApi('set_light_assignments', out);
+    }
+
     // Expose refresh so it's called when active lights change
-    window._laRefresh = function(labels) { render(labels); };
+    window._laRefresh = function(labels) {
+      load();   // re-read localStorage in case profile switch updated it
+      render(labels);
+      pushToBackend();
+    };
 
     load();
     // Init with currently active lights if any
     const initLabels = typeof _activeLabels !== 'undefined' ? [..._activeLabels] : [];
     render(initLabels);
+    pushToBackend();
   })();
 
   // ---- light preview ----

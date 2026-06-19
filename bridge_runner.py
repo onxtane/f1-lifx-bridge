@@ -61,6 +61,8 @@ class BridgeRunner:
         self._pending_forwarding = None       # (enabled, host, port)
         self._pending_mz_startlights = None  # (direction, mode)
 
+        self._light_assignments = {}  # {label: None | [effect_keys]}
+
         self._stat_stop = threading.Event()
         self._stat_thread = None
         self._lock = threading.Lock()
@@ -126,6 +128,9 @@ class BridgeRunner:
             direction, mode = self._pending_mz_startlights
             self.bridge.lifx.mz_startlights_direction = direction
             self.bridge.lifx.mz_startlights_mode = mode
+
+        if self._light_assignments and self.bridge.lifx is not None:
+            self.bridge.lifx.light_assignments = self._light_assignments
 
         return True
 
@@ -251,6 +256,12 @@ class BridgeRunner:
         if self.bridge is not None and self.bridge.lifx is not None:
             self.bridge.lifx.brightness_min = min_b
             self.bridge.lifx.brightness_max = max_b
+
+    def set_light_assignments(self, assignments: dict):
+        """assignments: {label: None | [effect_keys]}.  None = all effects."""
+        self._light_assignments = assignments or {}
+        if self.bridge is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.light_assignments = self._light_assignments
 
     def set_enabled_events(self, names: list[str] | None):
         """Pass None to enable everything, or a list of event key strings to restrict."""
@@ -384,6 +395,9 @@ class BridgeRunner:
 
         if self._pending_brightness is not None and self.bridge.lifx is not None:
             self.bridge.lifx.brightness_min, self.bridge.lifx.brightness_max = self._pending_brightness
+
+        if self._light_assignments and self.bridge.lifx is not None:
+            self.bridge.lifx.light_assignments = self._light_assignments
 
         self._push_light_stats()
         self.on_lights_discovered(self.get_discovered_lights())
