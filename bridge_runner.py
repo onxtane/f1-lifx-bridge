@@ -161,10 +161,14 @@ class BridgeRunner:
             self.bridge.forward_host = host
             self.bridge.forward_port = port
 
-        if self._pending_mz_startlights is not None and self.bridge.lifx is not None:
+        if self._pending_mz_startlights is not None:
             direction, mode = self._pending_mz_startlights
-            self.bridge.lifx.mz_startlights_direction = direction
-            self.bridge.lifx.mz_startlights_mode = mode
+            if self.bridge.lifx is not None:
+                self.bridge.lifx.mz_startlights_direction = direction
+                self.bridge.lifx.mz_startlights_mode = mode
+            if self.bridge.nanoleaf is not None:
+                self.bridge.nanoleaf.mz_startlights_direction = direction
+                self.bridge.nanoleaf.mz_startlights_mode = mode
 
         if self._light_assignments and self.bridge.lifx is not None:
             self.bridge.lifx.light_assignments = self._light_assignments
@@ -293,6 +297,9 @@ class BridgeRunner:
         if self.bridge is not None and self.bridge.lifx is not None:
             self.bridge.lifx.mz_startlights_direction = direction
             self.bridge.lifx.mz_startlights_mode = mode
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            self.bridge.nanoleaf.mz_startlights_direction = direction
+            self.bridge.nanoleaf.mz_startlights_mode = mode
 
     def set_debug_timing(self, enabled: bool):
         if self.bridge is not None and self.bridge.lifx is not None:
@@ -313,10 +320,20 @@ class BridgeRunner:
             return
         ctrl = NanoleafController.try_connect(ip, token, log_callback=self.on_log)
         self.bridge.nanoleaf = ctrl  # None if connection failed
-        if ctrl is not None and ctrl.device_info:
-            cfg["device_info"] = ctrl.device_info
-            self._nanoleaf_settings = cfg
-            save_nanoleaf_settings(cfg)
+        if ctrl is not None:
+            # Propagate multizone start-lights settings.
+            if self._pending_mz_startlights is not None:
+                direction, mode = self._pending_mz_startlights
+                ctrl.mz_startlights_direction = direction
+                ctrl.mz_startlights_mode = mode
+            # Apply custom panel order for sweep effects.
+            layout = self.get_nanoleaf_layout()
+            if layout and layout.get("panels"):
+                ctrl.update_panel_order(layout["panels"])
+            if ctrl.device_info:
+                cfg["device_info"] = ctrl.device_info
+                self._nanoleaf_settings = cfg
+                save_nanoleaf_settings(cfg)
 
     def get_nanoleaf_settings(self) -> dict:
         return dict(self._nanoleaf_settings)
@@ -360,6 +377,8 @@ class BridgeRunner:
         """Persist user-arranged panel positions."""
         self._nanoleaf_settings["custom_layout"] = panels
         save_nanoleaf_settings(self._nanoleaf_settings)
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            self.bridge.nanoleaf.update_panel_order(panels)
 
     def reset_nanoleaf_layout(self):
         """Discard custom layout and return to device default."""

@@ -173,6 +173,12 @@ class NanoleafController:
         self._raw_layout: list[dict] = []
         self._diag_logged = False  # log first set_color_all call only
 
+        # Multizone start-lights behaviour (mirrors F1LifxBridgeCore attributes).
+        self.mz_startlights_direction = "ltr"  # "ltr" | "rtl"
+        self.mz_startlights_mode      = "sweep"  # "sweep" | "solid"
+        # Panels sorted for sweep effects — updated via update_panel_order().
+        self._sweep_panel_ids: list[int] = []
+
         self._nl: Nanoleaf | None = None
         self._connect()
 
@@ -213,6 +219,7 @@ class NanoleafController:
             light_panels = [p for p in position_data if p.get("shapeType", 0) != 12]
             self._side_length = layout.get("sideLength", 150)
             self._panel_ids = [p["panelId"] for p in light_panels]
+            self._sweep_panel_ids = [p["panelId"] for p in sorted(light_panels, key=lambda p: p["x"])]
             self._raw_layout = [
                 {
                     "panelId":   p["panelId"],
@@ -243,6 +250,44 @@ class NanoleafController:
             "modelName":  self.device_info.get("model_name", ""),
             "panels":     [dict(p) for p in self._raw_layout],
         }
+
+    def update_panel_order(self, panels: list[dict]):
+        """Re-sort sweep order using merged (custom) panel positions.
+
+        Called by bridge_runner after connecting, passing in the layout that
+        already has custom user positions overlaid.  Panels are sorted L→R
+        by X coordinate so sweep effects use real-world physical order.
+        """
+        if not panels:
+            return
+        sorted_panels = sorted(panels, key=lambda p: p["x"])
+        self._sweep_panel_ids = [p["panelId"] for p in sorted_panels]
+
+    def set_panel_colors(self, panel_rgb: list[tuple[int, int, int, int]]):
+        """Send per-panel colors in one HTTP call.
+
+        panel_rgb: list of (panelId, R, G, B) tuples, one per panel.
+        Uses the /effects static write endpoint with transitionTime=0 per panel.
+        """
+        if self._nl is None or _requests is None or not panel_rgb:
+            return
+        n = len(panel_rgb)
+        anim_data = f"{n} " + " ".join(f"{pid} {r} {g} {b} 0 0" for pid, r, g, b in panel_rgb)
+        url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
+        try:
+            resp = _requests.put(url, json={
+                "write": {
+                    "command":  "display",
+                    "animType": "static",
+                    "animData": anim_data,
+                    "loop":     False,
+                    "palette":  [],
+                }
+            }, timeout=2)
+            if resp.status_code >= 300:
+                self._log(f"[NANOLEAF] set_panel_colors failed: {resp.status_code}")
+        except Exception as exc:
+            self._log(f"[NANOLEAF ERROR] set_panel_colors: {exc}")
 
     def _log(self, msg: str):
         print(msg, flush=True)
@@ -454,13 +499,35 @@ class NanoleafController:
         self.set_color_all(white)
 
     def start_lights(self, num_lights: int):
-        """Red intensity ramps up with each start light (0-5)."""
+        """Sweep red panels L→R (or R→L) as start lights appear, dark otherwise."""
         self.clear_active_effect()
         self._current_effect_key = "start_lights"
         num_lights = max(0, min(5, num_lights))
+
         brightness_by_count = {0: 8000, 1: 16000, 2: 26000, 3: 38000, 4: 50000, 5: 65535}
-        red = [0, 65535, brightness_by_count[num_lights], 3500]
-        self.set_color_all(red, duration_ms=40, stagger=False)
+        red_hsbk  = [0, 65535, brightness_by_count[num_lights], 3500]
+        dark_hsbk = [0, 0, 100, 3500]
+
+        sweep_ids = self._sweep_panel_ids or self._panel_ids
+        if self.mz_startlights_mode != "sweep" or not sweep_ids:
+            self.set_color_all(red_hsbk, duration_ms=40, stagger=False)
+            return
+
+        panel_count = len(sweep_ids)
+        lit = max(0, min(panel_count, round(num_lights / 5 * panel_count)))
+
+        if self.mz_startlights_direction == "rtl":
+            sweep_ids = list(reversed(sweep_ids))
+
+        red_rgb  = _hsbk_to_rgb(*red_hsbk[:3])
+        dark_rgb = _hsbk_to_rgb(*dark_hsbk[:3])
+
+        panel_rgb = []
+        for i, pid in enumerate(sweep_ids):
+            rgb = red_rgb if i < lit else dark_rgb
+            panel_rgb.append((pid, rgb[0], rgb[1], rgb[2]))
+
+        self.set_panel_colors(panel_rgb)
 
     # ── Class-level helpers ──────────────────────────────────────────────────
 
