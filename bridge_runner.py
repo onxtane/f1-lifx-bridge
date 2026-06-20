@@ -196,22 +196,34 @@ class BridgeRunner:
         threading.Thread(target=self._effect_worker, args=(name,), daemon=True).start()
 
     def get_discovered_lights(self) -> list[dict]:
-        """Return [{label, ip, zones}, ...] for every discovered bulb.
-        zones > 0 means the device is a multizone strip."""
-        if self.bridge is None or self.bridge.lifx is None:
-            return []
+        """Return [{label, ip, zones, type}, ...] for every discovered device.
+        zones > 0 means the device is a multizone strip.
+        type is 'lifx' or 'nanoleaf'."""
+        nanoleaf_ip = self._nanoleaf_settings.get('ip', '').strip()
         result = []
-        for light in self.bridge.lifx.discovered_lights:
-            try:
-                label = light.get_label() or "Unknown LIFX"
-            except Exception:
-                label = "Unknown LIFX"
-            try:
-                ip = light.get_ip_addr() or ""
-            except Exception:
-                ip = ""
-            zones = self.bridge.lifx.get_zone_count(light)
-            result.append({"label": label, "ip": ip, "zones": zones})
+        if self.bridge is not None and self.bridge.lifx is not None:
+            for light in self.bridge.lifx.discovered_lights:
+                try:
+                    ip = light.get_ip_addr() or ""
+                except Exception:
+                    ip = ""
+                # Exclude the Nanoleaf device if lifxlan happens to pick it up.
+                if nanoleaf_ip and ip == nanoleaf_ip:
+                    continue
+                try:
+                    label = light.get_label() or "Unknown LIFX"
+                except Exception:
+                    label = "Unknown LIFX"
+                zones = self.bridge.lifx.get_zone_count(light)
+                result.append({"label": label, "ip": ip, "zones": zones, "type": "lifx"})
+        # Append connected Nanoleaf as a virtual always-active entry.
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            nl = self.bridge.nanoleaf
+            info = nl.device_info
+            name = info.get('name', 'Nanoleaf') if info else 'Nanoleaf'
+            model = info.get('model_name', '') if info else ''
+            label = f"{name} ({model})" if model and model.lower() not in name.lower() else name
+            result.append({"label": label, "ip": nl.ip, "zones": 0, "type": "nanoleaf"})
         return result
 
     def set_selected_lights(self, labels: list[str], group_name: str | None = None):

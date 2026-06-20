@@ -2263,13 +2263,29 @@
 
   function renderLightList() {
     const list = document.getElementById('lightList');
+    const lifxLights = _discoveredLights.filter(l => l.type !== 'nanoleaf');
     if (_discoveredLights.length === 0) {
       list.innerHTML = '<p class="empty-state">No lights found. Make sure bulbs are powered on.</p>';
       return;
     }
     // When no explicit active set has been pushed yet, default all checked.
     const useActiveSet = _activeLabels.size > 0;
+    // LIFX index only counts LIFX bulbs for display numbering.
+    let lifxNum = 0;
     list.innerHTML = _discoveredLights.map((l, i) => {
+      if (l.type === 'nanoleaf') {
+        return `
+          <div class="light-item" style="cursor:default;">
+            <span style="width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"/></svg>
+            </span>
+            <span class="light-index" style="color:#3ddc84;">NL</span>
+            <span class="light-name">${escHtml(l.label)}</span>
+            <span style="font-size:11px;background:rgba(61,220,132,0.12);border:1px solid rgba(61,220,132,0.35);color:#3ddc84;border-radius:99px;padding:2px 8px;flex-shrink:0;">Always Active</span>
+            <span class="light-ip">— ${escHtml(l.ip)}</span>
+          </div>`;
+      }
+      const num = ++lifxNum;
       const checked = useActiveSet ? _activeLabels.has(l.label) : true;
       const zoneBadge = l.zones > 0
         ? `<span style="font-size:11px;background:rgba(139,124,246,0.18);border:1px solid rgba(139,124,246,0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
@@ -2277,7 +2293,7 @@
       return `
         <div class="light-item" onclick="toggleLightCheck(event, ${i})">
           <input type="checkbox" class="light-check" data-index="${i}" ${checked ? 'checked' : ''}>
-          <span class="light-index">[${i+1}]</span>
+          <span class="light-index">[${num}]</span>
           <span class="light-name">${escHtml(l.label)}</span>
           ${zoneBadge}
           <span class="light-ip">— ${escHtml(l.ip)}</span>
@@ -4231,6 +4247,9 @@
     const status  = document.getElementById('setupDiscoverStatus');
 
     spinner.classList.remove('active');
+
+    // Setup flow is LIFX-only — exclude Nanoleaf virtual entries.
+    lights = (lights || []).filter(l => l.type !== 'nanoleaf');
 
     if (!lights || lights.length === 0) {
       empty.style.display = '';
