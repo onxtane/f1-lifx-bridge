@@ -6,9 +6,12 @@
 #         dist\F1LifxBridge.exe                (single-file mode — slower cold start)
 
 import sys
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_all
 
 block_cipher = None
+
+# ── Collect lifxlan (flat package — collect_submodules misses it) ─────────────
+lifxlan_datas, lifxlan_binaries, lifxlan_hiddenimports = collect_all('lifxlan')
 
 # ── Data files ───────────────────────────────────────────────────────────────
 
@@ -21,6 +24,9 @@ datas = [
 
     # nanoleafapi ships a JSON colour table that must travel with the package
     *collect_data_files('nanoleafapi'),
+
+    # lifxlan source files (collect_all picks up .py sources too)
+    *lifxlan_datas,
 ]
 
 # ── Hidden imports ────────────────────────────────────────────────────────────
@@ -40,8 +46,22 @@ hidden_imports = [
     'PySide6.QtNetwork',
     'PySide6.QtPositioning',
 
-    # lifxlan discovers device classes dynamically
-    *collect_submodules('lifxlan'),
+    # lifxlan — explicit list of every module (collect_all catches the rest)
+    'lifxlan',
+    'lifxlan.lifxlan',
+    'lifxlan.device',
+    'lifxlan.light',
+    'lifxlan.multizonelight',
+    'lifxlan.group',
+    'lifxlan.message',
+    'lifxlan.msgtypes',
+    'lifxlan.products',
+    'lifxlan.unpack',
+    'lifxlan.utils',
+    'lifxlan.errors',
+    'lifxlan.tilechain',
+    'lifxlan.switch',
+    *lifxlan_hiddenimports,
 
     # nanoleafapi
     *collect_submodules('nanoleafapi'),
@@ -63,7 +83,7 @@ hidden_imports = [
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=[*lifxlan_binaries],
     datas=datas,
     hiddenimports=hidden_imports,
     hookspath=[],
