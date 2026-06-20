@@ -595,7 +595,8 @@
     position:relative; overflow:hidden;
   }
   .effect-card:hover{ transform:translateY(-2px); border-color:rgba(255,255,255,0.28); }
-  .effect-card .icon{ font-size:24px; }
+  .effect-card .icon{ font-size:24px; line-height:1; }
+  .effect-card .icon svg{ width:24px; height:24px; }
   .effect-card .name{ font-size:15px; font-weight:600; }
   .effect-card .desc{ font-size:12px; color:var(--text-muted); }
 
@@ -910,6 +911,27 @@
   }
   .setting-control input:focus{ border-color:var(--purple); }
 
+  /* ---- toast ---- */
+  #toastContainer{
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    z-index:9999; pointer-events:none;
+  }
+  .toast{
+    display:flex; align-items:center; gap:10px;
+    background:rgba(20,24,44,0.92); border:1px solid rgba(255,255,255,0.12);
+    backdrop-filter:blur(12px); border-radius:12px;
+    padding:10px 18px; font-size:13px; font-weight:500; color:var(--text-main);
+    box-shadow:0 4px 24px rgba(0,0,0,0.45);
+    opacity:0; transform:translateY(8px);
+    transition:opacity .18s, transform .18s;
+    pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+  .toast-icon{ font-size:15px; line-height:1; flex-shrink:0; }
+  .toast.toast-success .toast-icon{ color:#3ddc84; }
+  .toast.toast-error   .toast-icon{ color:#e83030; }
+
   /* ---- mini mode ---- */
   body.mini-mode .scene,
   body.mini-mode #splash,
@@ -963,7 +985,7 @@
   .iface-card:hover{ background:rgba(255,255,255,0.07); }
   .iface-card.selected{ background:rgba(139,92,246,0.12); border-color:rgba(139,92,246,0.4); }
   .iface-card input[type=radio]{ accent-color:var(--purple); width:15px; height:15px; flex-shrink:0; cursor:pointer; }
-  .iface-ip{ font-size:14px; font-weight:600; font-family:monospace; color:var(--text-main); }
+  .iface-ip{ font-size:14px; font-weight:600; font-family:"SF Mono",Consolas,monospace; color:var(--text-main); }
   .iface-name{ font-size:12px; color:var(--text-muted); margin-left:auto; }
   .iface-warn{ font-size:11px; color:#f59e0b; margin-left:6px; }
   .console-ip-callout{
@@ -972,7 +994,7 @@
     background:rgba(61,220,132,0.07); border:1px solid rgba(61,220,132,0.2);
   }
   .console-ip-callout-label{ font-size:11px; color:rgba(61,220,132,0.7); font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
-  .console-ip-callout-val{ font-size:18px; font-weight:700; font-family:monospace; color:#3ddc84; letter-spacing:1px; }
+  .console-ip-callout-val{ font-size:18px; font-weight:700; font-family:"SF Mono",Consolas,monospace; color:#3ddc84; letter-spacing:1px; }
   .console-ip-copy{
     flex-shrink:0; padding:6px 14px; border-radius:8px; border:1px solid rgba(61,220,132,0.35);
     background:rgba(61,220,132,0.1); color:#3ddc84; font-size:12px; font-weight:600;
@@ -1441,47 +1463,47 @@
             <div class="collapsible-body collapsed" id="effectsManualBody">
               <div class="effects-grid" style="padding-bottom:4px;">
               <div class="effect-card" data-effect="Start Lights">
-                <div class="icon">🔴</div>
+                <div class="icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7a5 5 0 0 1 5-5a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5a5 5 0 0 1-5-5l0-10"/><path d="M11 7a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/><path d="M11 17a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/></svg></div>
                 <div class="name">Start Lights</div>
                 <div class="desc">Red formation lights ramp up</div>
               </div>
               <div class="effect-card" data-effect="Lights Out">
-                <div class="icon">🟢</div>
+                <div class="icon" style="color:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1-7 0a5 5 0 0 0-7 0v-9"/><path d="M5 21v-7"/></svg></div>
                 <div class="name">Lights Out</div>
                 <div class="desc">Green flash — race start</div>
               </div>
               <div class="effect-card" data-effect="Yellow Flag">
-                <div class="icon">🟡</div>
+                <div class="icon" style="color:#f59e0b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14h14l-4.5-4.5l4.5-4.5h-14v16"/></svg></div>
                 <div class="name">Yellow Flag</div>
                 <div class="desc">Continuous yellow flashing</div>
               </div>
               <div class="effect-card" data-effect="Blue Flag">
-                <div class="icon">🔵</div>
+                <div class="icon" style="color:#60a5fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></div>
                 <div class="name">Blue Flag</div>
                 <div class="desc">Solid blue — let faster car past</div>
               </div>
               <div class="effect-card" data-effect="Red Flag">
-                <div class="icon">🚩</div>
+                <div class="icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14h14l-4.5-4.5l4.5-4.5h-14v16"/></svg></div>
                 <div class="name">Red Flag</div>
                 <div class="desc">Session stopped</div>
               </div>
               <div class="effect-card" data-effect="Fastest Lap">
-                <div class="icon">💜</div>
+                <div class="icon" style="color:#c084fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg></div>
                 <div class="name">Fastest Lap</div>
                 <div class="desc">Purple flash celebration</div>
               </div>
               <div class="effect-card" data-effect="Chequered Flag">
-                <div class="icon">🏁</div>
+                <div class="icon" style="color:#e2e8f0"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M227.32,48.75A8,8,0,0,0,218.76,50c-28,24.22-51.72,12.48-79.21-1.13C111.07,34.76,78.78,18.79,42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,28.49,14.09,60.77,30.06,96.79-1.13a8,8,0,0,0,2.76-6V56A8,8,0,0,0,227.32,48.75ZM216,71.6v40.65c-14,11.06-27,13.22-40,10.88V79.34A60.05,60.05,0,0,0,216,71.6Zm-56,3.76v43c-6.66-2.67-13.43-6-20.45-9.48-8.82-4.37-18-8.91-27.55-12.18v-43c6.66,2.66,13.43,6,20.45,9.48C141.27,67.55,150.46,72.09,160,75.36ZM96,48.91V92.69a60.06,60.06,0,0,0-40,7.75V59.78C70,48.72,83,46.57,96,48.91ZM86.58,152A60.06,60.06,0,0,0,56,160.43V119.78c14-11.06,27-13.22,40-10.88v43.8A65.61,65.61,0,0,0,86.58,152ZM112,156.67v-43c6.66,2.66,13.43,6,20.45,9.48,8.82,4.37,18,8.9,27.55,12.17v43c-6.66-2.67-13.43-6-20.45-9.48C130.73,164.47,121.54,159.94,112,156.67Zm64,26.45v-43.8a65.61,65.61,0,0,0,9.42.72A60.11,60.11,0,0,0,216,131.57v40.68C202,183.31,189,185.46,176,183.12Z"/></svg></div>
                 <div class="name">Chequered Flag</div>
                 <div class="desc">Race over — white/green flash</div>
               </div>
               <div class="effect-card" data-effect="White Warning">
-                <div class="icon">⚪</div>
+                <div class="icon" style="color:#f1f5f9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0"/><path d="M12 16h.01"/></svg></div>
                 <div class="name">White Warning</div>
                 <div class="desc">Penalty warning flash</div>
               </div>
               <div class="effect-card" data-effect="Neutral">
-                <div class="icon">💡</div>
+                <div class="icon" style="color:#fbbf24"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h1m8-9v1m8 8h1m-15.4-6.4l.7.7m12.1-.7l-.7.7"/><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3"/><path d="M9.7 17l4.6 0"/></svg></div>
                 <div class="name">Neutral</div>
                 <div class="desc">Warm white — reset to idle</div>
               </div>
@@ -3011,9 +3033,21 @@
     const copyBtn  = document.getElementById('consoleIpCopy');
     let _selected  = null;
 
-    function isVpnLike(ip) {
-      return ip.startsWith('100.64.') || ip.startsWith('100.65.') ||
-             ip.startsWith('10.') || ip.startsWith('172.');
+    function isVpnLike(ip, name) {
+      // Check adapter name first — most reliable signal
+      const n = (name || '').toLowerCase();
+      if (/tailscale|nordvpn|expressvpn|protonvpn|mullvad|openvpn|wireguard|tun\d|wg\d|utun\d|vpn/.test(n)) return true;
+      // Tailscale CGNAT block (100.64.0.0/10)
+      if (ip.startsWith('100.')) {
+        const second = parseInt(ip.split('.')[1], 10);
+        if (second >= 64 && second <= 127) return true;
+      }
+      // Docker / WSL virtual ranges (172.17–172.31 are almost always virtual bridges)
+      if (ip.startsWith('172.')) {
+        const second = parseInt(ip.split('.')[1], 10);
+        if (second >= 16 && second <= 31) return true;
+      }
+      return false;
     }
 
     function selectIface(ip) {
@@ -3036,7 +3070,7 @@
       }
       empty.style.display = 'none';
       ifaces.forEach(({ ip, name }) => {
-        const warn = isVpnLike(ip);
+        const warn = isVpnLike(ip, name);
         const card = document.createElement('label');
         card.className = 'iface-card';
         card.dataset.ip = ip;
@@ -3050,7 +3084,7 @@
       });
       // Pre-select saved IP if still present, otherwise first non-VPN
       const saved = savedIp && ifaces.find(i => i.ip === savedIp);
-      const best  = saved || ifaces.find(i => !isVpnLike(i.ip)) || ifaces[0];
+      const best  = saved || ifaces.find(i => !isVpnLike(i.ip, i.name)) || ifaces[0];
       if (best) selectIface(best.ip);
     }
 
@@ -3434,9 +3468,7 @@
       if (!_activeId || !_profiles[_activeId]) return;
       _profiles[_activeId].snapshot = captureSnapshot();
       persist();
-      const banner = document.getElementById('profileActiveBanner');
-      banner.style.borderColor = 'rgba(139,124,246,0.8)';
-      setTimeout(() => { banner.style.borderColor = ''; }, 800);
+      window.showToast && window.showToast('Profile saved');
     }
 
     function duplicateProfile(id) {
@@ -5258,6 +5290,30 @@
   // Also wire immediately in case DOMContentLoaded already fired
   const lbtn = document.getElementById('nanoleafLayoutBtn');
   if (lbtn) lbtn.addEventListener('click', window._openPanelLayout);
+})();
+
+// ---- Toast utility ----
+(function () {
+  const container = document.createElement('div');
+  container.id = 'toastContainer';
+  document.body.appendChild(container);
+
+  window.showToast = function (message, type = 'success', durationMs = 2200) {
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    const icon = type === 'success' ? '✓' : '✕';
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => toast.classList.add('show'));
+    });
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    }, durationMs);
+  };
 })();
 </script>
 
