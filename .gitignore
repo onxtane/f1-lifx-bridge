@@ -23,6 +23,7 @@ webview_storage/
 # PyInstaller build output
 build/
 dist/
+dist.zip
 
 # Original/legacy code archive
 Original/
