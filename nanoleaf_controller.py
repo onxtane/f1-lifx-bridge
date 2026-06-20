@@ -272,20 +272,22 @@ class NanoleafController:
         if self._nl is None or _requests is None or not panel_rgb:
             return
         n = len(panel_rgb)
-        anim_data = f"{n} " + " ".join(f"{pid} {r} {g} {b} 0 0" for pid, r, g, b in panel_rgb)
+        # animType "custom" with numFrames=1 per panel is the reliable per-panel format.
+        # Format: "<numPanels> <panelId> <numFrames> <R> <G> <B> <W> <transTime> ..."
+        anim_data = f"{n} " + " ".join(f"{pid} 1 {r} {g} {b} 0 1" for pid, r, g, b in panel_rgb)
         url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
         try:
             resp = _requests.put(url, json={
                 "write": {
                     "command":  "display",
-                    "animType": "static",
+                    "animType": "custom",
                     "animData": anim_data,
                     "loop":     False,
                     "palette":  [],
                 }
             }, timeout=2)
             if resp.status_code >= 300:
-                self._log(f"[NANOLEAF] set_panel_colors failed: {resp.status_code}")
+                self._log(f"[NANOLEAF] set_panel_colors failed: {resp.status_code} — {resp.text[:200]}")
         except Exception as exc:
             self._log(f"[NANOLEAF ERROR] set_panel_colors: {exc}")
 
@@ -345,15 +347,15 @@ class NanoleafController:
             if self._panel_ids:
                 r, g, bl = _hsbk_to_rgb(h, s, b_scaled)
                 n = len(self._panel_ids)
-                # animData: "<numPanels> <panelId> <R> <G> <B> <W> <transTime(100ms)> ..."
+                # animType "custom" with numFrames=1: "<numPanels> <panelId> 1 <R> <G> <B> <W> <transTime> ..."
                 anim_data = f"{n} " + " ".join(
-                    f"{pid} {r} {g} {bl} 0 0" for pid in self._panel_ids
+                    f"{pid} 1 {r} {g} {bl} 0 1" for pid in self._panel_ids
                 )
                 url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
                 resp = _requests.put(url, json={
                     "write": {
                         "command":  "display",
-                        "animType": "static",
+                        "animType": "custom",
                         "animData": anim_data,
                         "loop":     False,
                         "palette":  [],
@@ -361,7 +363,7 @@ class NanoleafController:
                 }, timeout=2)
                 if not self._diag_logged:
                     self._diag_logged = True
-                    self._log(f"[NANOLEAF DIAG] effects/static status={resp.status_code} anim_data={anim_data[:100]}")
+                    self._log(f"[NANOLEAF DIAG] effects/custom status={resp.status_code} anim_data={anim_data[:120]}")
                     if resp.status_code >= 300:
                         self._log(f"[NANOLEAF DIAG] body={resp.text[:200]}")
                 if resp.status_code < 200 or resp.status_code >= 300:
