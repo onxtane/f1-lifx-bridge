@@ -1125,17 +1125,31 @@ class F1LifxBridgeCore:
             self.log_callback(message)
 
     def _fire(self, method: str, *args):
-        """Call a named effect method on every active controller (LIFX + Nanoleaf)."""
+        """Call a named effect method on every active controller (LIFX + Nanoleaf).
+
+        Both controllers are started in parallel so time-based animations
+        (sleep loops in lights_out, fastest_lap, etc.) run simultaneously.
+        """
+        threads = []
         if self.lifx is not None:
-            try:
-                getattr(self.lifx, method)(*args)
-            except Exception as exc:
-                self.log(f"[LIFX ERROR] {method}: {exc}")
+            def _lifx_call(ctrl=self.lifx):
+                try:
+                    getattr(ctrl, method)(*args)
+                except Exception as exc:
+                    self.log(f"[LIFX ERROR] {method}: {exc}")
+            t = threading.Thread(target=_lifx_call, daemon=True)
+            t.start()
+            threads.append(t)
         if self.nanoleaf is not None:
-            try:
-                getattr(self.nanoleaf, method)(*args)
-            except Exception as exc:
-                self.log(f"[NANOLEAF ERROR] {method}: {exc}")
+            def _nl_call(ctrl=self.nanoleaf):
+                try:
+                    getattr(ctrl, method)(*args)
+                except Exception as exc:
+                    self.log(f"[NANOLEAF ERROR] {method}: {exc}")
+            threading.Thread(target=_nl_call, daemon=True).start()
+        # Wait for LIFX to finish so the caller's timing is preserved.
+        for t in threads:
+            t.join()
 
     # ── Bridge-level synchronized effect loops ───────────────────────────────
     # These drive LIFX + Nanoleaf from a single timing loop so both controllers

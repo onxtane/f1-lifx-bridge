@@ -607,16 +607,24 @@ class BridgeRunner:
             return
 
         self.bridge._clear_bridge_effect()
-        try:
-            lifx_action(self.bridge.lifx)
-        except Exception as exc:
-            self.on_log(f"ERROR running '{name}': {exc}")
 
-        if self.bridge.nanoleaf is not None:
+        def _run_lifx():
+            try:
+                lifx_action(self.bridge.lifx)
+            except Exception as exc:
+                self.on_log(f"ERROR running '{name}': {exc}")
+
+        def _run_nanoleaf():
             try:
                 lifx_action(self.bridge.nanoleaf)
             except Exception as exc:
                 self.on_log(f"[NANOLEAF ERROR] running '{name}': {exc}")
+
+        t_lifx = threading.Thread(target=_run_lifx, daemon=True)
+        t_lifx.start()
+        if self.bridge.nanoleaf is not None:
+            threading.Thread(target=_run_nanoleaf, daemon=True).start()
+        t_lifx.join()
 
     def _stat_loop(self):
         last_packets = -1
