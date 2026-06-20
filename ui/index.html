@@ -2936,13 +2936,28 @@
   document.getElementById('settingFwdPort').addEventListener('change', saveForwarding);
 
   // ---- UDP listen address ----
+  function isValidIPv4(val) {
+    const parts = val.split('.');
+    return parts.length === 4 && parts.every(p => p !== '' && !isNaN(p) && +p >= 0 && +p <= 255);
+  }
+
   function saveListenAddress() {
-    const ip   = document.getElementById('settingIp').value.trim() || '127.0.0.1';
+    const ipInput = document.getElementById('settingIp');
+    const ip = ipInput.value.trim();
+    if (!isValidIPv4(ip)) {
+      ipInput.style.borderColor = 'rgba(232,48,48,0.7)';
+      return;
+    }
+    ipInput.style.borderColor = '';
     const port = parseInt(document.getElementById('settingPort').value) || 20777;
     callApi('save_gui_settings', { ip, port });
     callApi('set_listen_address', ip, port);
   }
+
   document.getElementById('settingIp').addEventListener('change', saveListenAddress);
+  document.getElementById('settingIp').addEventListener('input', function () {
+    this.style.borderColor = isValidIPv4(this.value.trim()) ? '' : 'rgba(232,48,48,0.7)';
+  });
   document.getElementById('settingPort').addEventListener('change', saveListenAddress);
 
   // ---- Console IP picker ----
