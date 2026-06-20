@@ -212,6 +212,10 @@ class BridgeRunner:
         zones > 0 means the device is a multizone strip.
         type is 'lifx' or 'nanoleaf'."""
         nanoleaf_ip = self._nanoleaf_settings.get('ip', '').strip()
+        # Also use the live controller IP — covers the case where settings
+        # weren't loaded at startup (fresh machine, first run).
+        if not nanoleaf_ip and self.bridge is not None and self.bridge.nanoleaf is not None:
+            nanoleaf_ip = getattr(self.bridge.nanoleaf, 'ip', '') or ''
         result = []
         if self.bridge is not None and self.bridge.lifx is not None:
             for light in self.bridge.lifx.discovered_lights:
@@ -347,6 +351,8 @@ class BridgeRunner:
                     cfg["device_info"] = ctrl.device_info
                     self._nanoleaf_settings = cfg
                     save_nanoleaf_settings(cfg)
+            # Re-push lights so the Nanoleaf entry appears immediately in the UI.
+            self.on_lights_discovered(self.get_discovered_lights())
             return {"ok": True, "token": token, "device_info": cfg.get("device_info", {})}
         return {"ok": False, "error": "Pairing failed. Hold the power button for 5-7 s and try again."}
 
