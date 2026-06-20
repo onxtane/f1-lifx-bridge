@@ -323,18 +323,35 @@ class LocalLifxController:
         if not discovered_lights:
             raise RuntimeError("No LIFX bulbs found on LAN.")
 
-        # Upgrade any multizone-capable lights to MultiZoneLight objects so we
-        # can address individual zones later.  get_multizone_lights() does its
-        # own discovery; index the results by MAC so we can swap them in-place.
-        try:
-            mz_lights = lifx.get_multizone_lights()
-            mz_by_mac = {l.mac_addr: l for l in mz_lights}
-            for i, light in enumerate(discovered_lights):
-                if light.mac_addr in mz_by_mac:
-                    discovered_lights[i] = mz_by_mac[light.mac_addr]
-                    print(f"[LIFX] Multizone strip detected: {self.safe_label(discovered_lights[i])}")
-        except Exception as exc:
-            print(f"[LIFX] Multizone probe skipped: {exc}")
+        # Upgrade multizone-capable lights to MultiZoneLight objects.
+        # Strategy 1: broadcast-based get_multizone_lights() with one retry.
+        mz_by_mac = {}
+        for attempt in range(2):
+            try:
+                mz_lights = lifx.get_multizone_lights()
+                mz_by_mac = {l.mac_addr: l for l in (mz_lights or [])}
+                if mz_by_mac:
+                    break
+            except Exception as exc:
+                print(f"[LIFX] Multizone broadcast attempt {attempt + 1} failed: {exc}")
+            if attempt == 0:
+                time.sleep(0.5)
+
+        for i, light in enumerate(discovered_lights):
+            if light.mac_addr in mz_by_mac:
+                discovered_lights[i] = mz_by_mac[light.mac_addr]
+                print(f"[LIFX] Multizone strip detected: {self.safe_label(discovered_lights[i])}")
+                continue
+            # Strategy 2: direct product-feature probe for lights the broadcast missed.
+            if not isinstance(light, MultiZoneLight):
+                try:
+                    features = light.get_product_features()
+                    if features and features.get("multizone"):
+                        mz = MultiZoneLight(light.mac_addr, light.ip_addr)
+                        discovered_lights[i] = mz
+                        print(f"[LIFX] Multizone strip detected (direct probe): {self.safe_label(mz)}")
+                except Exception as exc:
+                    print(f"[LIFX] Could not probe {self.safe_label(light)} for multizone: {exc}")
 
         # Cache zone counts now so get_zone_count() never blocks in hot paths.
         self._zone_counts = {}
