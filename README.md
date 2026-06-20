@@ -44,7 +44,7 @@ F1 25 → UDP telemetry → F1 LIFX Bridge → LIFX LAN protocol  → your light
 **Nanoleaf**
 - Supports Canvas, Shapes, Lines, Elements, Light Panels
 - One-time pairing via local REST API (no cloud required)
-- Auto-discovery via mDNS/SSDP or manual IP entry
+- Manual IP entry for pairing *(auto-discovery currently not working — [#23](https://github.com/onxtane/f1-lifx-bridge/issues/23))*
 - All race effects fire on LIFX and Nanoleaf simultaneously
 - Panel Layout UI — visualise your physical panel arrangement and drag panels to match your real-world setup
 - Start lights sweep across panels by physical position (bottom→top or top→bottom), matching the LIFX multizone behaviour
