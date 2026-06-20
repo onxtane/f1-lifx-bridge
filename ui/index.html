@@ -2256,6 +2256,11 @@
     _discoveredLights = lights || [];
     renderLightList();
     renderSetupDiscoveryList(lights);
+    // Re-push to light assignments so Nanoleaf cards appear immediately.
+    const nlLabels = _discoveredLights.filter(l => l.type === 'nanoleaf').map(l => l.label);
+    if (nlLabels.length && window._laRefresh) {
+      window._laRefresh([..._activeLabels, ...nlLabels]);
+    }
   }
 
   // Labels that Python says are currently active (updated by setActiveLabels).
@@ -2311,7 +2316,10 @@
     });
     updateStaggerAvailability();
     if (window._lpRefresh) window._lpRefresh(labels);
-    if (window._laRefresh) window._laRefresh(labels);
+    // Always-active Nanoleaf devices are included in the assignment view
+    // even though they have no checkbox and never appear in _activeLabels.
+    const nlLabels = _discoveredLights.filter(l => l.type === 'nanoleaf').map(l => l.label);
+    if (window._laRefresh) window._laRefresh([...labels, ...nlLabels]);
   }
 
   function toggleLightCheck(event, index) {
@@ -3423,11 +3431,37 @@
       }
 
       labels.forEach(label => {
+        const isNl = _discoveredLights.some(l => l.label === label && l.type === 'nanoleaf');
         const card = document.createElement('div');
         card.className = 'la-card';
 
         const header = document.createElement('div');
         header.className = 'la-card-header';
+
+        if (isNl) {
+          // Nanoleaf fires on all effects automatically — show as read-only.
+          header.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"/></svg>
+              <span class="la-card-name">${label}</span>
+            </div>
+            <span style="font-size:11px;background:rgba(61,220,132,0.12);border:1px solid rgba(61,220,132,0.35);color:#3ddc84;border-radius:99px;padding:4px 10px;flex-shrink:0;">Always Active</span>`;
+          card.appendChild(header);
+          const chips = document.createElement('div');
+          chips.className = 'la-chips';
+          EFFECTS.forEach(eff => {
+            const chip = document.createElement('div');
+            chip.className = 'la-chip on';
+            chip.style.cssText = 'cursor:default;opacity:0.7;';
+            chip.title = 'Nanoleaf fires on all effects';
+            chip.textContent = eff.label;
+            chips.appendChild(chip);
+          });
+          card.appendChild(chips);
+          cardsEl.appendChild(card);
+          return;
+        }
+
         const btnStyle = 'font-size:11px;padding:5px 10px;white-space:nowrap;';
         const assignOneBtn = document.createElement('button');
         assignOneBtn.className = 'btn btn-ghost btn-sm';

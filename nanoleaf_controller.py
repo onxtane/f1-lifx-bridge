@@ -245,7 +245,7 @@ class NanoleafController:
         b_scaled = self._scale_brightness(b)
         r, g, bl = _hsbk_to_rgb(h, s, b_scaled)
         try:
-            self._nl.set_color(r, g, bl)
+            self._nl.set_color((r, g, bl))
         except Exception as exc:
             self._log(f"[NANOLEAF ERROR] set_color_all: {exc}")
 
