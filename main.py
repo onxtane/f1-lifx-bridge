@@ -139,6 +139,10 @@ class Api:
         self.runner.set_mz_startlights(direction, mode)
         return {"ok": True}
 
+    def set_debug_timing(self, enabled: bool):
+        self.runner.set_debug_timing(enabled)
+        return {"ok": True}
+
     def set_listen_address(self, ip: str, port: int):
         self.runner.set_listen_address(ip, int(port))
         return {"ok": True}

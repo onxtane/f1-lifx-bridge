@@ -241,6 +241,10 @@ class BridgeRunner:
             self.bridge.lifx.mz_startlights_direction = direction
             self.bridge.lifx.mz_startlights_mode = mode
 
+    def set_debug_timing(self, enabled: bool):
+        if self.bridge is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.debug_timing = enabled
+
     def set_listen_address(self, ip: str, port: int):
         self._pending_listen = (ip, int(port))
         if self.is_running():

@@ -1726,6 +1726,18 @@
                 </label>
               </div>
             </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Debug Timing</div>
+                <div class="setting-hint">Print per-effect timing to the CMD window for performance diagnosis</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingDebugTiming">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div class="settings-section">
@@ -2791,6 +2803,12 @@
   document.getElementById('settingIp').addEventListener('change', saveListenAddress);
   document.getElementById('settingPort').addEventListener('change', saveListenAddress);
 
+  document.getElementById('settingDebugTiming').addEventListener('change', function() {
+    const enabled = this.checked;
+    callApi('set_debug_timing', enabled);
+    callApi('save_gui_settings', { debug_timing: enabled });
+  });
+
   // ---- effects page collapsibles ----
   document.querySelectorAll('.effects-collapse-header').forEach(header => {
     header.addEventListener('click', () => {
@@ -2851,6 +2869,7 @@
         ip:                        document.getElementById('settingIp')?.value.trim() || '0.0.0.0',
         bulb_count:                parseInt(document.getElementById('settingBulbCount')?.value) || 40,
         dry_run:                   !!document.getElementById('settingDryRun')?.checked,
+        debug_timing:              !!document.getElementById('settingDebugTiming')?.checked,
       };
     }
 
@@ -2912,8 +2931,10 @@
       if (s.ip)         document.getElementById('settingIp').value        = s.ip;
       if (s.bulb_count) document.getElementById('settingBulbCount').value = s.bulb_count;
       if (s.dry_run != null) document.getElementById('settingDryRun').checked = s.dry_run;
+      if (s.debug_timing != null) document.getElementById('settingDebugTiming').checked = s.debug_timing;
       callApi('set_listen_address', s.ip || '127.0.0.1', s.port || 20777);
-      callApi('save_gui_settings', { port: s.port, ip: s.ip, bulb_count: s.bulb_count, dry_run: s.dry_run });
+      callApi('set_debug_timing', !!s.debug_timing);
+      callApi('save_gui_settings', { port: s.port, ip: s.ip, bulb_count: s.bulb_count, dry_run: s.dry_run, debug_timing: s.debug_timing });
     }
 
     function captureSnapshot() {
