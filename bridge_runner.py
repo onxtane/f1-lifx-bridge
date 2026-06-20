@@ -633,11 +633,13 @@ class BridgeRunner:
             self.on_log(f"ERROR during identify: {exc}")
 
     def _test_worker(self):
-        if self.bridge is None or self.bridge.lifx is None:
+        if self.bridge is None or (self.bridge.lifx is None and self.bridge.nanoleaf is None):
             self.on_log("No lights discovered yet - click Discover Lights first.")
             return
         try:
-            self.bridge.lifx.start_lights_test()
+            for num_lights in range(0, 6):
+                self.bridge._fire("start_lights", num_lights)
+                time.sleep(0.5)
         except Exception as exc:
             self.on_log(f"ERROR during test: {exc}")
 
