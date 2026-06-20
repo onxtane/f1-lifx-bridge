@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 
 if getattr(sys, 'frozen', False):
@@ -114,11 +115,17 @@ class BridgeRunner:
                 import bridge_core as _bc
                 self._module = _bc
             except ImportError as exc:
+                tb = traceback.format_exc()
                 self.on_log(f"ERROR: bridge_core could not be imported: {exc}")
+                for line in tb.splitlines():
+                    self.on_log(line)
                 self.on_status_text("Import Error")
                 return False
             except (Exception, SystemExit) as exc:
+                tb = traceback.format_exc()
                 self.on_log(f"ERROR: bridge_core failed to load: {exc}")
+                for line in tb.splitlines():
+                    self.on_log(line)
                 self.on_status_text("Import Error")
                 return False
 
