@@ -1770,7 +1770,7 @@
                 <button class="btn btn-ghost btn-sm" id="nanoleafDiscoverBtn">Discover</button>
               </div>
             </div>
-            <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
+            <div class="setting-row">
               <div>
                 <div class="setting-label">Pairing</div>
                 <div class="setting-hint" id="nanoleafPairingHint">Hold the power button on your Nanoleaf for 5–7 s until it pulses, then click Pair</div>
@@ -1778,6 +1778,15 @@
               <div class="setting-control" style="display:flex;gap:8px;align-items:center;">
                 <span id="nanoleafStatusBadge" style="font-size:11px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
                 <button class="btn btn-ghost btn-sm" id="nanoleafPairBtn">Pair</button>
+              </div>
+            </div>
+            <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
+              <div>
+                <div class="setting-label">Panel Layout</div>
+                <div class="setting-hint">Arrange panels to match your real-world setup</div>
+              </div>
+              <div class="setting-control">
+                <button class="btn btn-ghost btn-sm" id="nanoleafLayoutBtn">Edit Layout</button>
               </div>
             </div>
           </div>
@@ -4646,6 +4655,346 @@
       showSetupDiscover();
     }
   });
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PANEL LAYOUT MODAL
+════════════════════════════════════════════════════════════════ -->
+<div id="panelLayoutOverlay" style="
+  display:none; position:fixed; inset:0; z-index:900;
+  background:rgba(8,12,24,0.82); backdrop-filter:blur(10px);
+  align-items:center; justify-content:center;">
+
+  <div style="
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; display:flex; flex-direction:column;
+    width:min(960px,95vw); height:min(720px,92vh); overflow:hidden;
+    box-shadow:0 24px 80px rgba(0,0,0,0.6);">
+
+    <!-- header -->
+    <div style="padding:18px 24px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+      <div>
+        <div style="font-size:16px;font-weight:600;color:var(--text);">Panel Layout</div>
+        <div id="plSubtitle" style="font-size:12px;color:var(--text-muted);margin-top:3px;">Loading…</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="plLegend" style="display:none;font-size:11px;color:var(--text-muted);
+          background:rgba(255,255,255,0.05);border:1px solid var(--border);
+          border-radius:8px;padding:6px 12px;line-height:1.6;"></div>
+        <button id="plClose" style="background:none;border:1px solid var(--border);
+          color:var(--text-muted);cursor:pointer;border-radius:8px;
+          padding:5px 10px;font-size:13px;transition:all 0.15s;"
+          onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,0.3)'"
+          onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">
+          Close
+        </button>
+      </div>
+    </div>
+
+    <!-- canvas area -->
+    <div id="plCanvasWrap" style="flex:1;position:relative;overflow:hidden;
+      background:radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.025) 0%, transparent 70%);">
+      <svg id="plSvg" style="width:100%;height:100%;display:block;"></svg>
+      <div id="plEmpty" style="display:none;position:absolute;inset:0;
+        align-items:center;justify-content:center;flex-direction:column;gap:10px;
+        color:var(--text-muted);font-size:14px;text-align:center;">
+        <div style="font-size:32px;opacity:0.3;">⬡</div>
+        <div>No panel data available.<br>Connect your Nanoleaf first, then open this again.</div>
+      </div>
+      <div id="plSpinner" style="position:absolute;inset:0;display:flex;
+        align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;">
+        Fetching layout from device…
+      </div>
+    </div>
+
+    <!-- footer -->
+    <div style="padding:14px 24px;border-top:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="font-size:11px;color:var(--text-muted);">
+        Drag panels to rearrange · Layout saved per-device
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button id="plReset" class="btn btn-ghost btn-sm">Reset to Default</button>
+        <button id="plSave" class="btn btn-primary btn-sm">Save Layout</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── State ──────────────────────────────────────────────────────────────────
+  let _deviceLayout  = null;  // raw layout from device (never mutated)
+  let _panels        = null;  // working copy, mutated by drag
+  let _sideLength    = 150;
+  let _dragging      = null;  // { panel, startMouseX, startMouseY, startPanelX, startPanelY }
+  let _svgTransform  = null;  // { scale, offsetX, offsetY } — recomputed on render
+
+  // ── Open / Close ──────────────────────────────────────────────────────────
+  window._openPanelLayout = async function () {
+    const overlay = document.getElementById('panelLayoutOverlay');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('plSpinner').style.display = 'flex';
+    document.getElementById('plEmpty').style.display = 'none';
+    document.getElementById('plSvg').innerHTML = '';
+    document.getElementById('plSubtitle').textContent = 'Fetching layout from device…';
+    document.getElementById('plLegend').style.display = 'none';
+    await fetchAndRender();
+  };
+
+  function closePanelLayout() {
+    document.getElementById('panelLayoutOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  // ── Data ──────────────────────────────────────────────────────────────────
+  async function fetchAndRender(useDeviceDefault = false) {
+    try {
+      const layout = useDeviceDefault
+        ? await callApi('reset_nanoleaf_layout')
+        : await callApi('get_nanoleaf_layout');
+
+      document.getElementById('plSpinner').style.display = 'none';
+
+      if (!layout || !layout.panels || layout.panels.length === 0) {
+        document.getElementById('plEmpty').style.display = 'flex';
+        document.getElementById('plSubtitle').textContent = 'No panels found';
+        return;
+      }
+
+      _deviceLayout = layout;
+      _sideLength   = layout.sideLength || 150;
+      _panels       = layout.panels.map(p => ({ ...p }));
+
+      const deviceName = layout.panels[0] ? '' : '';
+      const sub = `${_panels.length} panel${_panels.length !== 1 ? 's' : ''}`
+                + (layout.hasCustom ? ' · custom arrangement' : ' · device default');
+      document.getElementById('plSubtitle').textContent = sub;
+
+      renderLegend();
+      renderSvg();
+    } catch (e) {
+      document.getElementById('plSpinner').style.display = 'none';
+      document.getElementById('plSubtitle').textContent = 'Failed to load layout';
+      console.error('Panel layout error', e);
+    }
+  }
+
+  // ── Legend ─────────────────────────────────────────────────────────────────
+  const SHAPE_NAMES = { 0:'Triangle', 3:'Hexagon', 4:'Triangle', 7:'Square', 8:'Square', 9:'Mini-triangle' };
+  function renderLegend() {
+    if (!_panels) return;
+    const types = [...new Set(_panels.map(p => p.shapeType))];
+    if (types.length <= 1) return;
+    const leg = document.getElementById('plLegend');
+    leg.innerHTML = types.map(t => `${SHAPE_NAMES[t] || 'Panel'} (type ${t})`).join(' · ');
+    leg.style.display = '';
+  }
+
+  // ── SVG Rendering ──────────────────────────────────────────────────────────
+  function computeTransform(W, H, padding) {
+    const sl = _sideLength;
+    const xs = _panels.map(p => p.x);
+    const ys = _panels.map(p => p.y);
+    const minX = Math.min(...xs) - sl;
+    const maxX = Math.max(...xs) + sl;
+    const minY = Math.min(...ys) - sl;
+    const maxY = Math.max(...ys) + sl;
+    const rangeX = (maxX - minX) || sl * 2;
+    const rangeY = (maxY - minY) || sl * 2;
+    const scale = Math.min((W - padding * 2) / rangeX, (H - padding * 2) / rangeY);
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    return {
+      scale,
+      offsetX: W / 2 - centerX * scale,
+      offsetY: H / 2 + centerY * scale,  // Y-flip: Nanoleaf Y is bottom-up
+    };
+  }
+
+  function panelVertices(p, tf) {
+    const { scale, offsetX, offsetY } = tf;
+    const cx = p.x * scale + offsetX;
+    const cy = -p.y * scale + offsetY;   // Y-flip
+    const r  = (p.o || 0) * Math.PI / 180;
+    const s  = _sideLength * scale;
+    const rot = ([x, y]) => {
+      const rx = x * Math.cos(r) - y * Math.sin(r);
+      const ry = x * Math.sin(r) + y * Math.cos(r);
+      return [cx + rx, cy + ry];
+    };
+
+    const st = p.shapeType;
+    if (st === 7 || st === 8) {
+      // Square (Canvas)
+      const h = s / 2;
+      return [[-h,-h],[h,-h],[h,h],[-h,h]].map(rot);
+    } else if (st === 3) {
+      // Hexagon (Shapes)
+      return Array.from({length:6}, (_,i) => {
+        const a = r + i * Math.PI / 3;
+        return [cx + s * Math.cos(a), cy + s * Math.sin(a)];
+      });
+    } else if (st === 0 || st === 4 || st === 9) {
+      // Triangle (Light Panels / Shapes triangles)
+      const h = s * Math.sqrt(3) / 2;
+      return [[0, -h*2/3],[s/2, h/3],[-s/2, h/3]].map(rot);
+    } else {
+      // Fallback: octagon
+      return Array.from({length:8}, (_,i) => {
+        const a = r + i * Math.PI / 4;
+        return [cx + (s/2) * Math.cos(a), cy + (s/2) * Math.sin(a)];
+      });
+    }
+  }
+
+  function renderSvg() {
+    const svg = document.getElementById('plSvg');
+    const wrap = document.getElementById('plCanvasWrap');
+    const W = wrap.clientWidth  || 860;
+    const H = wrap.clientHeight || 540;
+    const PAD = 60;
+
+    _svgTransform = computeTransform(W, H, PAD);
+    const tf = _svgTransform;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = '';
+
+    // Grid dots (subtle background)
+    const defs = document.createElementNS(ns, 'defs');
+    defs.innerHTML = `
+      <pattern id="pl-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+        <circle cx="12" cy="12" r="1" fill="rgba(255,255,255,0.04)"/>
+      </pattern>`;
+    svg.appendChild(defs);
+    const bgRect = document.createElementNS(ns, 'rect');
+    bgRect.setAttribute('width', W); bgRect.setAttribute('height', H);
+    bgRect.setAttribute('fill', 'url(#pl-dots)');
+    svg.appendChild(bgRect);
+
+    // Panels
+    _panels.forEach((p, idx) => {
+      const verts = panelVertices(p, tf);
+      const pts   = verts.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+      const cx    = verts.reduce((s,[x])=>s+x,0)/verts.length;
+      const cy    = verts.reduce((s,[,y])=>s+y,0)/verts.length;
+      const fontSize = Math.max(9, Math.min(16, _sideLength * tf.scale * 0.18));
+
+      const g = document.createElementNS(ns, 'g');
+      g.setAttribute('class', 'pl-panel');
+      g.setAttribute('data-idx', idx);
+      g.style.cursor = 'grab';
+
+      const poly = document.createElementNS(ns, 'polygon');
+      poly.setAttribute('points', pts);
+      poly.setAttribute('fill', 'rgba(255,255,255,0.07)');
+      poly.setAttribute('stroke', 'rgba(255,255,255,0.35)');
+      poly.setAttribute('stroke-width', '1.5');
+      poly.setAttribute('stroke-linejoin', 'round');
+
+      const label = document.createElementNS(ns, 'text');
+      label.setAttribute('x', cx.toFixed(1));
+      label.setAttribute('y', cy.toFixed(1));
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('dominant-baseline', 'middle');
+      label.setAttribute('fill', 'rgba(255,255,255,0.55)');
+      label.setAttribute('font-size', fontSize.toFixed(0));
+      label.setAttribute('font-family', 'var(--font-mono, monospace)');
+      label.setAttribute('pointer-events', 'none');
+      label.style.userSelect = 'none';
+      label.textContent = p.panelId;
+
+      g.appendChild(poly);
+      g.appendChild(label);
+      svg.appendChild(g);
+
+      g.addEventListener('mousedown', onPanelMouseDown);
+    });
+  }
+
+  // ── Drag ──────────────────────────────────────────────────────────────────
+  function onPanelMouseDown(e) {
+    e.preventDefault();
+    const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
+    const panel = _panels[idx];
+    _dragging = {
+      panel,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startPanelX: panel.x,
+      startPanelY: panel.y,
+    };
+    e.currentTarget.querySelector('polygon').setAttribute('stroke', 'rgba(250,190,0,0.9)');
+    e.currentTarget.querySelector('polygon').setAttribute('fill', 'rgba(250,190,0,0.12)');
+    e.currentTarget.style.cursor = 'grabbing';
+  }
+
+  function onMouseMove(e) {
+    if (!_dragging || !_svgTransform) return;
+    const { scale } = _svgTransform;
+    const dx = (e.clientX - _dragging.startMouseX) / scale;
+    const dy = -(e.clientY - _dragging.startMouseY) / scale; // Y-flip
+    _dragging.panel.x = _dragging.startPanelX + dx;
+    _dragging.panel.y = _dragging.startPanelY + dy;
+    renderSvg();
+  }
+
+  function onMouseUp() {
+    if (_dragging) {
+      _dragging = null;
+      renderSvg();
+    }
+  }
+
+  // ── Save / Reset ──────────────────────────────────────────────────────────
+  async function saveLayout() {
+    if (!_panels) return;
+    const btn = document.getElementById('plSave');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      await callApi('save_nanoleaf_layout', _panels);
+      btn.textContent = 'Saved ✓';
+      document.getElementById('plSubtitle').textContent =
+        `${_panels.length} panels · custom arrangement`;
+      setTimeout(() => { btn.textContent = 'Save Layout'; btn.disabled = false; }, 1800);
+    } catch(e) {
+      btn.textContent = 'Save Layout';
+      btn.disabled = false;
+    }
+  }
+
+  async function resetLayout() {
+    document.getElementById('plSpinner').style.display = 'flex';
+    document.getElementById('plSvg').innerHTML = '';
+    document.getElementById('plSubtitle').textContent = 'Resetting…';
+    await fetchAndRender(true);
+  }
+
+  // ── Wire up ───────────────────────────────────────────────────────────────
+  document.getElementById('plClose').addEventListener('click', closePanelLayout);
+  document.getElementById('plSave').addEventListener('click', saveLayout);
+  document.getElementById('plReset').addEventListener('click', resetLayout);
+  document.getElementById('panelLayoutOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closePanelLayout();
+  });
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup',   onMouseUp);
+
+  // Wire the settings button (button is rendered before this script runs)
+  document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('nanoleafLayoutBtn');
+    if (btn) btn.addEventListener('click', window._openPanelLayout);
+  });
+  // Also wire immediately in case DOMContentLoaded already fired
+  const lbtn = document.getElementById('nanoleafLayoutBtn');
+  if (lbtn) lbtn.addEventListener('click', window._openPanelLayout);
+})();
 </script>
 
 </body>

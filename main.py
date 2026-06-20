@@ -172,6 +172,16 @@ class Api:
         self.runner.set_nanoleaf_enabled(enabled)
         return {"ok": True}
 
+    def get_nanoleaf_layout(self):
+        return self.runner.get_nanoleaf_layout()
+
+    def save_nanoleaf_layout(self, panels: list):
+        self.runner.save_nanoleaf_layout(panels)
+        return {"ok": True}
+
+    def reset_nanoleaf_layout(self):
+        return self.runner.reset_nanoleaf_layout()
+
     def set_listen_address(self, ip: str, port: int):
         self.runner.set_listen_address(ip, int(port))
         return {"ok": True}

@@ -321,6 +321,52 @@ class BridgeRunner:
     def get_nanoleaf_settings(self) -> dict:
         return dict(self._nanoleaf_settings)
 
+    def get_nanoleaf_layout(self) -> dict | None:
+        """Return panel layout for the UI.
+
+        Fetches the raw device layout from the live controller, then overlays
+        any saved custom positions from nanoleaf_settings.json.
+        Falls back to the cached device_layout in settings if the device is
+        not currently connected.
+        """
+        layout = None
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            layout = self.bridge.nanoleaf.get_panel_layout()
+            if layout and layout.get("panels"):
+                self._nanoleaf_settings["device_layout"] = layout
+                save_nanoleaf_settings(self._nanoleaf_settings)
+
+        if not layout or not layout.get("panels"):
+            layout = self._nanoleaf_settings.get("device_layout")
+
+        if not layout or not layout.get("panels"):
+            return None
+
+        custom = self._nanoleaf_settings.get("custom_layout")
+        if custom:
+            custom_map = {p["panelId"]: p for p in custom}
+            panels = []
+            for p in layout["panels"]:
+                cp = custom_map.get(p["panelId"])
+                if cp:
+                    panels.append({**p, "x": cp.get("x", p["x"]), "y": cp.get("y", p["y"])})
+                else:
+                    panels.append(dict(p))
+            layout = {**layout, "panels": panels, "hasCustom": True}
+
+        return layout
+
+    def save_nanoleaf_layout(self, panels: list):
+        """Persist user-arranged panel positions."""
+        self._nanoleaf_settings["custom_layout"] = panels
+        save_nanoleaf_settings(self._nanoleaf_settings)
+
+    def reset_nanoleaf_layout(self):
+        """Discard custom layout and return to device default."""
+        self._nanoleaf_settings.pop("custom_layout", None)
+        save_nanoleaf_settings(self._nanoleaf_settings)
+        return self.get_nanoleaf_layout()
+
     def get_nanoleaf_device_info(self) -> dict:
         """Return detected device info (name, model, model_name, firmware, num_panels)."""
         if self.bridge is not None and self.bridge.nanoleaf is not None:

@@ -167,8 +167,10 @@ class NanoleafController:
         # Keys: name, model, model_name, firmware, num_panels
         self.device_info: dict = {}
 
-        # Panel IDs fetched from the layout API — needed for instant static effects.
+        # Panel IDs and layout fetched from the device API.
         self._panel_ids: list[int] = []
+        self._side_length: int = 150
+        self._raw_layout: list[dict] = []
         self._diag_logged = False  # log first set_color_all call only
 
         self._nl: Nanoleaf | None = None
@@ -208,9 +210,18 @@ class NanoleafController:
             num_panels = layout.get("numPanels", 0)
             position_data = layout.get("positionData", [])
             # shapeType 12 = Rhythm module (not a light panel — exclude it).
-            self._panel_ids = [
-                p["panelId"] for p in position_data
-                if p.get("shapeType", 0) != 12
+            light_panels = [p for p in position_data if p.get("shapeType", 0) != 12]
+            self._side_length = layout.get("sideLength", 150)
+            self._panel_ids = [p["panelId"] for p in light_panels]
+            self._raw_layout = [
+                {
+                    "panelId":   p["panelId"],
+                    "x":         p["x"],
+                    "y":         p["y"],
+                    "o":         p.get("o", 0),
+                    "shapeType": p.get("shapeType", 0),
+                }
+                for p in light_panels
             ]
 
             self.device_info = {
@@ -223,6 +234,13 @@ class NanoleafController:
             self._log(f"[NANOLEAF] Panel IDs ({len(self._panel_ids)}): {self._panel_ids}")
         except Exception as exc:
             self._log(f"[NANOLEAF] Device info fetch failed: {exc}")
+
+    def get_panel_layout(self) -> dict:
+        """Return raw device panel layout for rendering."""
+        return {
+            "sideLength": self._side_length,
+            "panels": [dict(p) for p in self._raw_layout],
+        }
 
     def _log(self, msg: str):
         print(msg, flush=True)
