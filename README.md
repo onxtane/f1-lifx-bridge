@@ -134,11 +134,16 @@ These are created automatically on first run and are not tracked in git (user-sp
 
 ## Known issues
 
-See the [GitHub Issues](https://github.com/onxtane/f1-lifx-bridge/issues) tracker for current bugs and in-progress work. Notable ones:
-
-- Tailscale / VPN connections can break LIFX discovery ([#1](https://github.com/onxtane/f1-lifx-bridge/issues/1))
-- Multizone strips occasionally detected as single bulbs ([#2](https://github.com/onxtane/f1-lifx-bridge/issues/2))
-- App flickers when F1 25 comes into focus ([#3](https://github.com/onxtane/f1-lifx-bridge/issues/3))
+| # | Issue |
+|---|---|
+| [#1](https://github.com/onxtane/f1-lifx-bridge/issues/1) | Tailscale / VPN connections can break LIFX discovery |
+| [#2](https://github.com/onxtane/f1-lifx-bridge/issues/2) | Multizone strips occasionally detected as a single bulb |
+| [#3](https://github.com/onxtane/f1-lifx-bridge/issues/3) | Entire app flickers when F1 25 comes into focus |
+| [#4](https://github.com/onxtane/f1-lifx-bridge/issues/4) | Scroll wheel hitbox too large in Discovered Lights section |
+| [#17](https://github.com/onxtane/f1-lifx-bridge/issues/17) | Forwarding listener always binds to 127.0.0.1:20777 regardless of settings |
+| [#18](https://github.com/onxtane/f1-lifx-bridge/issues/18) | Light assignments applied before discovery and saved groups are loaded |
+| [#22](https://github.com/onxtane/f1-lifx-bridge/issues/22) | Panel Layout UI: first panel renders as hexagon on Canvas (NL29) |
+| [#23](https://github.com/onxtane/f1-lifx-bridge/issues/23) | Nanoleaf auto-discovery not working — manual IP entry required |
 
 ---
 
