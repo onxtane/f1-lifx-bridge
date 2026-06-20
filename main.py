@@ -191,6 +191,9 @@ class Api:
             self.window.resize(1320, 860)
         return {"ok": True}
 
+    def get_lan_interfaces(self):
+        return self.runner.get_lan_interfaces()
+
     def set_listen_address(self, ip: str, port: int):
         self.runner.set_listen_address(ip, int(port))
         return {"ok": True}

@@ -67,7 +67,7 @@ F1 25 broadcasts telemetry over UDP on your local network. This app listens for 
 ### Python dependencies
 
 ```
-pip install pywebview PySide6 lifxlan nanoleafapi requests
+pip install pywebview PySide6 lifxlan nanoleafapi requests psutil
 ```
 
 ---

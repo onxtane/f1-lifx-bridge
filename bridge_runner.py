@@ -518,6 +518,37 @@ class BridgeRunner:
         self.save_gui_settings({"last_group": name})
         self.on_log(f"[GROUP] Loaded group: {name} ({len(labels)} light(s))")
 
+    # ---- network interface enumeration ----
+
+    def get_lan_interfaces(self) -> list:
+        import socket as _socket
+        result = []
+        try:
+            import psutil
+            for name, addrs in psutil.net_if_addrs().items():
+                for addr in addrs:
+                    if addr.family != _socket.AF_INET:
+                        continue
+                    ip = addr.address
+                    if ip.startswith('127.') or ip.startswith('169.254.'):
+                        continue
+                    result.append({"ip": ip, "name": name})
+        except ImportError:
+            # psutil not installed — fall back to hostname resolution (no interface names)
+            try:
+                hostname = _socket.gethostname()
+                for info in _socket.getaddrinfo(hostname, None, _socket.AF_INET):
+                    ip = info[4][0]
+                    if ip.startswith('127.') or ip.startswith('169.254.'):
+                        continue
+                    if not any(r["ip"] == ip for r in result):
+                        result.append({"ip": ip, "name": "Network adapter"})
+            except Exception:
+                pass
+        except Exception as exc:
+            self.on_log(f"[LAN] Could not enumerate interfaces: {exc}")
+        return result
+
     # ---- GUI settings persistence ----
 
     def get_gui_settings(self) -> dict:

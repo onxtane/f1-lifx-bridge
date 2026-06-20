@@ -3027,7 +3027,7 @@
       callApi('save_gui_settings', { console_ip: ip });
     }
 
-    function renderInterfaces(ifaces) {
+    function renderInterfaces(ifaces, savedIp) {
       list.querySelectorAll('.iface-card').forEach(c => c.remove());
       if (!ifaces || ifaces.length === 0) {
         empty.textContent = 'No LAN interfaces found.';
@@ -3048,8 +3048,9 @@
         card.addEventListener('click', () => selectIface(ip));
         list.appendChild(card);
       });
-      // Auto-select first non-VPN, or first overall
-      const best = ifaces.find(i => !isVpnLike(i.ip)) || ifaces[0];
+      // Pre-select saved IP if still present, otherwise first non-VPN
+      const saved = savedIp && ifaces.find(i => i.ip === savedIp);
+      const best  = saved || ifaces.find(i => !isVpnLike(i.ip)) || ifaces[0];
       if (best) selectIface(best.ip);
     }
 
@@ -3063,12 +3064,15 @@
       });
     });
 
-    // Load interfaces once pywebview is ready; stub shows placeholder until backend exists
     window.addEventListener('pywebviewready', () => {
-      callApi('get_lan_interfaces').then(ifaces => {
-        if (ifaces) renderInterfaces(ifaces);
-        else {
-          empty.textContent = 'Interface list unavailable — backend not yet implemented.';
+      Promise.all([
+        callApi('get_lan_interfaces'),
+        callApi('get_gui_settings'),
+      ]).then(([ifaces, settings]) => {
+        if (ifaces && ifaces.length > 0) {
+          renderInterfaces(ifaces, settings?.console_ip || null);
+        } else {
+          empty.textContent = 'No network interfaces found.';
         }
       }).catch(() => {
         empty.textContent = 'Could not load network interfaces.';
