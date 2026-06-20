@@ -761,16 +761,45 @@ class LocalLifxController:
         self.clear_active_effect()
         self._current_effect_key = 'blue_flag'
         print("[FLAG] Blue")
-        blue = [43690, 65535, 65535, 3500]
-        self.set_color_all(blue, duration_ms=200, stagger=False)
+        self.set_active_effect("blue_pulse")
+        threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
+
+    def _blue_pulse_loop(self):
+        bright = [43690, 65535, 65535, 3500]
+        dim    = [43690, 65535, 8000,  3500]
+        while self.is_effect_active("blue_pulse"):
+            self.set_color_all(bright, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("blue_pulse"):
+                    return
+                time.sleep(0.1)
+            self.set_color_all(dim, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("blue_pulse"):
+                    return
+                time.sleep(0.1)
 
     def red_flag(self):
         self.clear_active_effect()
         self._current_effect_key = 'red_flag'
         print("[FLAG] Red")
-        red = [0, 65535, 65535, 3500]
-        self.flash_colors([red], loops=3, hold_ms=400)
-        self.set_color_all(red, duration_ms=500, stagger=False)
+        self.set_active_effect("red_pulse")
+        threading.Thread(target=self._red_pulse_loop, daemon=True).start()
+
+    def _red_pulse_loop(self):
+        bright = [0, 65535, 65535, 3500]
+        dim    = [0, 65535, 8000,  3500]
+        while self.is_effect_active("red_pulse"):
+            self.set_color_all(bright, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("red_pulse"):
+                    return
+                time.sleep(0.1)
+            self.set_color_all(dim, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("red_pulse"):
+                    return
+                time.sleep(0.1)
 
     def black_flag(self):
         self.clear_active_effect()
