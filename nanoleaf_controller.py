@@ -167,6 +167,9 @@ class NanoleafController:
         # Keys: name, model, model_name, firmware, num_panels
         self.device_info: dict = {}
 
+        # Panel IDs fetched from the layout API — needed for instant static effects.
+        self._panel_ids: list[int] = []
+
         self._nl: Nanoleaf | None = None
         self._connect()
 
@@ -200,7 +203,14 @@ class NanoleafController:
             data = resp.json()
 
             model_code = data.get("model", "")
-            num_panels = data.get("panelLayout", {}).get("layout", {}).get("numPanels", 0)
+            layout = data.get("panelLayout", {}).get("layout", {})
+            num_panels = layout.get("numPanels", 0)
+            position_data = layout.get("positionData", [])
+            # shapeType 12 = Rhythm module (not a light panel — exclude it).
+            self._panel_ids = [
+                p["panelId"] for p in position_data
+                if p.get("shapeType", 0) != 12
+            ]
 
             self.device_info = {
                 "name":        data.get("name", "Nanoleaf"),
@@ -242,38 +252,62 @@ class NanoleafController:
     # ── Core colour send ─────────────────────────────────────────────────────
 
     def set_color_all(self, hsbk, duration_ms=50, stagger=True):
-        """Set all Nanoleaf panels to hsbk colour. stagger is ignored.
+        """Set all Nanoleaf panels to hsbk colour instantly (no fade).
 
-        Bypasses nanoleafapi.set_color() because that only sets duration=0 on
-        brightness — hue and sat still use the device's default transition
-        time, causing an unwanted fade.  We PUT all three fields with
-        duration=0 so colour changes are instantaneous.
+        Uses the /effects write endpoint with animType=static and transitionTime=0
+        per panel, which gives a true instant snap.  The /state endpoint is only
+        used as a fallback when panel IDs haven't been fetched yet.
         """
         if self._nl is None or _requests is None:
             return
         h, s, b, k = hsbk
         b_scaled = self._scale_brightness(b)
-        nl_h = int(h / 65535.0 * 360)
-        nl_s = int(s / 65535.0 * 100)
-        nl_b = max(1, int(b_scaled / 65535.0 * 100))
         try:
-            url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/state"
-            # Nanoleaf API only supports "duration" on "brightness".
-            # Sending it on "hue"/"sat" causes a 422 and the whole PUT is ignored.
-            _requests.put(url, json={
-                "hue":        {"value": nl_h},
-                "sat":        {"value": nl_s},
-                "brightness": {"value": nl_b, "duration": 0},
-            }, timeout=2)
+            if self._panel_ids:
+                r, g, bl = _hsbk_to_rgb(h, s, b_scaled)
+                n = len(self._panel_ids)
+                # animData: "<numPanels> <panelId> <R> <G> <B> <W> <transTime(100ms)> ..."
+                anim_data = f"{n} " + " ".join(
+                    f"{pid} {r} {g} {bl} 0 0" for pid in self._panel_ids
+                )
+                url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
+                _requests.put(url, json={
+                    "write": {
+                        "command":   "display",
+                        "animType":  "static",
+                        "animData":  anim_data,
+                        "loop":      False,
+                        "palette":   [],
+                    }
+                }, timeout=1)
+            else:
+                # Fallback: /state endpoint — hue/sat will still fade on some firmware.
+                nl_h = int(h / 65535.0 * 360)
+                nl_s = int(s / 65535.0 * 100)
+                nl_b = max(1, int(b_scaled / 65535.0 * 100))
+                url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/state"
+                _requests.put(url, json={
+                    "hue":        {"value": nl_h},
+                    "sat":        {"value": nl_s},
+                    "brightness": {"value": nl_b, "duration": 0},
+                }, timeout=1)
         except Exception as exc:
             self._log(f"[NANOLEAF ERROR] set_color_all: {exc}")
 
+    def _snap_and_wait(self, hsbk, hold_ms: int):
+        """Set colour and hold for hold_ms, compensating for HTTP round-trip time."""
+        t0 = time.monotonic()
+        self.set_color_all(hsbk, duration_ms=0, stagger=False)
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        remaining = (hold_ms - elapsed_ms) / 1000.0
+        if remaining > 0:
+            time.sleep(remaining)
+
     def flash_colors(self, colors, loops=3, hold_ms=200):
-        """Flash through a list of HSBK colours."""
+        """Flash through a list of HSBK colours, compensating for HTTP latency."""
         for _ in range(loops):
             for color in colors:
-                self.set_color_all(color, duration_ms=50, stagger=False)
-                time.sleep(hold_ms / 1000.0)
+                self._snap_and_wait(color, hold_ms)
 
     # ── Effects ──────────────────────────────────────────────────────────────
 
@@ -379,13 +413,10 @@ class NanoleafController:
         green = [21845, 65535, 65535, 3500]
         dark  = [0, 0, 1, 3500]
         white = [0, 0, 50000, 4500]
-        self.set_color_all(green, duration_ms=40, stagger=False)
-        time.sleep(0.20)
-        self.set_color_all(dark, duration_ms=40, stagger=False)
-        time.sleep(0.15)
-        self.set_color_all(green, duration_ms=40, stagger=False)
-        time.sleep(0.35)
-        self.set_color_all(white, duration_ms=800, stagger=False)
+        self._snap_and_wait(green, 200)
+        self._snap_and_wait(dark,  150)
+        self._snap_and_wait(green, 350)
+        self.set_color_all(white)
 
     def start_lights(self, num_lights: int):
         """Red intensity ramps up with each start light (0-5)."""
