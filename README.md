@@ -149,8 +149,23 @@ These are created automatically on first run and are not tracked in git (user-sp
 
 ## Roadmap
 
-- Profiles backend wiring ([#7](https://github.com/onxtane/f1-lifx-bridge/issues/7))
-- Intensity Curves real-world implementation ([#5](https://github.com/onxtane/f1-lifx-bridge/issues/5))
-- Formation Lap event ([#4](https://github.com/onxtane/f1-lifx-bridge/issues/4) maybe)
-- Expanded multizone effects — live sector status, RPM meter ([#12](https://github.com/onxtane/f1-lifx-bridge/issues/12))
-- Mini mode ([#11](https://github.com/onxtane/f1-lifx-bridge/issues/11))
+**In progress**
+| # | Item |
+|---|---|
+| [#5](https://github.com/onxtane/f1-lifx-bridge/issues/5) | Intensity Curves — backend implementation |
+
+**Enhancements**
+| # | Item |
+|---|---|
+| [#6](https://github.com/onxtane/f1-lifx-bridge/issues/6) | Formation Lap effect |
+| [#11](https://github.com/onxtane/f1-lifx-bridge/issues/11) | Mini mode — compact always-on-top window |
+| [#12](https://github.com/onxtane/f1-lifx-bridge/issues/12) | Expanded multizone strip effects (sectors, RPM, tyres) |
+| [#15](https://github.com/onxtane/f1-lifx-bridge/issues/15) | Toast notification when saving profile settings |
+| [#21](https://github.com/onxtane/f1-lifx-bridge/issues/21) | Validate IPv4 format on UDP listen IP input |
+
+**UI**
+| # | Item |
+|---|---|
+| [#8](https://github.com/onxtane/f1-lifx-bridge/issues/8) | Discovered lights slider overlaps light buttons |
+| [#9](https://github.com/onxtane/f1-lifx-bridge/issues/9) | Section dividers disappear when Effects section is expanded |
+| [#10](https://github.com/onxtane/f1-lifx-bridge/issues/10) | Replace emoji placeholders with SVG icon glyphs |
