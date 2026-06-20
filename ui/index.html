@@ -4661,7 +4661,7 @@
      PANEL LAYOUT MODAL
 ════════════════════════════════════════════════════════════════ -->
 <div id="panelLayoutOverlay" style="
-  display:none; position:fixed; inset:0; z-index:900;
+  display:none; position:fixed; inset:0; z-index:10000;
   background:rgba(8,12,24,0.82); backdrop-filter:blur(10px);
   align-items:center; justify-content:center;">
 
@@ -4814,6 +4814,31 @@
     };
   }
 
+  // Determine logical shape from shapeType + device model code.
+  // Nanoleaf shapeType values (from OpenAPI spec):
+  //   0  = Triangle (Light Panels original)
+  //   1  = Rhythm module (Light Panels) — filtered before here
+  //   2  = Square (Canvas NL29)
+  //   3  = Hexagon (Shapes NL42/NL45/NL47/NL64)
+  //   4  = Triangle (Shapes)
+  //   7  = Square (Canvas, some firmware variants)
+  //   8  = Square/controller (Canvas) — kept if not filtered
+  //   9  = Mini-triangle (Shapes)
+  //  12  = Rhythm module (Shapes/Canvas) — filtered before here
+  const SQUARE_MODELS    = ['NL29'];                                   // Canvas
+  const HEXAGON_MODELS   = ['NL42','NL45','NL47','NL52','NL64','NL67','NL69'];
+  const TRIANGLE_MODELS  = ['NL22'];                                   // Light Panels
+  function resolveShape(st, model) {
+    if (st === 2 || st === 7 || st === 8)  return 'square';
+    if (st === 3)                           return 'hexagon';
+    if (st === 0 || st === 4 || st === 9)  return 'triangle';
+    // Unknown shapeType — fall back to device model code
+    if (SQUARE_MODELS.some(m => model.startsWith(m)))    return 'square';
+    if (HEXAGON_MODELS.some(m => model.startsWith(m)))   return 'hexagon';
+    if (TRIANGLE_MODELS.some(m => model.startsWith(m)))  return 'triangle';
+    return 'square'; // safe default for Canvas users
+  }
+
   function panelVertices(p, tf) {
     const { scale, offsetX, offsetY } = tf;
     const cx = p.x * scale + offsetX;
@@ -4826,27 +4851,19 @@
       return [cx + rx, cy + ry];
     };
 
-    const st = p.shapeType;
-    if (st === 7 || st === 8) {
-      // Square (Canvas)
+    const shape = resolveShape(p.shapeType, _deviceLayout?.model || '');
+    if (shape === 'square') {
       const h = s / 2;
       return [[-h,-h],[h,-h],[h,h],[-h,h]].map(rot);
-    } else if (st === 3) {
-      // Hexagon (Shapes)
+    } else if (shape === 'hexagon') {
       return Array.from({length:6}, (_,i) => {
         const a = r + i * Math.PI / 3;
         return [cx + s * Math.cos(a), cy + s * Math.sin(a)];
       });
-    } else if (st === 0 || st === 4 || st === 9) {
-      // Triangle (Light Panels / Shapes triangles)
+    } else {
+      // Triangle
       const h = s * Math.sqrt(3) / 2;
       return [[0, -h*2/3],[s/2, h/3],[-s/2, h/3]].map(rot);
-    } else {
-      // Fallback: octagon
-      return Array.from({length:8}, (_,i) => {
-        const a = r + i * Math.PI / 4;
-        return [cx + (s/2) * Math.cos(a), cy + (s/2) * Math.sin(a)];
-      });
     }
   }
 

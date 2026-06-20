@@ -239,7 +239,9 @@ class NanoleafController:
         """Return raw device panel layout for rendering."""
         return {
             "sideLength": self._side_length,
-            "panels": [dict(p) for p in self._raw_layout],
+            "model":      self.device_info.get("model", ""),
+            "modelName":  self.device_info.get("model_name", ""),
+            "panels":     [dict(p) for p in self._raw_layout],
         }
 
     def _log(self, msg: str):
