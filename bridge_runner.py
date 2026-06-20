@@ -6,7 +6,11 @@ import threading
 import time
 from pathlib import Path
 
-_BASE_DIR = Path(__file__).resolve().parent
+if getattr(sys, 'frozen', False):
+    # Settings/groups files live next to the EXE, not inside the bundle.
+    _BASE_DIR = Path(sys.executable).parent
+else:
+    _BASE_DIR = Path(__file__).resolve().parent
 GROUPS_FILE = str(_BASE_DIR / "lifx_groups.json")
 GUI_SETTINGS_FILE = str(_BASE_DIR / "f1lifx_gui_settings.json")
 
@@ -64,11 +68,10 @@ class BridgeRunner:
         "Black Flag":     lambda lifx: lifx.black_flag(),
     }
 
-    def __init__(self, bridge_script: Path,
+    def __init__(self,
                  on_log=None, on_state_change=None, on_status_text=None,
                  on_stat=None, on_lights_discovered=None, on_discovering=None,
                  on_selection_changed=None):
-        self.bridge_script = Path(bridge_script)
 
         self.on_log = on_log or (lambda line: None)
         self.on_state_change = on_state_change or (lambda running: None)
@@ -107,19 +110,15 @@ class BridgeRunner:
             return True
 
         if self._module is None:
-            if not self.bridge_script.exists():
-                self.on_log(f"ERROR: Bridge script not found: {self.bridge_script}")
-                self.on_status_text("Script Missing")
-                return False
-
             try:
-                spec = importlib.util.spec_from_file_location("bridge_core", self.bridge_script)
-                module = importlib.util.module_from_spec(spec)
-                sys.modules["bridge_core"] = module
-                spec.loader.exec_module(module)
-                self._module = module
+                import bridge_core as _bc
+                self._module = _bc
+            except ImportError as exc:
+                self.on_log(f"ERROR: bridge_core could not be imported: {exc}")
+                self.on_status_text("Import Error")
+                return False
             except (Exception, SystemExit) as exc:
-                self.on_log(f"ERROR: could not load {self.bridge_script.name}: {exc}")
+                self.on_log(f"ERROR: bridge_core failed to load: {exc}")
                 self.on_status_text("Import Error")
                 return False
 

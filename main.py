@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import threading
 from pathlib import Path
 
@@ -10,10 +11,17 @@ import webview
 
 from bridge_runner import BridgeRunner
 
-BRIDGE_SCRIPT = Path(r"C:\Users\chvng\source\repos\f1_lifx_app\bridge_core.py")
+if getattr(sys, 'frozen', False):
+    # Running as a PyInstaller bundle.
+    # Bundled data files (ui/, etc.) are in sys._MEIPASS.
+    # User-writable files (settings, storage) go next to the EXE.
+    _BUNDLE_DIR = Path(sys._MEIPASS)
+    _APP_DIR    = Path(sys.executable).parent
+else:
+    _BUNDLE_DIR = Path(__file__).resolve().parent
+    _APP_DIR    = _BUNDLE_DIR
 
-PROJECT_DIR = Path(__file__).resolve().parent
-UI_FILE = PROJECT_DIR / "ui" / "index.html"
+UI_FILE = _BUNDLE_DIR / "ui" / "index.html"
 
 
 class Api:
@@ -32,7 +40,6 @@ class Api:
         self._queue_lock = threading.Lock()
 
         self.runner = BridgeRunner(
-            BRIDGE_SCRIPT,
             on_log=self._push_log,
             on_state_change=self._push_state,
             on_status_text=self._push_status_text,
@@ -219,7 +226,7 @@ def main():
     )
     api.set_window(window)
 
-    storage = PROJECT_DIR / "webview_storage"
+    storage = _APP_DIR / "webview_storage"
     webview.start(private_mode=False, storage_path=str(storage))
 
 
