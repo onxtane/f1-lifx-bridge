@@ -10,6 +10,27 @@ _BASE_DIR = Path(__file__).resolve().parent
 GROUPS_FILE = str(_BASE_DIR / "lifx_groups.json")
 GUI_SETTINGS_FILE = str(_BASE_DIR / "f1lifx_gui_settings.json")
 
+try:
+    from nanoleaf_controller import (
+        NanoleafController,
+        discover_nanoleaf,
+        load_nanoleaf_settings,
+        save_nanoleaf_settings,
+    )
+    _NANOLEAF_AVAILABLE = True
+except ImportError:
+    NanoleafController = None
+    _NANOLEAF_AVAILABLE = False
+
+    def discover_nanoleaf(*_a, **_kw):
+        return []
+
+    def load_nanoleaf_settings():
+        return {}
+
+    def save_nanoleaf_settings(_data):
+        pass
+
 
 class BridgeRunner:
     """
@@ -63,6 +84,8 @@ class BridgeRunner:
         self._pending_mz_startlights = None  # (direction, mode)
 
         self._light_assignments = {}  # {label: None | [effect_keys]}
+
+        self._nanoleaf_settings: dict = load_nanoleaf_settings()
 
         self._stat_stop = threading.Event()
         self._stat_thread = None
@@ -133,6 +156,8 @@ class BridgeRunner:
 
         if self._light_assignments and self.bridge.lifx is not None:
             self.bridge.lifx.light_assignments = self._light_assignments
+
+        self._connect_nanoleaf_if_configured()
 
         return True
 
@@ -244,6 +269,75 @@ class BridgeRunner:
     def set_debug_timing(self, enabled: bool):
         if self.bridge is not None and self.bridge.lifx is not None:
             self.bridge.lifx.debug_timing = enabled
+
+    # ---- Nanoleaf management ----
+
+    def _connect_nanoleaf_if_configured(self):
+        """Auto-connect Nanoleaf if settings are present and enabled."""
+        if not _NANOLEAF_AVAILABLE or self.bridge is None:
+            return
+        cfg = self._nanoleaf_settings
+        if not cfg.get("enabled"):
+            return
+        ip = cfg.get("ip", "")
+        token = cfg.get("auth_token", "")
+        if not ip or not token:
+            return
+        ctrl = NanoleafController.try_connect(ip, token, log_callback=self.on_log)
+        self.bridge.nanoleaf = ctrl  # None if connection failed
+        if ctrl is not None and ctrl.device_info:
+            cfg["device_info"] = ctrl.device_info
+            self._nanoleaf_settings = cfg
+            save_nanoleaf_settings(cfg)
+
+    def get_nanoleaf_settings(self) -> dict:
+        return dict(self._nanoleaf_settings)
+
+    def get_nanoleaf_device_info(self) -> dict:
+        """Return detected device info (name, model, model_name, firmware, num_panels)."""
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            return dict(self.bridge.nanoleaf.device_info)
+        return {}
+
+    def save_nanoleaf_settings_data(self, data: dict):
+        self._nanoleaf_settings = data
+        save_nanoleaf_settings(data)
+
+    def pair_nanoleaf(self, ip: str) -> dict:
+        """
+        Request a new auth token from the Nanoleaf at ip.
+        The user must hold the power button for 5-7 s first.
+        Returns {ok, token} or {ok, error}.
+        """
+        if not _NANOLEAF_AVAILABLE:
+            return {"ok": False, "error": "nanoleafapi is not installed."}
+        token = NanoleafController.pair(ip)
+        if token:
+            cfg = {"ip": ip, "auth_token": token, "enabled": True}
+            self._nanoleaf_settings = cfg
+            save_nanoleaf_settings(cfg)
+            if self.bridge is not None:
+                ctrl = NanoleafController.try_connect(ip, token, log_callback=self.on_log)
+                self.bridge.nanoleaf = ctrl
+                if ctrl is not None and ctrl.device_info:
+                    cfg["device_info"] = ctrl.device_info
+                    self._nanoleaf_settings = cfg
+                    save_nanoleaf_settings(cfg)
+            return {"ok": True, "token": token, "device_info": cfg.get("device_info", {})}
+        return {"ok": False, "error": "Pairing failed. Hold the power button for 5-7 s and try again."}
+
+    def discover_nanoleaf_devices(self, timeout: int = 5) -> list:
+        return discover_nanoleaf(timeout)
+
+    def set_nanoleaf_enabled(self, enabled: bool):
+        self._nanoleaf_settings["enabled"] = enabled
+        save_nanoleaf_settings(self._nanoleaf_settings)
+        if self.bridge is not None:
+            if not enabled:
+                self.bridge.nanoleaf = None
+                self.on_log("[NANOLEAF] Disabled.")
+            elif self.bridge.nanoleaf is None:
+                self._connect_nanoleaf_if_configured()
 
     def set_listen_address(self, ip: str, port: int):
         self._pending_listen = (ip, int(port))
@@ -470,6 +564,12 @@ class BridgeRunner:
             action(self.bridge.lifx)
         except Exception as exc:
             self.on_log(f"ERROR running '{name}': {exc}")
+
+        if self.bridge.nanoleaf is not None:
+            try:
+                action(self.bridge.nanoleaf)
+            except Exception as exc:
+                self.on_log(f"[NANOLEAF ERROR] running '{name}': {exc}")
 
     def _stat_loop(self):
         last_packets = -1

@@ -17,6 +17,11 @@ except ImportError as e:
     print("Install it with: python -m pip install lifxlan", flush=True)
     raise SystemExit(1) from e
 
+try:
+    from nanoleaf_controller import NanoleafController
+except ImportError:
+    NanoleafController = None
+
 
 # ============================================================
 # CONFIG
@@ -1085,6 +1090,7 @@ class F1LifxBridgeCore:
         self.log_callback = log_callback
 
         self.lifx = None
+        self.nanoleaf = None  # NanoleafController, set externally by BridgeRunner
         self.sock = None
         self.running = False
 
@@ -1112,6 +1118,19 @@ class F1LifxBridgeCore:
         print(message)
         if self.log_callback:
             self.log_callback(message)
+
+    def _fire(self, method: str, *args):
+        """Call a named effect method on every active controller (LIFX + Nanoleaf)."""
+        if self.lifx is not None:
+            try:
+                getattr(self.lifx, method)(*args)
+            except Exception as exc:
+                self.log(f"[LIFX ERROR] {method}: {exc}")
+        if self.nanoleaf is not None:
+            try:
+                getattr(self.nanoleaf, method)(*args)
+            except Exception as exc:
+                self.log(f"[NANOLEAF ERROR] {method}: {exc}")
 
     def discover_lights(self):
         self.lifx = LocalLifxController(
@@ -1242,15 +1261,15 @@ class F1LifxBridgeCore:
 
             if marshal_flag == FIA_FLAG_YELLOW:
                 if self.is_event_enabled("yellow_flag"):
-                    self.lifx.yellow_flag()
+                    self._fire("yellow_flag")
 
             elif marshal_flag == FIA_FLAG_BLUE:
                 if self.is_event_enabled("blue_flag"):
-                    self.lifx.blue_flag()
+                    self._fire("blue_flag")
 
             elif marshal_flag in {FIA_FLAG_GREEN, FIA_FLAG_NONE}:
                 if self.is_event_enabled("neutral"):
-                    self.lifx.neutral()
+                    self._fire("neutral")
 
             self.last_marshal_flag = marshal_flag
 
@@ -1262,13 +1281,13 @@ class F1LifxBridgeCore:
 
             if fia_flag == FIA_FLAG_YELLOW:
                 if self.is_event_enabled("yellow_flag"):
-                    self.lifx.yellow_flag()
+                    self._fire("yellow_flag")
             elif fia_flag == FIA_FLAG_BLUE:
                 if self.is_event_enabled("blue_flag"):
-                    self.lifx.blue_flag()
+                    self._fire("blue_flag")
             elif fia_flag in {FIA_FLAG_NONE, FIA_FLAG_GREEN}:
                 if self.is_event_enabled("neutral"):
-                    self.lifx.neutral()
+                    self._fire("neutral")
 
             self.last_fia_flag = fia_flag
 
@@ -1303,7 +1322,7 @@ class F1LifxBridgeCore:
 
             if num_lights != self.last_start_light_count:
                 if self.is_event_enabled("start_lights"):
-                    self.lifx.start_lights(num_lights)
+                    self._fire("start_lights", num_lights)
                 self.last_start_light_count = num_lights
 
         elif event_code == EVENT_LIGHTS_OUT:
@@ -1311,7 +1330,7 @@ class F1LifxBridgeCore:
 
             if now - self.last_lights_out_time > 3.0:
                 if self.is_event_enabled("lights_out"):
-                    self.lifx.lights_out()
+                    self._fire("lights_out")
                 self.last_lights_out_time = now
                 self.last_start_light_count = None
                 self.last_marshal_flag = None
@@ -1323,7 +1342,7 @@ class F1LifxBridgeCore:
             self.last_fia_flag = None
             self.race_started = False
             if self.is_event_enabled("neutral"):
-                self.lifx.neutral()
+                self._fire("neutral")
 
         elif event_code == "SEND":
             self.last_start_light_count = None
@@ -1331,18 +1350,18 @@ class F1LifxBridgeCore:
             self.last_fia_flag = None
             self.race_started = False
             if self.is_event_enabled("neutral"):
-                self.lifx.neutral()
+                self._fire("neutral")
 
         elif event_code == EVENT_RED_FLAG:
             self.last_start_light_count = None
             if self.is_event_enabled("red_flag"):
-                self.lifx.red_flag()
+                self._fire("red_flag")
 
         elif event_code == EVENT_CHEQUERED_FLAG:
             self.last_start_light_count = None
             self.race_started = False
             if self.is_event_enabled("chequered_flag"):
-                self.lifx.chequered_flag()
+                self._fire("chequered_flag")
 
         elif event_code == EVENT_FASTEST_LAP:
             fastest_lap = parse_fastest_lap_details(data)
@@ -1360,7 +1379,7 @@ class F1LifxBridgeCore:
 
                 if vehicle_idx == player_idx:
                     if self.is_event_enabled("fastest_lap"):
-                        self.lifx.fastest_lap()
+                        self._fire("fastest_lap")
                 else:
                     self.log("[FASTEST LAP] Ignored - not player")
 
@@ -1379,11 +1398,11 @@ class F1LifxBridgeCore:
 
                 if infringement in BLACK_FLAG_INFRINGEMENTS:
                     if self.is_event_enabled("black_flag"):
-                        self.lifx.black_flag()
+                        self._fire("black_flag")
 
                 elif infringement in WHITE_WARNING_INFRINGEMENTS:
                     if self.is_event_enabled("white_warning"):
-                        self.lifx.white_warning()
+                        self._fire("white_warning")
 
         elif event_code == EVENT_RETIREMENT:
             retirement = parse_retirement_details(data)
@@ -1396,10 +1415,10 @@ class F1LifxBridgeCore:
 
                 if reason == 6:
                     if self.is_event_enabled("black_flag"):
-                        self.lifx.black_flag()
+                        self._fire("black_flag")
                 elif reason == 7:
                     if self.is_event_enabled("red_flag"):
-                        self.lifx.red_flag()
+                        self._fire("red_flag")
 
 # ============================================================
 # MAIN LOOP

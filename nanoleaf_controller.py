@@ -1,0 +1,405 @@
+"""
+Nanoleaf integration for F1 LIFX Bridge.
+
+Provides:
+  - NanoleafController  — mirrors LocalLifxController so effects fire on
+                          LIFX and Nanoleaf side-by-side with no changes to
+                          F1 packet handling logic.
+  - discover_nanoleaf() — SSDP-based device discovery.
+  - load/save helpers   — nanoleaf_settings.json persistence.
+"""
+
+import json
+import os
+import threading
+import time
+from pathlib import Path
+
+try:
+    import requests as _requests
+except ImportError:
+    _requests = None
+
+try:
+    from nanoleafapi import Nanoleaf
+    try:
+        from nanoleafapi import discover_devices as _discover_devices
+    except ImportError:
+        _discover_devices = None
+    _NANOLEAF_AVAILABLE = True
+except ImportError:
+    Nanoleaf = None
+    _discover_devices = None
+    _NANOLEAF_AVAILABLE = False
+
+_BASE_DIR = Path(__file__).resolve().parent
+NANOLEAF_SETTINGS_FILE = str(_BASE_DIR / "nanoleaf_settings.json")
+
+# Map firmware model codes → human-readable product names.
+NANOLEAF_MODELS: dict[str, str] = {
+    "NL22": "Light Panels",
+    "NL29": "Canvas",
+    "NL42": "Shapes",
+    "NL45": "Shapes",
+    "NL47": "Shapes",
+    "NL52": "Elements",
+    "NL55": "Lines",
+    "NL59": "Skylight",
+    "NL64": "Shapes Hexagons",
+    "NL67": "Shapes Mini Triangles",
+    "NL69": "Lines Square",
+}
+
+
+# ── Colour conversion ────────────────────────────────────────────────────────
+
+def _hsbk_to_rgb(h, s, b):
+    """Convert LIFX HSBK (0-65535 per channel) to RGB (0-255)."""
+    h_f = (h / 65535.0) * 360.0
+    s_f = s / 65535.0
+    b_f = b / 65535.0
+
+    c = b_f * s_f
+    x = c * (1.0 - abs((h_f / 60.0) % 2.0 - 1.0))
+    m = b_f - c
+
+    if h_f < 60:
+        r1, g1, b1 = c, x, 0.0
+    elif h_f < 120:
+        r1, g1, b1 = x, c, 0.0
+    elif h_f < 180:
+        r1, g1, b1 = 0.0, c, x
+    elif h_f < 240:
+        r1, g1, b1 = 0.0, x, c
+    elif h_f < 300:
+        r1, g1, b1 = x, 0.0, c
+    else:
+        r1, g1, b1 = c, 0.0, x
+
+    return (
+        max(0, min(255, int((r1 + m) * 255))),
+        max(0, min(255, int((g1 + m) * 255))),
+        max(0, min(255, int((b1 + m) * 255))),
+    )
+
+
+# ── Settings helpers ─────────────────────────────────────────────────────────
+
+def load_nanoleaf_settings() -> dict:
+    """Load nanoleaf_settings.json. Returns {} if missing or unreadable."""
+    if not os.path.exists(NANOLEAF_SETTINGS_FILE):
+        return {}
+    try:
+        with open(NANOLEAF_SETTINGS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_nanoleaf_settings(data: dict):
+    try:
+        with open(NANOLEAF_SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    except Exception as exc:
+        print(f"[NANOLEAF] Could not save settings: {exc}", flush=True)
+
+
+# ── Discovery ────────────────────────────────────────────────────────────────
+
+def discover_nanoleaf(timeout: int = 5) -> list:
+    """
+    Discover Nanoleaf devices via SSDP. Returns [{name, ip}, ...].
+    Requires nanoleafapi to be installed.
+    """
+    if not _NANOLEAF_AVAILABLE or _discover_devices is None:
+        return []
+    try:
+        raw = _discover_devices(timeout)
+        if isinstance(raw, dict):
+            return [{"name": name, "ip": ip} for name, ip in raw.items()]
+        return []
+    except Exception as exc:
+        print(f"[NANOLEAF] Discovery error: {exc}", flush=True)
+        return []
+
+
+# ── Controller ───────────────────────────────────────────────────────────────
+
+class NanoleafController:
+    """
+    Mirrors LocalLifxController's effect interface so bridge_core.py can fire
+    effects on LIFX and Nanoleaf in parallel without duplicating logic.
+
+    Lifecycle:
+      1. Instantiate with ip + auth_token (from nanoleaf_settings.json).
+      2. Check ._nl is not None before use (NanoleafController.try_connect handles this).
+      3. Set on F1LifxBridgeCore.nanoleaf — the bridge calls _fire() which
+         delegates to both self.lifx and self.nanoleaf.
+
+    Pairing (first-time setup):
+      - User holds power button on device for 5-7 s (LED pulses white).
+      - Call NanoleafController.pair(ip) → returns auth_token string.
+      - Save token + ip to nanoleaf_settings.json.
+    """
+
+    def __init__(self, ip: str, auth_token: str, log_callback=None):
+        self.ip = ip
+        self.auth_token = auth_token
+        self.log_callback = log_callback
+
+        # Brightness scaling (same semantics as LocalLifxController).
+        self.brightness_min = 0
+        self.brightness_max = 65535
+
+        # Per-effect light assignment placeholder — mirrors LIFX interface.
+        self.light_assignments: dict = {}
+        self._current_effect_key: str | None = None
+
+        self._effect_lock = threading.Lock()
+        self._active_effect: str | None = None
+
+        # Populated by _fetch_device_info() after connect.
+        # Keys: name, model, model_name, firmware, num_panels
+        self.device_info: dict = {}
+
+        self._nl: Nanoleaf | None = None
+        self._connect()
+
+    # ── Private helpers ──────────────────────────────────────────────────────
+
+    def _connect(self):
+        if not _NANOLEAF_AVAILABLE:
+            self._log("[NANOLEAF] nanoleafapi not installed — Nanoleaf disabled.")
+            return
+        try:
+            self._nl = Nanoleaf(self.ip, self.auth_token)
+            self._fetch_device_info()
+            name = self.device_info.get("name", self.ip)
+            model_name = self.device_info.get("model_name", "Unknown")
+            self._log(f"[NANOLEAF] Connected: {name} ({model_name}) @ {self.ip}")
+        except Exception as exc:
+            self._log(f"[NANOLEAF] Connection failed ({self.ip}): {exc}")
+            self._nl = None
+
+    def _fetch_device_info(self):
+        """
+        Hit GET /api/v1/<token>/ to detect product type and panel count.
+        Populates self.device_info with: name, model, model_name, firmware, num_panels.
+        """
+        if _requests is None:
+            return
+        try:
+            url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/"
+            resp = _requests.get(url, timeout=4)
+            resp.raise_for_status()
+            data = resp.json()
+
+            model_code = data.get("model", "")
+            num_panels = data.get("panelLayout", {}).get("layout", {}).get("numPanels", 0)
+
+            self.device_info = {
+                "name":        data.get("name", "Nanoleaf"),
+                "model":       model_code,
+                "model_name":  NANOLEAF_MODELS.get(model_code, f"Nanoleaf ({model_code})"),
+                "firmware":    data.get("firmwareVersion", ""),
+                "num_panels":  num_panels,
+            }
+        except Exception as exc:
+            self._log(f"[NANOLEAF] Device info fetch failed: {exc}")
+
+    def _log(self, msg: str):
+        print(msg, flush=True)
+        if self.log_callback:
+            self.log_callback(msg)
+
+    def _scale_brightness(self, b: int) -> int:
+        """Scale into [brightness_min, brightness_max], same as LocalLifxController."""
+        if b <= 500:
+            return b
+        ratio = b / 65535.0
+        scaled = self.brightness_min + (self.brightness_max - self.brightness_min) * ratio
+        return max(1, min(65535, int(scaled)))
+
+    # ── Effect state ─────────────────────────────────────────────────────────
+
+    def set_active_effect(self, effect_name: str):
+        with self._effect_lock:
+            self._active_effect = effect_name
+
+    def clear_active_effect(self):
+        with self._effect_lock:
+            self._active_effect = None
+
+    def is_effect_active(self, effect_name: str) -> bool:
+        with self._effect_lock:
+            return self._active_effect == effect_name
+
+    # ── Core colour send ─────────────────────────────────────────────────────
+
+    def set_color_all(self, hsbk, duration_ms=50, stagger=True):
+        """Set all Nanoleaf panels to hsbk colour. stagger is ignored."""
+        if self._nl is None:
+            return
+        h, s, b, k = hsbk
+        b_scaled = self._scale_brightness(b)
+        r, g, bl = _hsbk_to_rgb(h, s, b_scaled)
+        try:
+            self._nl.set_color(r, g, bl)
+        except Exception as exc:
+            self._log(f"[NANOLEAF ERROR] set_color_all: {exc}")
+
+    def flash_colors(self, colors, loops=3, hold_ms=200):
+        """Flash through a list of HSBK colours."""
+        for _ in range(loops):
+            for color in colors:
+                self.set_color_all(color, duration_ms=50, stagger=False)
+                time.sleep(hold_ms / 1000.0)
+
+    # ── Effects ──────────────────────────────────────────────────────────────
+
+    def neutral(self):
+        self.clear_active_effect()
+        self._current_effect_key = "neutral"
+        self.set_color_all([0, 0, 50000, 4500], duration_ms=800)
+
+    def yellow_flag(self):
+        self._current_effect_key = "yellow_flag"
+        if self.is_effect_active("yellow_flash"):
+            return
+        self.set_active_effect("yellow_flash")
+        threading.Thread(target=self._yellow_flash_loop, daemon=True).start()
+
+    def _yellow_flash_loop(self):
+        yellow = [10922, 65535, 65535, 3500]
+        dark   = [0, 0, 1, 3500]
+        while self.is_effect_active("yellow_flash"):
+            self.set_color_all(yellow, duration_ms=40, stagger=False)
+            time.sleep(0.45)
+            if not self.is_effect_active("yellow_flash"):
+                break
+            self.set_color_all(dark, duration_ms=40, stagger=False)
+            time.sleep(0.45)
+
+    def blue_flag(self):
+        self.clear_active_effect()
+        self._current_effect_key = "blue_flag"
+        self.set_active_effect("blue_pulse")
+        threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
+
+    def _blue_pulse_loop(self):
+        bright = [43690, 65535, 65535, 3500]
+        dim    = [43690, 65535, 8000, 3500]
+        while self.is_effect_active("blue_pulse"):
+            self.set_color_all(bright, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("blue_pulse"):
+                    return
+                time.sleep(0.1)
+            self.set_color_all(dim, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("blue_pulse"):
+                    return
+                time.sleep(0.1)
+
+    def red_flag(self):
+        self.clear_active_effect()
+        self._current_effect_key = "red_flag"
+        self.set_active_effect("red_pulse")
+        threading.Thread(target=self._red_pulse_loop, daemon=True).start()
+
+    def _red_pulse_loop(self):
+        bright = [0, 65535, 65535, 3500]
+        dim    = [0, 65535, 8000, 3500]
+        while self.is_effect_active("red_pulse"):
+            self.set_color_all(bright, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("red_pulse"):
+                    return
+                time.sleep(0.1)
+            self.set_color_all(dim, duration_ms=600, stagger=False)
+            for _ in range(7):
+                if not self.is_effect_active("red_pulse"):
+                    return
+                time.sleep(0.1)
+
+    def black_flag(self):
+        self.clear_active_effect()
+        self._current_effect_key = "black_flag"
+        dark      = [0, 0, 1, 3500]
+        white_dim = [0, 0, 12000, 4500]
+        self.flash_colors([dark, white_dim], loops=3, hold_ms=400)
+        self.set_color_all(dark, duration_ms=500, stagger=False)
+
+    def white_warning(self):
+        self.clear_active_effect()
+        self._current_effect_key = "white_warning"
+        white = [0, 0, 65535, 4500]
+        dark  = [0, 0, 1, 3500]
+        self.flash_colors([white, dark], loops=3, hold_ms=250)
+        self.neutral()
+
+    def fastest_lap(self):
+        self._current_effect_key = "fastest_lap"
+        purple = [54613, 65535, 65535, 3500]
+        dark   = [0, 0, 1, 3500]
+        self.flash_colors([purple, dark], loops=3, hold_ms=200)
+        self.neutral()
+
+    def chequered_flag(self):
+        self.clear_active_effect()
+        self._current_effect_key = "chequered_flag"
+        white = [0, 0, 65535, 4500]
+        green = [21845, 65535, 65535, 3500]
+        self.flash_colors([white, green], loops=5, hold_ms=300)
+        self.neutral()
+
+    def lights_out(self):
+        self.clear_active_effect()
+        self._current_effect_key = "lights_out"
+        green = [21845, 65535, 65535, 3500]
+        dark  = [0, 0, 1, 3500]
+        white = [0, 0, 50000, 4500]
+        self.set_color_all(green, duration_ms=40, stagger=False)
+        time.sleep(0.20)
+        self.set_color_all(dark, duration_ms=40, stagger=False)
+        time.sleep(0.15)
+        self.set_color_all(green, duration_ms=40, stagger=False)
+        time.sleep(0.35)
+        self.set_color_all(white, duration_ms=800, stagger=False)
+
+    def start_lights(self, num_lights: int):
+        """Red intensity ramps up with each start light (0-5)."""
+        self.clear_active_effect()
+        self._current_effect_key = "start_lights"
+        num_lights = max(0, min(5, num_lights))
+        brightness_by_count = {0: 8000, 1: 16000, 2: 26000, 3: 38000, 4: 50000, 5: 65535}
+        red = [0, 65535, brightness_by_count[num_lights], 3500]
+        self.set_color_all(red, duration_ms=40, stagger=False)
+
+    # ── Class-level helpers ──────────────────────────────────────────────────
+
+    @classmethod
+    def try_connect(cls, ip: str, auth_token: str, log_callback=None) -> "NanoleafController | None":
+        """Create a controller; returns None if the connection fails."""
+        ctrl = cls(ip, auth_token, log_callback=log_callback)
+        return ctrl if ctrl._nl is not None else None
+
+    @staticmethod
+    def pair(ip: str) -> "str | None":
+        """
+        Request a new auth token from a Nanoleaf device.
+
+        The user must hold the power button for 5-7 seconds (until the LED
+        pulses) before calling this.  Returns the auth token string or None.
+        """
+        if not _NANOLEAF_AVAILABLE:
+            print("[NANOLEAF] nanoleafapi not installed — cannot pair.", flush=True)
+            return None
+        try:
+            nl = Nanoleaf(ip)
+            token = nl.create_auth_token()
+            return token if token else None
+        except Exception as exc:
+            print(f"[NANOLEAF] Pairing failed: {exc}", flush=True)
+            return None
