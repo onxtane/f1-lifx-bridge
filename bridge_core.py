@@ -29,6 +29,10 @@ UDP_PORT = 20777
 # but it will not change the bulbs.
 DRY_RUN = False
 
+# Set True to print per-call timing for every set_color_all and effect to CMD.
+# Output goes to stdout only — not the GUI log.
+DEBUG_TIMING = False
+
 # Max bulbs to discover on your LAN.
 # Set higher than the number of LIFX bulbs you own.
 LIFX_BULB_COUNT = 40
@@ -194,6 +198,9 @@ class LocalLifxController:
 
         # Stagger delay between bulbs in ms (0 = disabled).
         self.stagger_ms = 0
+
+        # Debug timing — prints per-call durations to stdout (CMD), not GUI.
+        self.debug_timing = DEBUG_TIMING
 
         # Idle state: HSBK color + pulse flag.
         self.idle_hsbk = [0, 0, 50000, 4500]
@@ -574,18 +581,25 @@ class LocalLifxController:
             return
 
         lights = self._effect_lights()
+        _dbg = self.debug_timing
 
         def _send(light):
+            label = self.safe_label(light)
+            t0 = time.perf_counter() if _dbg else None
             try:
                 if isinstance(light, MultiZoneLight):
                     light.set_zone_color(0, 255, scaled, duration_ms, rapid=True)
                 else:
                     light.set_color(scaled, duration_ms, rapid=True)
             except Exception as exc:
-                msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
+                msg = f"[LIFX ERROR] {label}: {exc}"
                 print(msg)
                 if self.log_callback:
                     self.log_callback(msg)
+            if _dbg:
+                print(f"[DBG] send {label}: {(time.perf_counter()-t0)*1000:.1f}ms", flush=True)
+
+        t_start = time.perf_counter() if _dbg else None
 
         if stagger and self.stagger_ms > 0:
             for i, light in enumerate(lights):
@@ -598,6 +612,9 @@ class LocalLifxController:
                 t.start()
             for t in threads:
                 t.join()
+
+        if _dbg:
+            print(f"[DBG] set_color_all({len(lights)} lights, stagger={stagger and self.stagger_ms>0}): {(time.perf_counter()-t_start)*1000:.1f}ms total", flush=True)
 
     def set_active_effect(self, effect_name):
         with self._effect_lock:
@@ -781,19 +798,26 @@ class LocalLifxController:
     def fastest_lap(self):
         self._current_effect_key = 'fastest_lap'
         print("[EVENT] Fastest lap - purple flash")
+        _dbg = self.debug_timing
+        t0 = time.perf_counter() if _dbg else None
         purple = [54613, 65535, 65535, 3500]
         dark = [0, 0, 1, 3500]
-
         self.flash_colors([purple, dark], loops=3, hold_ms=120)
+        if _dbg:
+            print(f"[DBG] fastest_lap flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)
         self.neutral()
 
     def chequered_flag(self):
         self.clear_active_effect()
         self._current_effect_key = 'chequered_flag'
         print("[FLAG] Chequered")
+        _dbg = self.debug_timing
+        t0 = time.perf_counter() if _dbg else None
         white = [0, 0, 65535, 4500]
         green = [21845, 65535, 65535, 3500]
         self.flash_colors([white, green], loops=5, hold_ms=200)
+        if _dbg:
+            print(f"[DBG] chequered_flag flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)
         self.neutral()
 
     def apply_fia_flag(self, flag):
@@ -810,10 +834,17 @@ class LocalLifxController:
             self.neutral()
 
     def flash_colors(self, colors, loops=3, hold_ms=200):
-        for _ in range(loops):
+        _dbg = self.debug_timing
+        t0 = time.perf_counter() if _dbg else None
+        for loop_i in range(loops):
             for color in colors:
+                tc = time.perf_counter() if _dbg else None
                 self.set_color_all(color, duration_ms=50, stagger=False)
+                if _dbg:
+                    print(f"[DBG] flash_colors loop={loop_i} set_color_all: {(time.perf_counter()-tc)*1000:.1f}ms", flush=True)
                 time.sleep(hold_ms / 1000)
+        if _dbg:
+            print(f"[DBG] flash_colors total ({loops} loops, hold={hold_ms}ms): {(time.perf_counter()-t0)*1000:.1f}ms", flush=True)
 
 
 # ============================================================
