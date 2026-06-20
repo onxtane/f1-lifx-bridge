@@ -16,6 +16,11 @@ import time
 from pathlib import Path
 
 try:
+    import requests as _requests
+except ImportError:
+    _requests = None
+
+try:
     from nanoleafapi import Nanoleaf
     try:
         from nanoleafapi import discover_devices as _discover_devices
@@ -29,6 +34,21 @@ except ImportError:
 
 _BASE_DIR = Path(__file__).resolve().parent
 NANOLEAF_SETTINGS_FILE = str(_BASE_DIR / "nanoleaf_settings.json")
+
+# Map firmware model codes → human-readable product names.
+NANOLEAF_MODELS: dict[str, str] = {
+    "NL22": "Light Panels",
+    "NL29": "Canvas",
+    "NL42": "Shapes",
+    "NL45": "Shapes",
+    "NL47": "Shapes",
+    "NL52": "Elements",
+    "NL55": "Lines",
+    "NL59": "Skylight",
+    "NL64": "Shapes Hexagons",
+    "NL67": "Shapes Mini Triangles",
+    "NL69": "Lines Square",
+}
 
 
 # ── Colour conversion ────────────────────────────────────────────────────────
@@ -139,6 +159,10 @@ class NanoleafController:
         self._effect_lock = threading.Lock()
         self._active_effect: str | None = None
 
+        # Populated by _fetch_device_info() after connect.
+        # Keys: name, model, model_name, firmware, num_panels
+        self.device_info: dict = {}
+
         self._nl: Nanoleaf | None = None
         self._connect()
 
@@ -150,10 +174,39 @@ class NanoleafController:
             return
         try:
             self._nl = Nanoleaf(self.ip, self.auth_token)
-            self._log(f"[NANOLEAF] Connected to {self.ip}")
+            self._fetch_device_info()
+            name = self.device_info.get("name", self.ip)
+            model_name = self.device_info.get("model_name", "Unknown")
+            self._log(f"[NANOLEAF] Connected: {name} ({model_name}) @ {self.ip}")
         except Exception as exc:
             self._log(f"[NANOLEAF] Connection failed ({self.ip}): {exc}")
             self._nl = None
+
+    def _fetch_device_info(self):
+        """
+        Hit GET /api/v1/<token>/ to detect product type and panel count.
+        Populates self.device_info with: name, model, model_name, firmware, num_panels.
+        """
+        if _requests is None:
+            return
+        try:
+            url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/"
+            resp = _requests.get(url, timeout=4)
+            resp.raise_for_status()
+            data = resp.json()
+
+            model_code = data.get("model", "")
+            num_panels = data.get("panelLayout", {}).get("layout", {}).get("numPanels", 0)
+
+            self.device_info = {
+                "name":        data.get("name", "Nanoleaf"),
+                "model":       model_code,
+                "model_name":  NANOLEAF_MODELS.get(model_code, f"Nanoleaf ({model_code})"),
+                "firmware":    data.get("firmwareVersion", ""),
+                "num_panels":  num_panels,
+            }
+        except Exception as exc:
+            self._log(f"[NANOLEAF] Device info fetch failed: {exc}")
 
     def _log(self, msg: str):
         print(msg, flush=True)

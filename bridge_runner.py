@@ -285,9 +285,19 @@ class BridgeRunner:
             return
         ctrl = NanoleafController.try_connect(ip, token, log_callback=self.on_log)
         self.bridge.nanoleaf = ctrl  # None if connection failed
+        if ctrl is not None and ctrl.device_info:
+            cfg["device_info"] = ctrl.device_info
+            self._nanoleaf_settings = cfg
+            save_nanoleaf_settings(cfg)
 
     def get_nanoleaf_settings(self) -> dict:
         return dict(self._nanoleaf_settings)
+
+    def get_nanoleaf_device_info(self) -> dict:
+        """Return detected device info (name, model, model_name, firmware, num_panels)."""
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            return dict(self.bridge.nanoleaf.device_info)
+        return {}
 
     def save_nanoleaf_settings_data(self, data: dict):
         self._nanoleaf_settings = data
@@ -309,7 +319,11 @@ class BridgeRunner:
             if self.bridge is not None:
                 ctrl = NanoleafController.try_connect(ip, token, log_callback=self.on_log)
                 self.bridge.nanoleaf = ctrl
-            return {"ok": True, "token": token}
+                if ctrl is not None and ctrl.device_info:
+                    cfg["device_info"] = ctrl.device_info
+                    self._nanoleaf_settings = cfg
+                    save_nanoleaf_settings(cfg)
+            return {"ok": True, "token": token, "device_info": cfg.get("device_info", {})}
         return {"ok": False, "error": "Pairing failed. Hold the power button for 5-7 s and try again."}
 
     def discover_nanoleaf_devices(self, timeout: int = 5) -> list:

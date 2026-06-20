@@ -148,6 +148,9 @@ class Api:
     def get_nanoleaf_settings(self):
         return self.runner.get_nanoleaf_settings()
 
+    def get_nanoleaf_device_info(self):
+        return self.runner.get_nanoleaf_device_info()
+
     def save_nanoleaf_settings(self, data: dict):
         self.runner.save_nanoleaf_settings_data(data)
         return {"ok": True}
