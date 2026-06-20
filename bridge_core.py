@@ -629,13 +629,13 @@ class LocalLifxController:
         dark = [0, 0, 1, 3500]
 
         while self.is_effect_active("yellow_flash"):
-            self.set_color_all(yellow, duration_ms=40)
+            self.set_color_all(yellow, duration_ms=40, stagger=False)
             time.sleep(0.22)
 
             if not self.is_effect_active("yellow_flash"):
                 break
 
-            self.set_color_all(dark, duration_ms=40)
+            self.set_color_all(dark, duration_ms=40, stagger=False)
             time.sleep(0.22)
 
     def start_lights(self, num_lights):
@@ -749,7 +749,7 @@ class LocalLifxController:
         self._current_effect_key = 'blue_flag'
         print("[FLAG] Blue")
         blue = [43690, 65535, 65535, 3500]
-        self.set_color_all(blue, duration_ms=200)
+        self.set_color_all(blue, duration_ms=200, stagger=False)
 
     def red_flag(self):
         self.clear_active_effect()
@@ -757,7 +757,7 @@ class LocalLifxController:
         print("[FLAG] Red")
         red = [0, 65535, 65535, 3500]
         self.flash_colors([red], loops=3, hold_ms=250)
-        self.set_color_all(red, duration_ms=500)
+        self.set_color_all(red, duration_ms=500, stagger=False)
 
     def black_flag(self):
         self.clear_active_effect()
@@ -767,7 +767,7 @@ class LocalLifxController:
         dark = [0, 0, 1, 3500]
         white_dim = [0, 0, 12000, 4500]
         self.flash_colors([dark, white_dim], loops=3, hold_ms=250)
-        self.set_color_all(dark, duration_ms=500)
+        self.set_color_all(dark, duration_ms=500, stagger=False)
 
     def white_warning(self):
         self.clear_active_effect()
@@ -812,7 +812,7 @@ class LocalLifxController:
     def flash_colors(self, colors, loops=3, hold_ms=200):
         for _ in range(loops):
             for color in colors:
-                self.set_color_all(color, duration_ms=50)
+                self.set_color_all(color, duration_ms=50, stagger=False)
                 time.sleep(hold_ms / 1000)
 
 
