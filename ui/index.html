@@ -2371,12 +2371,17 @@
 
   document.getElementById('copyLogsBtn').addEventListener('click', () => {
     const text = logLines.join('\n');
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = document.getElementById('copyLogsBtn');
-      const orig = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(() => { btn.textContent = orig; }, 1500);
-    });
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('copyLogsBtn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
   });
 
   document.querySelectorAll('.effect-btn[data-effect]').forEach(btn => {
