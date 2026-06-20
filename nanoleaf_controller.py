@@ -254,11 +254,12 @@ class NanoleafController:
         nl_b = max(1, int(b_scaled / 65535.0 * 100))
         try:
             url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/state"
+            # Nanoleaf API only supports "duration" on "brightness".
+            # Sending it on "hue"/"sat" causes a 422 and the whole PUT is ignored.
             _requests.put(url, json={
-                "hue":        {"value": nl_h, "duration": 0},
-                "sat":        {"value": nl_s, "duration": 0},
+                "hue":        {"value": nl_h},
+                "sat":        {"value": nl_s},
                 "brightness": {"value": nl_b, "duration": 0},
-                "on":         {"value": True},
             }, timeout=2)
         except Exception as exc:
             self._log(f"[NANOLEAF ERROR] set_color_all: {exc}")

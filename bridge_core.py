@@ -1162,7 +1162,10 @@ class F1LifxBridgeCore:
 
     def _yellow_flash_bridge_loop(self):
         yellow = [10922, 65535, 65535, 3500]
-        dark   = [0, 0, 1, 3500]
+        # Keep same hue/sat as yellow — only brightness changes.
+        # Nanoleaf's brightness has duration=0 so the flash is instant.
+        # LIFX at brightness 200/65535 (~0.3%) is effectively off.
+        dark   = [10922, 65535, 200, 3500]
         while self._is_bridge_effect("yellow_flash"):
             self._fire("set_color_all", yellow, 40, False)
             time.sleep(0.45)
