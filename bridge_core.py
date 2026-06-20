@@ -27,7 +27,7 @@ except ImportError:
 # CONFIG
 # ============================================================
 
-UDP_IP = "127.0.0.1"
+UDP_IP = "0.0.0.0"
 UDP_PORT = 20777
 
 # Keep this True first. It will print what it WOULD do,
@@ -1094,7 +1094,7 @@ def _lan_source_ips():
 class F1LifxBridgeCore:
     def __init__(
         self,
-        udp_ip="127.0.0.1",
+        udp_ip="0.0.0.0",
         udp_port=20777,
         bulb_count=40,
         dry_run=False,

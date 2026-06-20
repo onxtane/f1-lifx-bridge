@@ -1708,7 +1708,7 @@
                 <div class="setting-hint">Address to listen on</div>
               </div>
               <div class="setting-control">
-                <input type="text" id="settingIp" value="127.0.0.1">
+                <input type="text" id="settingIp" value="0.0.0.0">
               </div>
             </div>
 
@@ -3288,7 +3288,7 @@
       if (s.bulb_count) document.getElementById('settingBulbCount').value = s.bulb_count;
       if (s.dry_run != null) document.getElementById('settingDryRun').checked = s.dry_run;
       if (s.debug_timing != null) document.getElementById('settingDebugTiming').checked = s.debug_timing;
-      callApi('set_listen_address', s.ip || '127.0.0.1', s.port || 20777);
+      callApi('set_listen_address', s.ip || '0.0.0.0', s.port || 20777);
       callApi('set_debug_timing', !!s.debug_timing);
       callApi('save_gui_settings', { port: s.port, ip: s.ip, bulb_count: s.bulb_count, dry_run: s.dry_run, debug_timing: s.debug_timing });
     }
