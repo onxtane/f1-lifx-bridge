@@ -2929,23 +2929,24 @@
       }
     }
 
-    // Load stored Nanoleaf settings and reflect in UI
-    callApi('get_nanoleaf_settings').then(cfg => {
-      if (!cfg) return;
-      if (cfg.ip)          ipInput.value         = cfg.ip;
-      if (cfg.auth_token) { _nanoleafToken = cfg.auth_token; }
-      if (cfg.enabled != null) enabledToggle.checked = !!cfg.enabled;
-      if (cfg.auth_token && cfg.device_info && cfg.device_info.model) {
-        applyDeviceInfo(cfg.device_info);
-      } else if (cfg.auth_token) {
-        setBadge('Paired', true);
-      }
-    }).catch(() => {});
+    // Load stored Nanoleaf settings and live device info once pywebview API is ready
+    window.addEventListener('pywebviewready', () => {
+      callApi('get_nanoleaf_settings').then(cfg => {
+        if (!cfg) return;
+        if (cfg.ip)          ipInput.value         = cfg.ip;
+        if (cfg.auth_token) { _nanoleafToken = cfg.auth_token; }
+        if (cfg.enabled != null) enabledToggle.checked = !!cfg.enabled;
+        if (cfg.auth_token && cfg.device_info && cfg.device_info.model) {
+          applyDeviceInfo(cfg.device_info);
+        } else if (cfg.auth_token) {
+          setBadge('Paired', true);
+        }
+      }).catch(() => {});
 
-    // If already connected at runtime, fetch live device info
-    callApi('get_nanoleaf_device_info').then(info => {
-      if (info && info.model) applyDeviceInfo(info);
-    }).catch(() => {});
+      callApi('get_nanoleaf_device_info').then(info => {
+        if (info && info.model) applyDeviceInfo(info);
+      }).catch(() => {});
+    });
 
     enabledToggle.addEventListener('change', function () {
       const enabled = this.checked;
