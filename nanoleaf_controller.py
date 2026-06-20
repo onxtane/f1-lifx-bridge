@@ -498,6 +498,34 @@ class NanoleafController:
         self._snap_and_wait(green, 350)
         self.set_color_all(white)
 
+    def multizone_color_test(self):
+        """Green-to-red sequential panel fill, matching the LIFX multizone test."""
+        sweep_ids = list(self._sweep_panel_ids or self._panel_ids)
+        if not sweep_ids:
+            self._log("[NANOLEAF] No panels for multizone test.")
+            return
+
+        if self.mz_startlights_direction == "rtl":
+            sweep_ids = list(reversed(sweep_ids))
+
+        dark_rgb = (0, 0, 0)
+        panel_count = len(sweep_ids)
+
+        # Start fully dark
+        self.set_panel_colors([(pid, 0, 0, 0) for pid in sweep_ids])
+        time.sleep(0.35)
+
+        # Fill panel-by-panel: gradient from green (first) → red (last)
+        current_colors = {pid: dark_rgb for pid in sweep_ids}
+        for i, pid in enumerate(sweep_ids):
+            t = i / max(panel_count - 1, 1)
+            hue_norm = 1.0 - t          # 1.0=green, 0.0=red
+            hsbk = [int(hue_norm * 21845), 65535, self._scale_brightness(65535), 3500]
+            rgb = _hsbk_to_rgb(*hsbk[:3])
+            current_colors[pid] = rgb
+            self.set_panel_colors([(p, *current_colors[p]) for p in sweep_ids])
+            time.sleep(0.06)
+
     def start_lights(self, num_lights: int):
         """Sweep red panels L→R (or R→L) as start lights appear, dark otherwise."""
         self.clear_active_effect()

@@ -642,13 +642,30 @@ class BridgeRunner:
             self.on_log(f"ERROR during test: {exc}")
 
     def _test_mz_worker(self):
-        if self.bridge is None or self.bridge.lifx is None:
+        if self.bridge is None or (self.bridge.lifx is None and self.bridge.nanoleaf is None):
             self.on_log("No lights discovered yet - click Discover Lights first.")
             return
-        try:
-            self.bridge.lifx.multizone_color_test()
-        except Exception as exc:
-            self.on_log(f"ERROR during multizone test: {exc}")
+        threads = []
+        if self.bridge.lifx is not None:
+            def _lifx_mz():
+                try:
+                    self.bridge.lifx.multizone_color_test()
+                except Exception as exc:
+                    self.on_log(f"ERROR during multizone test (LIFX): {exc}")
+            t = threading.Thread(target=_lifx_mz, daemon=True)
+            t.start()
+            threads.append(t)
+        if self.bridge.nanoleaf is not None:
+            def _nl_mz():
+                try:
+                    self.bridge.nanoleaf.multizone_color_test()
+                except Exception as exc:
+                    self.on_log(f"ERROR during multizone test (Nanoleaf): {exc}")
+            t = threading.Thread(target=_nl_mz, daemon=True)
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
 
     def _effect_worker(self, name):
         if self.bridge is None or self.bridge.lifx is None:
