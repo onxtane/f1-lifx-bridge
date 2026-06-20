@@ -10,8 +10,9 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, coll
 
 block_cipher = None
 
-# ── Collect lifxlan (flat package — collect_submodules misses it) ─────────────
+# ── Collect lifxlan and bitstring (dynamic imports missed by analysis) ────────
 lifxlan_datas, lifxlan_binaries, lifxlan_hiddenimports = collect_all('lifxlan')
+bitstring_datas, bitstring_binaries, bitstring_hiddenimports = collect_all('bitstring')
 
 # ── Data files ───────────────────────────────────────────────────────────────
 
@@ -27,6 +28,9 @@ datas = [
 
     # lifxlan source files (collect_all picks up .py sources too)
     *lifxlan_datas,
+
+    # bitstring — dynamically loads bitstore_bitarray at runtime
+    *bitstring_datas,
 ]
 
 # ── Hidden imports ────────────────────────────────────────────────────────────
@@ -63,6 +67,11 @@ hidden_imports = [
     'lifxlan.switch',
     *lifxlan_hiddenimports,
 
+    # bitstring submodules (dynamically imported)
+    *bitstring_hiddenimports,
+    'bitstring',
+    'bitstring.bitstore_bitarray',
+
     # nanoleafapi
     *collect_submodules('nanoleafapi'),
 
@@ -83,7 +92,7 @@ hidden_imports = [
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[*lifxlan_binaries],
+    binaries=[*lifxlan_binaries, *bitstring_binaries],
     datas=datas,
     hiddenimports=hidden_imports,
     hookspath=[],
