@@ -1763,10 +1763,11 @@
             <div class="setting-row">
               <div>
                 <div class="setting-label">Device IP</div>
-                <div class="setting-hint">IP address of your Nanoleaf device</div>
+                <div class="setting-hint" id="nanoleafDiscoverHint">Click Discover to find your Nanoleaf automatically, or enter the IP manually</div>
               </div>
-              <div class="setting-control">
-                <input type="text" id="settingNanoleafIp" placeholder="e.g. 192.168.1.100" style="width:160px;">
+              <div class="setting-control" style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="settingNanoleafIp" placeholder="e.g. 192.168.1.100" style="width:145px;">
+                <button class="btn btn-ghost btn-sm" id="nanoleafDiscoverBtn">Discover</button>
               </div>
             </div>
             <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
@@ -2867,10 +2868,12 @@
 
   // ---- Nanoleaf ----
   (function () {
-    const enabledToggle = document.getElementById('settingNanoleafEnabled');
-    const ipInput       = document.getElementById('settingNanoleafIp');
-    const pairBtn       = document.getElementById('nanoleafPairBtn');
-    const badge         = document.getElementById('nanoleafStatusBadge');
+    const enabledToggle  = document.getElementById('settingNanoleafEnabled');
+    const ipInput        = document.getElementById('settingNanoleafIp');
+    const discoverBtn    = document.getElementById('nanoleafDiscoverBtn');
+    const discoverHint   = document.getElementById('nanoleafDiscoverHint');
+    const pairBtn        = document.getElementById('nanoleafPairBtn');
+    const badge          = document.getElementById('nanoleafStatusBadge');
 
     function setBadge(text, ok) {
       badge.textContent = text;
@@ -2927,6 +2930,32 @@
         auth_token: _nanoleafToken || '',
         enabled: enabledToggle.checked,
       });
+    });
+
+    discoverBtn.addEventListener('click', async () => {
+      discoverBtn.disabled    = true;
+      discoverBtn.textContent = 'Scanning…';
+      discoverHint.textContent = 'Scanning your network for Nanoleaf devices…';
+      try {
+        const devices = await callApi('discover_nanoleaf');
+        if (devices && devices.length > 0) {
+          ipInput.value = devices[0].ip;
+          const names = devices.map(d => d.name || d.ip).join(', ');
+          discoverHint.textContent = `Found: ${names} — IP filled in. Click Pair to connect.`;
+          callApi('save_nanoleaf_settings', {
+            ip: devices[0].ip,
+            auth_token: _nanoleafToken || '',
+            enabled: enabledToggle.checked,
+          });
+        } else {
+          discoverHint.textContent = 'No devices found. Make sure your Nanoleaf is on the same network, then try again or enter the IP manually.';
+        }
+      } catch (e) {
+        discoverHint.textContent = 'Discovery failed — check logs.';
+      } finally {
+        discoverBtn.disabled    = false;
+        discoverBtn.textContent = 'Discover';
+      }
     });
 
     pairBtn.addEventListener('click', async () => {
