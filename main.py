@@ -182,6 +182,15 @@ class Api:
     def reset_nanoleaf_layout(self):
         return self.runner.reset_nanoleaf_layout()
 
+    def set_mini_mode(self, mini: bool):
+        if self.window is None:
+            return {"ok": False}
+        if mini:
+            self.window.resize(380, 100)
+        else:
+            self.window.resize(1320, 860)
+        return {"ok": True}
+
     def set_listen_address(self, ip: str, port: int):
         self.runner.set_listen_address(ip, int(port))
         return {"ok": True}
@@ -231,7 +240,7 @@ def main():
         js_api=api,
         width=1320,
         height=860,
-        min_size=(1000, 680),
+        min_size=(320, 80),
         background_color="#0b1020",
     )
     api.set_window(window)
