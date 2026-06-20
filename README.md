@@ -8,7 +8,7 @@ Sync your LIFX and Nanoleaf lights to live F1 25 race events. Start lights, yell
 
 F1 25 broadcasts telemetry over UDP on your local network. This app listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX bulbs/strips and Nanoleaf panels over LAN — no cloud, no API keys, sub-second latency.
 
-![Data flow diagram](docs/data_flow.svg)
+![Data flow diagram](docs/data_flow.png)
 
 ---
 
