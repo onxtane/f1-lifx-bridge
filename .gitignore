@@ -20,6 +20,10 @@ webview_storage/
 # Claude Code session data
 .claude/
 
+# PyInstaller build output
+build/
+dist/
+
 # Original/legacy code archive
 Original/
 
