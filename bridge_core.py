@@ -523,10 +523,13 @@ class LocalLifxController:
                 print("Try again with something like: 1,3,5")
 
     def safe_label(self, light):
+        cached = getattr(light, 'label', None)
+        if cached:
+            return cached
         try:
             return light.get_label()
         except Exception:
-            return "Unknown LIFX"
+            return getattr(light, 'mac_addr', None) or "Unknown LIFX"
 
     def get_zone_count(self, light) -> int:
         """Return cached zone count for a light, 0 if not multizone."""
