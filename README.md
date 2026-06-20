@@ -1,15 +1,16 @@
 # F1 LIFX Bridge
 
-Sync your LIFX smart lights to live F1 25 race events. Start lights, yellow flags, fastest laps, safety car — every moment on track reflected in your room.
+Sync your LIFX and Nanoleaf lights to live F1 25 race events. Start lights, yellow flags, fastest laps, safety car — every moment on track reflected in your room.
 
 ---
 
 ## How it works
 
-F1 25 broadcasts telemetry over UDP on your local network. This app listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX bulbs and strips over LAN — no cloud, no API keys, sub-second latency.
+F1 25 broadcasts telemetry over UDP on your local network. This app listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX bulbs/strips and Nanoleaf panels over LAN — no cloud, no API keys, sub-second latency.
 
 ```
-F1 25 → UDP telemetry → F1 LIFX Bridge → LIFX LAN protocol → your lights
+F1 25 → UDP telemetry → F1 LIFX Bridge → LIFX LAN protocol  → your lights
+                                        → Nanoleaf REST API  → your panels
 ```
 
 ---
@@ -40,6 +41,15 @@ F1 25 → UDP telemetry → F1 LIFX Bridge → LIFX LAN protocol → your lights
 - Configurable direction per-strip
 - Dedicated green-to-red zone fill test
 
+**Nanoleaf**
+- Supports Canvas, Shapes, Lines, Elements, Light Panels
+- One-time pairing via local REST API (no cloud required)
+- Auto-discovery via mDNS/SSDP or manual IP entry
+- All race effects fire on LIFX and Nanoleaf simultaneously
+- Panel Layout UI — visualise your physical panel arrangement and drag panels to match your real-world setup
+- Start lights sweep across panels by physical position (bottom→top or top→bottom), matching the LIFX multizone behaviour
+- Configurable sweep direction shared with the LIFX multizone setting
+
 **App**
 - Profiles — save and switch complete configurations (lights, effects, settings)
 - Light Assignment — assign specific lights to specific effects
@@ -55,11 +65,12 @@ F1 25 → UDP telemetry → F1 LIFX Bridge → LIFX LAN protocol → your lights
 - Python 3.10+
 - F1 25 on PC with UDP telemetry enabled
 - LIFX bulbs or strips on the same LAN
+- Nanoleaf device on the same LAN *(optional)*
 
 ### Python dependencies
 
 ```
-pip install pywebview PySide6 lifxlan
+pip install pywebview PySide6 lifxlan nanoleafapi requests
 ```
 
 ---
@@ -99,11 +110,12 @@ Click **Start Bridge** on the Dashboard. It opens the UDP listener and stays run
 
 ```
 f1_lifx_app/
-├── main.py            # pywebview window + JS API layer
-├── bridge_runner.py   # threading wrapper, stat polling
-├── bridge_core.py     # UDP listener, packet parsing, LIFX effects
+├── main.py                  # pywebview window + JS API layer
+├── bridge_runner.py         # threading wrapper, stat polling
+├── bridge_core.py           # UDP listener, packet parsing, LIFX effects
+├── nanoleaf_controller.py   # Nanoleaf REST API integration
 └── ui/
-    └── index.html     # full single-file UI
+    └── index.html           # full single-file UI
 ```
 
 ---
@@ -116,6 +128,7 @@ These are created automatically on first run and are not tracked in git (user-sp
 |---|---|
 | `f1lifx_gui_settings.json` | Port, IP, brightness, stagger, idle color, enabled events |
 | `lifx_groups.json` | Saved light groups |
+| `nanoleaf_settings.json` | Nanoleaf IP, auth token, device info, panel layout *(gitignored)* |
 
 ---
 
