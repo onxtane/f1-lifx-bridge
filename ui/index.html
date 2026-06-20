@@ -3541,10 +3541,11 @@
     };
 
     load();
-    // Init with currently active lights if any
+    // Render with whatever labels are already active (usually empty on first load).
+    // Do NOT push to backend here — discovery hasn't happened yet. pushToBackend()
+    // is called by _laRefresh, which fires once setActiveLabels/setLights run.
     const initLabels = typeof _activeLabels !== 'undefined' ? [..._activeLabels] : [];
     render(initLabels);
-    pushToBackend();
   })();
 
   // ---- light preview ----
