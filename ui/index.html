@@ -909,6 +909,38 @@
     font-size:14px; padding:8px 12px; width:120px; outline:none;
   }
   .setting-control input:focus{ border-color:var(--purple); }
+
+  /* ---- console IP picker ---- */
+  .console-ip-section{ margin-top:18px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.06); }
+  .console-ip-section-label{ font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-bottom:12px; }
+  .console-ip-hint{ font-size:12px; color:var(--text-muted); margin-bottom:14px; line-height:1.5; }
+  .iface-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+  .iface-card{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px; border-radius:12px;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    cursor:pointer; transition:background .12s, border-color .12s;
+  }
+  .iface-card:hover{ background:rgba(255,255,255,0.07); }
+  .iface-card.selected{ background:rgba(139,92,246,0.12); border-color:rgba(139,92,246,0.4); }
+  .iface-card input[type=radio]{ accent-color:var(--purple); width:15px; height:15px; flex-shrink:0; cursor:pointer; }
+  .iface-ip{ font-size:14px; font-weight:600; font-family:monospace; color:var(--text-main); }
+  .iface-name{ font-size:12px; color:var(--text-muted); margin-left:auto; }
+  .iface-warn{ font-size:11px; color:#f59e0b; margin-left:6px; }
+  .console-ip-callout{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:12px 16px; border-radius:12px;
+    background:rgba(61,220,132,0.07); border:1px solid rgba(61,220,132,0.2);
+  }
+  .console-ip-callout-label{ font-size:11px; color:rgba(61,220,132,0.7); font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
+  .console-ip-callout-val{ font-size:18px; font-weight:700; font-family:monospace; color:#3ddc84; letter-spacing:1px; }
+  .console-ip-copy{
+    flex-shrink:0; padding:6px 14px; border-radius:8px; border:1px solid rgba(61,220,132,0.35);
+    background:rgba(61,220,132,0.1); color:#3ddc84; font-size:12px; font-weight:600;
+    cursor:pointer; transition:background .12s;
+  }
+  .console-ip-copy:hover{ background:rgba(61,220,132,0.2); }
+  .console-ip-empty{ font-size:13px; color:var(--text-muted); font-style:italic; }
   .toggle-switch{ position:relative; display:inline-flex; align-items:center; width:44px; height:26px; flex-shrink:0; }
   .toggle-switch input{ opacity:0; width:0; height:0; position:absolute; }
   .toggle-track{
@@ -1677,6 +1709,22 @@
               </div>
               <div class="setting-control">
                 <input type="text" id="settingIp" value="127.0.0.1">
+              </div>
+            </div>
+
+            <!-- Console IP picker -->
+            <div class="console-ip-section">
+              <div class="console-ip-section-label">Console Players</div>
+              <p class="console-ip-hint">Select the network adapter your console shares with this PC, then enter the IP below into F1 25's telemetry settings.</p>
+              <div class="iface-list" id="ifaceList">
+                <div class="console-ip-empty" id="ifaceEmpty">Loading interfaces…</div>
+              </div>
+              <div class="console-ip-callout" id="consoleIpCallout" style="display:none;">
+                <div>
+                  <div class="console-ip-callout-label">Enter this in F1 25</div>
+                  <div class="console-ip-callout-val" id="consoleIpVal">—</div>
+                </div>
+                <button class="console-ip-copy" id="consoleIpCopy">Copy</button>
               </div>
             </div>
           </div>
@@ -2892,6 +2940,80 @@
   }
   document.getElementById('settingIp').addEventListener('change', saveListenAddress);
   document.getElementById('settingPort').addEventListener('change', saveListenAddress);
+
+  // ---- Console IP picker ----
+  (function () {
+    const list     = document.getElementById('ifaceList');
+    const empty    = document.getElementById('ifaceEmpty');
+    const callout  = document.getElementById('consoleIpCallout');
+    const valEl    = document.getElementById('consoleIpVal');
+    const copyBtn  = document.getElementById('consoleIpCopy');
+    let _selected  = null;
+
+    function isVpnLike(ip) {
+      return ip.startsWith('100.64.') || ip.startsWith('100.65.') ||
+             ip.startsWith('10.') || ip.startsWith('172.');
+    }
+
+    function selectIface(ip) {
+      _selected = ip;
+      list.querySelectorAll('.iface-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.ip === ip);
+        c.querySelector('input[type=radio]').checked = c.dataset.ip === ip;
+      });
+      valEl.textContent = ip;
+      callout.style.display = '';
+      callApi('save_gui_settings', { console_ip: ip });
+    }
+
+    function renderInterfaces(ifaces) {
+      list.querySelectorAll('.iface-card').forEach(c => c.remove());
+      if (!ifaces || ifaces.length === 0) {
+        empty.textContent = 'No LAN interfaces found.';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+      ifaces.forEach(({ ip, name }) => {
+        const warn = isVpnLike(ip);
+        const card = document.createElement('label');
+        card.className = 'iface-card';
+        card.dataset.ip = ip;
+        card.innerHTML =
+          `<input type="radio" name="consoleIface">` +
+          `<span class="iface-ip">${escHtml(ip)}</span>` +
+          (warn ? `<span class="iface-warn">⚠ VPN/private range</span>` : '') +
+          `<span class="iface-name">${escHtml(name)}</span>`;
+        card.addEventListener('click', () => selectIface(ip));
+        list.appendChild(card);
+      });
+      // Auto-select first non-VPN, or first overall
+      const best = ifaces.find(i => !isVpnLike(i.ip)) || ifaces[0];
+      if (best) selectIface(best.ip);
+    }
+
+    copyBtn.addEventListener('click', () => {
+      if (!_selected) return;
+      navigator.clipboard.writeText(_selected).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1800);
+      }).catch(() => {
+        copyBtn.textContent = 'Copy';
+      });
+    });
+
+    // Load interfaces once pywebview is ready; stub shows placeholder until backend exists
+    window.addEventListener('pywebviewready', () => {
+      callApi('get_lan_interfaces').then(ifaces => {
+        if (ifaces) renderInterfaces(ifaces);
+        else {
+          empty.textContent = 'Interface list unavailable — backend not yet implemented.';
+        }
+      }).catch(() => {
+        empty.textContent = 'Could not load network interfaces.';
+      });
+    });
+  })();
 
   document.getElementById('settingDebugTiming').addEventListener('change', function() {
     const enabled = this.checked;
