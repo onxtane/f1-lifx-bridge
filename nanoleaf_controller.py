@@ -169,6 +169,7 @@ class NanoleafController:
 
         # Panel IDs fetched from the layout API — needed for instant static effects.
         self._panel_ids: list[int] = []
+        self._diag_logged = False  # log first set_color_all call only
 
         self._nl: Nanoleaf | None = None
         self._connect()
@@ -219,6 +220,7 @@ class NanoleafController:
                 "firmware":    data.get("firmwareVersion", ""),
                 "num_panels":  num_panels,
             }
+            self._log(f"[NANOLEAF] Panel IDs ({len(self._panel_ids)}): {self._panel_ids}")
         except Exception as exc:
             self._log(f"[NANOLEAF] Device info fetch failed: {exc}")
 
@@ -292,10 +294,17 @@ class NanoleafController:
                         "palette":  [],
                     }
                 }, timeout=2)
+                if not self._diag_logged:
+                    self._diag_logged = True
+                    self._log(f"[NANOLEAF DIAG] effects/static status={resp.status_code} anim_data={anim_data[:100]}")
+                    if resp.status_code >= 300:
+                        self._log(f"[NANOLEAF DIAG] body={resp.text[:200]}")
                 if resp.status_code < 200 or resp.status_code >= 300:
-                    self._log(f"[NANOLEAF] effects endpoint returned {resp.status_code} — falling back to /state")
                     self._state_put(h, s, b_scaled)
             else:
+                if not self._diag_logged:
+                    self._diag_logged = True
+                    self._log(f"[NANOLEAF DIAG] no panel IDs — using /state fallback")
                 self._state_put(h, s, b_scaled)
         except Exception as exc:
             self._log(f"[NANOLEAF ERROR] set_color_all: {exc}")
