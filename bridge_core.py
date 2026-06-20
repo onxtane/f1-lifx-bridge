@@ -574,21 +574,30 @@ class LocalLifxController:
             return
 
         lights = self._effect_lights()
-        for i, light in enumerate(lights):
+
+        def _send(light):
             try:
                 if isinstance(light, MultiZoneLight):
-                    # Set all zones to the same color.
-                    # Zone index 255 means "up to the last zone the strip has."
                     light.set_zone_color(0, 255, scaled, duration_ms, rapid=True)
                 else:
-                    light.set_color(scaled, duration_ms)
+                    light.set_color(scaled, duration_ms, rapid=True)
             except Exception as exc:
                 msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
                 print(msg)
                 if self.log_callback:
                     self.log_callback(msg)
-            if stagger and self.stagger_ms > 0 and i < len(lights) - 1:
-                time.sleep(self.stagger_ms / 1000.0)
+
+        if stagger and self.stagger_ms > 0:
+            for i, light in enumerate(lights):
+                _send(light)
+                if i < len(lights) - 1:
+                    time.sleep(self.stagger_ms / 1000.0)
+        else:
+            threads = [threading.Thread(target=_send, args=(l,), daemon=True) for l in lights]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
 
     def set_active_effect(self, effect_name):
         with self._effect_lock:
@@ -673,7 +682,7 @@ class LocalLifxController:
                 if isinstance(light, MultiZoneLight):
                     light.set_zone_color(0, 255, scaled, 40, rapid=True)
                 else:
-                    light.set_color(scaled, 40)
+                    light.set_color(scaled, 40, rapid=True)
             except Exception as exc:
                 msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
                 print(msg)
