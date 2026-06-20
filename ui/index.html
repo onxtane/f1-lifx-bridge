@@ -516,6 +516,7 @@
     flex:1; border-radius:16px; background:rgba(0,0,0,0.18);
     border:1px solid var(--glass-border); padding:16px 18px; overflow-y:auto;
     font-family:"SF Mono",Consolas,monospace; font-size:13px; color:#cfd6e6; line-height:1.7;
+    user-select:text; -webkit-user-select:text;
   }
   .log-box p{ margin:0 0 4px; white-space:pre-wrap; word-break:break-word; }
   .log-box p.muted{ color:var(--text-muted); }
@@ -835,6 +836,7 @@
     flex:1; border-radius:16px; background:rgba(0,0,0,0.22);
     border:1px solid var(--glass-border); padding:16px 18px; overflow-y:auto;
     font-family:"SF Mono",Consolas,monospace; font-size:13px; color:#cfd6e6; line-height:1.7;
+    user-select:text; -webkit-user-select:text;
   }
   .log-box-full p{ margin:0 0 4px; white-space:pre-wrap; word-break:break-word; }
   .log-box-full p.muted{ color:var(--text-muted); }
@@ -1643,7 +1645,10 @@
         <div class="glass" style="flex:1;padding:24px 28px;display:flex;flex-direction:column;min-height:0;">
           <div class="logs-toolbar" style="margin-bottom:16px;">
             <h2>Bridge Logs</h2>
-            <button class="btn btn-ghost btn-sm" id="clearLogsBtn">Clear</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" id="copyLogsBtn">Copy All</button>
+              <button class="btn btn-ghost btn-sm" id="clearLogsBtn">Clear</button>
+            </div>
           </div>
           <div class="log-box-full" id="logBoxFull">
             <p class="muted">No logs yet.</p>
@@ -2362,6 +2367,16 @@
   document.getElementById('clearLogsBtn').addEventListener('click', () => {
     logLines.length = 0;
     renderLogs();
+  });
+
+  document.getElementById('copyLogsBtn').addEventListener('click', () => {
+    const text = logLines.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyLogsBtn');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
   });
 
   document.querySelectorAll('.effect-btn[data-effect]').forEach(btn => {
