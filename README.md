@@ -136,7 +136,6 @@ These are created automatically on first run and are not tracked in git (user-sp
 | [#1](https://github.com/onxtane/f1-lifx-bridge/issues/1) | Tailscale / VPN connections can break LIFX discovery |
 | [#3](https://github.com/onxtane/f1-lifx-bridge/issues/3) | Entire app flickers when F1 25 comes into focus |
 | [#4](https://github.com/onxtane/f1-lifx-bridge/issues/4) | Scroll wheel hitbox too large in Discovered Lights section |
-| [#17](https://github.com/onxtane/f1-lifx-bridge/issues/17) | Forwarding listener always binds to 127.0.0.1:20777 regardless of settings |
 | [#22](https://github.com/onxtane/f1-lifx-bridge/issues/22) | Panel Layout UI: first panel renders as hexagon on Canvas (NL29) |
 | [#23](https://github.com/onxtane/f1-lifx-bridge/issues/23) | Nanoleaf auto-discovery not working — manual IP entry required |
 
