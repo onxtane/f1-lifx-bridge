@@ -251,12 +251,24 @@ class NanoleafController:
 
     # ── Core colour send ─────────────────────────────────────────────────────
 
-    def set_color_all(self, hsbk, duration_ms=50, stagger=True):
-        """Set all Nanoleaf panels to hsbk colour instantly (no fade).
+    def _state_put(self, h, s, b_scaled):
+        """Fallback: /state endpoint. Hue/sat may fade on some firmware."""
+        nl_h = int(h / 65535.0 * 360)
+        nl_s = int(s / 65535.0 * 100)
+        nl_b = max(1, int(b_scaled / 65535.0 * 100))
+        url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/state"
+        _requests.put(url, json={
+            "hue":        {"value": nl_h},
+            "sat":        {"value": nl_s},
+            "brightness": {"value": nl_b, "duration": 0},
+        }, timeout=2)
 
-        Uses the /effects write endpoint with animType=static and transitionTime=0
-        per panel, which gives a true instant snap.  The /state endpoint is only
-        used as a fallback when panel IDs haven't been fetched yet.
+    def set_color_all(self, hsbk, duration_ms=50, stagger=True):
+        """Set all Nanoleaf panels to hsbk colour.
+
+        Attempts the /effects write+static endpoint with transitionTime=0 per panel
+        for an instant snap (no hue/sat fade).  Falls back to /state if the device
+        rejects the request or panel IDs are unavailable.
         """
         if self._nl is None or _requests is None:
             return
@@ -271,26 +283,20 @@ class NanoleafController:
                     f"{pid} {r} {g} {bl} 0 0" for pid in self._panel_ids
                 )
                 url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
-                _requests.put(url, json={
+                resp = _requests.put(url, json={
                     "write": {
-                        "command":   "display",
-                        "animType":  "static",
-                        "animData":  anim_data,
-                        "loop":      False,
-                        "palette":   [],
+                        "command":  "display",
+                        "animType": "static",
+                        "animData": anim_data,
+                        "loop":     False,
+                        "palette":  [],
                     }
-                }, timeout=1)
+                }, timeout=2)
+                if resp.status_code < 200 or resp.status_code >= 300:
+                    self._log(f"[NANOLEAF] effects endpoint returned {resp.status_code} — falling back to /state")
+                    self._state_put(h, s, b_scaled)
             else:
-                # Fallback: /state endpoint — hue/sat will still fade on some firmware.
-                nl_h = int(h / 65535.0 * 360)
-                nl_s = int(s / 65535.0 * 100)
-                nl_b = max(1, int(b_scaled / 65535.0 * 100))
-                url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/state"
-                _requests.put(url, json={
-                    "hue":        {"value": nl_h},
-                    "sat":        {"value": nl_s},
-                    "brightness": {"value": nl_b, "duration": 0},
-                }, timeout=1)
+                self._state_put(h, s, b_scaled)
         except Exception as exc:
             self._log(f"[NANOLEAF ERROR] set_color_all: {exc}")
 
