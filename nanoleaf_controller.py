@@ -238,14 +238,28 @@ class NanoleafController:
     # ── Core colour send ─────────────────────────────────────────────────────
 
     def set_color_all(self, hsbk, duration_ms=50, stagger=True):
-        """Set all Nanoleaf panels to hsbk colour. stagger is ignored."""
-        if self._nl is None:
+        """Set all Nanoleaf panels to hsbk colour. stagger is ignored.
+
+        Bypasses nanoleafapi.set_color() because that only sets duration=0 on
+        brightness — hue and sat still use the device's default transition
+        time, causing an unwanted fade.  We PUT all three fields with
+        duration=0 so colour changes are instantaneous.
+        """
+        if self._nl is None or _requests is None:
             return
         h, s, b, k = hsbk
         b_scaled = self._scale_brightness(b)
-        r, g, bl = _hsbk_to_rgb(h, s, b_scaled)
+        nl_h = int(h / 65535.0 * 360)
+        nl_s = int(s / 65535.0 * 100)
+        nl_b = max(1, int(b_scaled / 65535.0 * 100))
         try:
-            self._nl.set_color((r, g, bl))
+            url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/state"
+            _requests.put(url, json={
+                "hue":        {"value": nl_h, "duration": 0},
+                "sat":        {"value": nl_s, "duration": 0},
+                "brightness": {"value": nl_b, "duration": 0},
+                "on":         {"value": True},
+            }, timeout=2)
         except Exception as exc:
             self._log(f"[NANOLEAF ERROR] set_color_all: {exc}")
 

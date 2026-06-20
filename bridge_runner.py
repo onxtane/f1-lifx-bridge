@@ -46,16 +46,22 @@ class BridgeRunner:
     the window even opens.
     """
 
-    EFFECT_METHODS = {
+    # Looping effects use bridge-level methods so LIFX and Nanoleaf are driven
+    # by a single shared loop (no drift).  One-shot effects call _clear_bridge_effect
+    # so any running loop stops before the one-shot plays.
+    BRIDGE_EFFECT_METHODS = {
+        "Yellow Flag": lambda bridge: bridge.yellow_flag_bridge(),
+        "Blue Flag":   lambda bridge: bridge.blue_flag_bridge(),
+        "Red Flag":    lambda bridge: bridge.red_flag_bridge(),
+        "Neutral":     lambda bridge: bridge.neutral_bridge(),
+    }
+    LIFX_EFFECT_METHODS = {
         "Start Lights":   lambda lifx: lifx.start_lights(5),
         "Lights Out":     lambda lifx: lifx.lights_out(),
-        "Yellow Flag":    lambda lifx: lifx.yellow_flag(),
-        "Blue Flag":      lambda lifx: lifx.blue_flag(),
-        "Red Flag":       lambda lifx: lifx.red_flag(),
         "Fastest Lap":    lambda lifx: lifx.fastest_lap(),
         "Chequered Flag": lambda lifx: lifx.chequered_flag(),
         "White Warning":  lambda lifx: lifx.white_warning(),
-        "Neutral":        lambda lifx: lifx.neutral(),
+        "Black Flag":     lambda lifx: lifx.black_flag(),
     }
 
     def __init__(self, bridge_script: Path,
@@ -386,6 +392,9 @@ class BridgeRunner:
         if self.bridge is not None and self.bridge.lifx is not None:
             self.bridge.lifx.brightness_min = min_b
             self.bridge.lifx.brightness_max = max_b
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            self.bridge.nanoleaf.brightness_min = min_b
+            self.bridge.nanoleaf.brightness_max = max_b
 
     def set_light_assignments(self, assignments: dict):
         """assignments: {label: None | [effect_keys]}.  None = all effects."""
@@ -525,6 +534,8 @@ class BridgeRunner:
 
         if self._pending_brightness is not None and self.bridge.lifx is not None:
             self.bridge.lifx.brightness_min, self.bridge.lifx.brightness_max = self._pending_brightness
+        if self._pending_brightness is not None and self.bridge.nanoleaf is not None:
+            self.bridge.nanoleaf.brightness_min, self.bridge.nanoleaf.brightness_max = self._pending_brightness
 
         if self._light_assignments and self.bridge.lifx is not None:
             self.bridge.lifx.light_assignments = self._light_assignments
@@ -567,19 +578,31 @@ class BridgeRunner:
             self.on_log(f"Cannot run '{name}' - no lights discovered yet. Click Discover Lights first.")
             return
 
-        action = self.EFFECT_METHODS.get(name)
-        if action is None:
+        # Looping effects (yellow/blue/red flag, neutral) go through the bridge
+        # so LIFX and Nanoleaf are driven by one shared loop.
+        bridge_action = self.BRIDGE_EFFECT_METHODS.get(name)
+        if bridge_action is not None:
+            try:
+                bridge_action(self.bridge)
+            except Exception as exc:
+                self.on_log(f"ERROR running '{name}': {exc}")
+            return
+
+        # One-shot effects: stop any running loop, then fire on both controllers.
+        lifx_action = self.LIFX_EFFECT_METHODS.get(name)
+        if lifx_action is None:
             self.on_log(f"Unknown effect: {name}")
             return
 
+        self.bridge._clear_bridge_effect()
         try:
-            action(self.bridge.lifx)
+            lifx_action(self.bridge.lifx)
         except Exception as exc:
             self.on_log(f"ERROR running '{name}': {exc}")
 
         if self.bridge.nanoleaf is not None:
             try:
-                action(self.bridge.nanoleaf)
+                lifx_action(self.bridge.nanoleaf)
             except Exception as exc:
                 self.on_log(f"[NANOLEAF ERROR] running '{name}': {exc}")
 

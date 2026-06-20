@@ -1094,6 +1094,11 @@ class F1LifxBridgeCore:
         self.sock = None
         self.running = False
 
+        # Bridge-level effect loop — one loop drives both LIFX and Nanoleaf
+        # so they stay perfectly in sync instead of drifting independently.
+        self._bridge_effect: str | None = None
+        self._bridge_effect_lock = threading.Lock()
+
         self.last_start_light_count = None
         self.last_lights_out_time = 0.0
         self.last_fia_flag = None
@@ -1131,6 +1136,87 @@ class F1LifxBridgeCore:
                 getattr(self.nanoleaf, method)(*args)
             except Exception as exc:
                 self.log(f"[NANOLEAF ERROR] {method}: {exc}")
+
+    # ── Bridge-level synchronized effect loops ───────────────────────────────
+    # These drive LIFX + Nanoleaf from a single timing loop so both controllers
+    # receive set_color_all() calls at the same instant instead of running
+    # independent loops that drift over time.
+
+    def _set_bridge_effect(self, name: str):
+        with self._bridge_effect_lock:
+            self._bridge_effect = name
+
+    def _clear_bridge_effect(self):
+        with self._bridge_effect_lock:
+            self._bridge_effect = None
+
+    def _is_bridge_effect(self, name: str) -> bool:
+        with self._bridge_effect_lock:
+            return self._bridge_effect == name
+
+    def yellow_flag_bridge(self):
+        self._clear_bridge_effect()
+        self._fire("clear_active_effect")
+        self._set_bridge_effect("yellow_flash")
+        threading.Thread(target=self._yellow_flash_bridge_loop, daemon=True).start()
+
+    def _yellow_flash_bridge_loop(self):
+        yellow = [10922, 65535, 65535, 3500]
+        dark   = [0, 0, 1, 3500]
+        while self._is_bridge_effect("yellow_flash"):
+            self._fire("set_color_all", yellow, 40, False)
+            time.sleep(0.45)
+            if not self._is_bridge_effect("yellow_flash"):
+                break
+            self._fire("set_color_all", dark, 40, False)
+            time.sleep(0.45)
+
+    def blue_flag_bridge(self):
+        self._clear_bridge_effect()
+        self._fire("clear_active_effect")
+        self._set_bridge_effect("blue_pulse")
+        threading.Thread(target=self._blue_pulse_bridge_loop, daemon=True).start()
+
+    def _blue_pulse_bridge_loop(self):
+        bright = [43690, 65535, 65535, 3500]
+        dim    = [43690, 65535, 8000, 3500]
+        while self._is_bridge_effect("blue_pulse"):
+            self._fire("set_color_all", bright, 600, False)
+            for _ in range(7):
+                if not self._is_bridge_effect("blue_pulse"):
+                    return
+                time.sleep(0.1)
+            self._fire("set_color_all", dim, 600, False)
+            for _ in range(7):
+                if not self._is_bridge_effect("blue_pulse"):
+                    return
+                time.sleep(0.1)
+
+    def red_flag_bridge(self):
+        self._clear_bridge_effect()
+        self._fire("clear_active_effect")
+        self._set_bridge_effect("red_pulse")
+        threading.Thread(target=self._red_pulse_bridge_loop, daemon=True).start()
+
+    def _red_pulse_bridge_loop(self):
+        bright = [0, 65535, 65535, 3500]
+        dim    = [0, 65535, 8000, 3500]
+        while self._is_bridge_effect("red_pulse"):
+            self._fire("set_color_all", bright, 600, False)
+            for _ in range(7):
+                if not self._is_bridge_effect("red_pulse"):
+                    return
+                time.sleep(0.1)
+            self._fire("set_color_all", dim, 600, False)
+            for _ in range(7):
+                if not self._is_bridge_effect("red_pulse"):
+                    return
+                time.sleep(0.1)
+
+    def neutral_bridge(self):
+        """Stop any active bridge loop and return all lights to idle."""
+        self._clear_bridge_effect()
+        self._fire("neutral")
 
     def discover_lights(self):
         self.lifx = LocalLifxController(
@@ -1261,15 +1347,15 @@ class F1LifxBridgeCore:
 
             if marshal_flag == FIA_FLAG_YELLOW:
                 if self.is_event_enabled("yellow_flag"):
-                    self._fire("yellow_flag")
+                    self.yellow_flag_bridge()
 
             elif marshal_flag == FIA_FLAG_BLUE:
                 if self.is_event_enabled("blue_flag"):
-                    self._fire("blue_flag")
+                    self.blue_flag_bridge()
 
             elif marshal_flag in {FIA_FLAG_GREEN, FIA_FLAG_NONE}:
                 if self.is_event_enabled("neutral"):
-                    self._fire("neutral")
+                    self.neutral_bridge()
 
             self.last_marshal_flag = marshal_flag
 
@@ -1281,13 +1367,13 @@ class F1LifxBridgeCore:
 
             if fia_flag == FIA_FLAG_YELLOW:
                 if self.is_event_enabled("yellow_flag"):
-                    self._fire("yellow_flag")
+                    self.yellow_flag_bridge()
             elif fia_flag == FIA_FLAG_BLUE:
                 if self.is_event_enabled("blue_flag"):
-                    self._fire("blue_flag")
+                    self.blue_flag_bridge()
             elif fia_flag in {FIA_FLAG_NONE, FIA_FLAG_GREEN}:
                 if self.is_event_enabled("neutral"):
-                    self._fire("neutral")
+                    self.neutral_bridge()
 
             self.last_fia_flag = fia_flag
 
@@ -1322,6 +1408,7 @@ class F1LifxBridgeCore:
 
             if num_lights != self.last_start_light_count:
                 if self.is_event_enabled("start_lights"):
+                    self._clear_bridge_effect()
                     self._fire("start_lights", num_lights)
                 self.last_start_light_count = num_lights
 
@@ -1330,6 +1417,7 @@ class F1LifxBridgeCore:
 
             if now - self.last_lights_out_time > 3.0:
                 if self.is_event_enabled("lights_out"):
+                    self._clear_bridge_effect()
                     self._fire("lights_out")
                 self.last_lights_out_time = now
                 self.last_start_light_count = None
@@ -1342,7 +1430,7 @@ class F1LifxBridgeCore:
             self.last_fia_flag = None
             self.race_started = False
             if self.is_event_enabled("neutral"):
-                self._fire("neutral")
+                self.neutral_bridge()
 
         elif event_code == "SEND":
             self.last_start_light_count = None
@@ -1350,17 +1438,18 @@ class F1LifxBridgeCore:
             self.last_fia_flag = None
             self.race_started = False
             if self.is_event_enabled("neutral"):
-                self._fire("neutral")
+                self.neutral_bridge()
 
         elif event_code == EVENT_RED_FLAG:
             self.last_start_light_count = None
             if self.is_event_enabled("red_flag"):
-                self._fire("red_flag")
+                self.red_flag_bridge()
 
         elif event_code == EVENT_CHEQUERED_FLAG:
             self.last_start_light_count = None
             self.race_started = False
             if self.is_event_enabled("chequered_flag"):
+                self._clear_bridge_effect()
                 self._fire("chequered_flag")
 
         elif event_code == EVENT_FASTEST_LAP:
@@ -1379,6 +1468,7 @@ class F1LifxBridgeCore:
 
                 if vehicle_idx == player_idx:
                     if self.is_event_enabled("fastest_lap"):
+                        self._clear_bridge_effect()
                         self._fire("fastest_lap")
                 else:
                     self.log("[FASTEST LAP] Ignored - not player")
@@ -1398,10 +1488,12 @@ class F1LifxBridgeCore:
 
                 if infringement in BLACK_FLAG_INFRINGEMENTS:
                     if self.is_event_enabled("black_flag"):
+                        self._clear_bridge_effect()
                         self._fire("black_flag")
 
                 elif infringement in WHITE_WARNING_INFRINGEMENTS:
                     if self.is_event_enabled("white_warning"):
+                        self._clear_bridge_effect()
                         self._fire("white_warning")
 
         elif event_code == EVENT_RETIREMENT:
@@ -1415,10 +1507,11 @@ class F1LifxBridgeCore:
 
                 if reason == 6:
                     if self.is_event_enabled("black_flag"):
+                        self._clear_bridge_effect()
                         self._fire("black_flag")
                 elif reason == 7:
                     if self.is_event_enabled("red_flag"):
-                        self._fire("red_flag")
+                        self.red_flag_bridge()
 
 # ============================================================
 # MAIN LOOP
