@@ -2403,12 +2403,16 @@
 
   // ---- API bridge ----
   function callApi(fnName, ...args) {
-    if (window.pywebview && window.pywebview.api && window.pywebview.api[fnName]) {
-      return window.pywebview.api[fnName](...args);
-    } else {
-      appendLog('[preview] ' + fnName + '(' + JSON.stringify(args) + ') — open via main.py to make this live.');
+    if (window.pywebview && window.pywebview.api) {
+      // pywebview is live — call if method exists, silently no-op if not yet implemented
+      if (window.pywebview.api[fnName]) {
+        return window.pywebview.api[fnName](...args);
+      }
       return Promise.resolve(null);
     }
+    // pywebview not loaded — running directly in a browser
+    appendLog('[preview] ' + fnName + '(' + JSON.stringify(args) + ') — open via main.py to make this live.');
+    return Promise.resolve(null);
   }
 
   // ---- save group modal ----
