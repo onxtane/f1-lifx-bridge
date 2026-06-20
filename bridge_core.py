@@ -643,13 +643,13 @@ class LocalLifxController:
 
         while self.is_effect_active("yellow_flash"):
             self.set_color_all(yellow, duration_ms=40, stagger=False)
-            time.sleep(0.22)
+            time.sleep(0.45)
 
             if not self.is_effect_active("yellow_flash"):
                 break
 
             self.set_color_all(dark, duration_ms=40, stagger=False)
-            time.sleep(0.22)
+            time.sleep(0.45)
 
     def start_lights(self, num_lights):
         self.clear_active_effect()
@@ -769,7 +769,7 @@ class LocalLifxController:
         self._current_effect_key = 'red_flag'
         print("[FLAG] Red")
         red = [0, 65535, 65535, 3500]
-        self.flash_colors([red], loops=3, hold_ms=250)
+        self.flash_colors([red], loops=3, hold_ms=400)
         self.set_color_all(red, duration_ms=500, stagger=False)
 
     def black_flag(self):
@@ -779,7 +779,7 @@ class LocalLifxController:
         # Bulbs cannot show true black, so we do a dark/off-style pulse.
         dark = [0, 0, 1, 3500]
         white_dim = [0, 0, 12000, 4500]
-        self.flash_colors([dark, white_dim], loops=3, hold_ms=250)
+        self.flash_colors([dark, white_dim], loops=3, hold_ms=400)
         self.set_color_all(dark, duration_ms=500, stagger=False)
 
     def white_warning(self):
@@ -788,7 +788,7 @@ class LocalLifxController:
         print("[WARNING] White flashing")
         white = [0, 0, 65535, 4500]
         dark = [0, 0, 1, 3500]
-        self.flash_colors([white, dark], loops=3, hold_ms=150)
+        self.flash_colors([white, dark], loops=3, hold_ms=250)
         self.neutral()
 
     def fastest_lap(self):
@@ -798,7 +798,7 @@ class LocalLifxController:
         t0 = time.perf_counter() if _dbg else None
         purple = [54613, 65535, 65535, 3500]
         dark = [0, 0, 1, 3500]
-        self.flash_colors([purple, dark], loops=3, hold_ms=120)
+        self.flash_colors([purple, dark], loops=3, hold_ms=200)
         if _dbg:
             print(f"[DBG] fastest_lap flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)
         self.neutral()
@@ -811,7 +811,7 @@ class LocalLifxController:
         t0 = time.perf_counter() if _dbg else None
         white = [0, 0, 65535, 4500]
         green = [21845, 65535, 65535, 3500]
-        self.flash_colors([white, green], loops=5, hold_ms=200)
+        self.flash_colors([white, green], loops=5, hold_ms=300)
         if _dbg:
             print(f"[DBG] chequered_flag flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)
         self.neutral()
