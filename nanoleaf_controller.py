@@ -219,7 +219,7 @@ class NanoleafController:
             light_panels = [p for p in position_data if p.get("shapeType", 0) != 12]
             self._side_length = layout.get("sideLength", 150)
             self._panel_ids = [p["panelId"] for p in light_panels]
-            self._sweep_panel_ids = [p["panelId"] for p in sorted(light_panels, key=lambda p: p["x"])]
+            self._sweep_panel_ids = [p["panelId"] for p in sorted(light_panels, key=lambda p: (p["y"], p["x"]))]
             self._raw_layout = [
                 {
                     "panelId":   p["panelId"],
@@ -260,7 +260,7 @@ class NanoleafController:
         """
         if not panels:
             return
-        sorted_panels = sorted(panels, key=lambda p: p["x"])
+        sorted_panels = sorted(panels, key=lambda p: (p["y"], p["x"]))
         self._sweep_panel_ids = [p["panelId"] for p in sorted_panels]
 
     def set_panel_colors(self, panel_rgb: list[tuple[int, int, int, int]]):
