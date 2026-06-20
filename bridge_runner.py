@@ -108,6 +108,10 @@ class BridgeRunner:
 
     def _ensure_bridge(self) -> bool:
         if self.bridge is not None:
+            # Bridge exists but may have been stopped. Apply any pending listen
+            # address change so listener_loop() binds to the updated IP/port.
+            if self._pending_listen is not None:
+                self.bridge.udp_ip, self.bridge.udp_port = self._pending_listen
             return True
 
         if self._module is None:
