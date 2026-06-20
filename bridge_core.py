@@ -601,17 +601,10 @@ class LocalLifxController:
 
         t_start = time.perf_counter() if _dbg else None
 
-        if stagger and self.stagger_ms > 0:
-            for i, light in enumerate(lights):
-                _send(light)
-                if i < len(lights) - 1:
-                    time.sleep(self.stagger_ms / 1000.0)
-        else:
-            threads = [threading.Thread(target=_send, args=(l,), daemon=True) for l in lights]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
+        for i, light in enumerate(lights):
+            _send(light)
+            if stagger and self.stagger_ms > 0 and i < len(lights) - 1:
+                time.sleep(self.stagger_ms / 1000.0)
 
         if _dbg:
             print(f"[DBG] set_color_all({len(lights)} lights, stagger={stagger and self.stagger_ms>0}): {(time.perf_counter()-t_start)*1000:.1f}ms total", flush=True)
