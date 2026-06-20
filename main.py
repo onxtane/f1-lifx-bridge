@@ -143,6 +143,25 @@ class Api:
         self.runner.set_debug_timing(enabled)
         return {"ok": True}
 
+    # ---- Nanoleaf ----
+
+    def get_nanoleaf_settings(self):
+        return self.runner.get_nanoleaf_settings()
+
+    def save_nanoleaf_settings(self, data: dict):
+        self.runner.save_nanoleaf_settings_data(data)
+        return {"ok": True}
+
+    def pair_nanoleaf(self, ip: str):
+        return self.runner.pair_nanoleaf(ip)
+
+    def discover_nanoleaf(self):
+        return self.runner.discover_nanoleaf_devices()
+
+    def set_nanoleaf_enabled(self, enabled: bool):
+        self.runner.set_nanoleaf_enabled(enabled)
+        return {"ok": True}
+
     def set_listen_address(self, ip: str, port: int):
         self.runner.set_listen_address(ip, int(port))
         return {"ok": True}
