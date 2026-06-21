@@ -959,6 +959,55 @@
   .toast.toast-error   .toast-icon{ color:#e83030; }
   .toast.toast-warning .toast-icon{ color:#f59e0b; }
 
+  /* ---- game selector ---- */
+  #gameSelector{
+    position:fixed; inset:0; z-index:9995;
+    background:#0b1020;
+    backdrop-filter:blur(28px) saturate(1.4);
+    -webkit-backdrop-filter:blur(28px) saturate(1.4);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none;
+    transition:opacity .5s ease;
+  }
+  #gameSelector.visible{ opacity:1; pointer-events:auto; }
+  #gameSelector.hiding { opacity:0; pointer-events:none; }
+  #gameSelectorInner{
+    display:flex; flex-direction:column; align-items:center;
+    width:min(660px,92vw);
+  }
+  #gameCards{ display:flex; gap:20px; flex-wrap:wrap; justify-content:center; width:100%; margin-bottom:32px; }
+  .game-card{
+    width:180px; padding:30px 20px 24px;
+    border-radius:20px;
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.14);
+    cursor:pointer; text-align:center;
+    position:relative; overflow:hidden;
+    transition:transform .15s ease, border-color .2s ease,
+               background .2s ease, box-shadow .2s ease;
+  }
+  .game-card:hover{ transform:translateY(-4px); border-color:var(--purple); background:rgba(139,124,246,0.10); box-shadow:0 12px 36px rgba(139,124,246,0.20); }
+  .game-card-selected{ border-color:var(--purple) !important; background:rgba(139,124,246,0.14) !important; box-shadow:0 8px 32px rgba(139,124,246,0.28) !important; }
+  .game-card-locked{ opacity:0.32; cursor:not-allowed; pointer-events:none; }
+  .game-card-icon-area{ margin:0 auto 16px; }
+  .game-card-name{ font-size:15px; font-weight:700; color:var(--text-main); margin-bottom:4px; }
+  .game-card-sub{ font-size:11px; color:var(--text-muted); line-height:1.5; }
+  .game-soon-badge{
+    position:absolute; top:12px; right:12px;
+    font-size:10px; font-weight:600; letter-spacing:.4px;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.16);
+    border-radius:99px; padding:2px 9px; color:var(--text-muted);
+  }
+  .game-card::before{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at var(--sx,50%) var(--sy,50%), rgba(255,255,255,0.09) 0%, transparent 65%);
+    opacity:0; transition:opacity .25s ease; pointer-events:none; border-radius:inherit;
+  }
+  .game-card:hover::before{ opacity:1; }
+  .game-card > *{ position:relative; z-index:1; }
+  #gameSelectorRememberRow{ display:flex; align-items:center; justify-content:center; margin-bottom:24px; }
+  #gameSelectorRememberRow label{ display:flex; align-items:center; gap:9px; font-size:13px; color:var(--text-muted); cursor:pointer; user-select:none; }
+
   /* ---- mini mode ---- */
   body.mini-mode .scene,
   body.mini-mode #splash,
@@ -966,6 +1015,7 @@
   body.mini-mode #setupDiscover,
   body.mini-mode #setupHue,
   body.mini-mode #setupGroup,
+  body.mini-mode #gameSelector,
   body.mini-mode #tutorial,
   body.mini-mode #panelLayoutOverlay,
   body.mini-mode #bulb-error-stack { display:none !important; }
@@ -1303,6 +1353,78 @@
       <button class="btn btn-primary" id="setupGroupSave" style="width:100%;max-width:280px;">Save &amp; Finish</button>
       <button class="btn btn-ghost btn-sm" id="setupGroupSkip" style="opacity:0.4;font-size:12px;">Skip for now</button>
     </div>
+  </div>
+</div>
+
+<div id="gameSelector">
+  <div id="gameSelectorInner">
+    <div style="text-align:center;margin-bottom:48px;">
+      <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--purple);font-weight:600;margin-bottom:18px;">GridGlow</div>
+      <h2 style="font-size:30px;font-weight:700;margin:0 0 10px;color:var(--text-main);">What are you playing tonight?</h2>
+      <p style="font-size:14px;color:var(--text-muted);margin:0;">Select your title to load the right effects</p>
+    </div>
+
+    <div id="gameCards">
+
+      <!-- F1 25 -->
+      <div class="game-card" id="gameF125" data-game="f1_25">
+        <div class="game-card-icon-area">
+          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 22 Q11 13 20 12 L36 12 Q46 12 48 18 L50 22 L48 24 L6 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M22 12 Q26 7 28 7 Q30 7 34 12" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M46 19 L53 19 L53 22 L48 22" fill="rgba(139,124,246,0.45)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M8 17 L4 17 L4 22 L8 22" fill="rgba(139,124,246,0.45)" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="14" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
+            <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="42" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
+          </svg>
+        </div>
+        <div class="game-card-name">F1® 25</div>
+        <div class="game-card-sub">EA Sports · Codemasters</div>
+      </div>
+
+      <!-- F1 24 — coming soon -->
+      <div class="game-card game-card-locked">
+        <span class="game-soon-badge">Soon</span>
+        <div class="game-card-icon-area">
+          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 22 Q11 13 20 12 L36 12 Q46 12 48 18 L50 22 L48 24 L6 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <path d="M22 12 Q26 7 28 7 Q30 7 34 12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <path d="M46 19 L53 19 L53 22 L48 22" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <path d="M8 17 L4 17 L4 22 L8 22" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="game-card-name">F1® 24</div>
+        <div class="game-card-sub">EA Sports · Codemasters</div>
+      </div>
+
+      <!-- F1 Manager 24 — coming soon -->
+      <div class="game-card game-card-locked">
+        <span class="game-soon-badge">Soon</span>
+        <div class="game-card-icon-area" style="margin-bottom:14px;">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="13" width="4" height="8" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <rect x="10" y="9"  width="4" height="12" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <rect x="17" y="5" width="4" height="16" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="game-card-name">F1® Manager</div>
+        <div class="game-card-sub">Frontier Developments</div>
+      </div>
+
+    </div>
+
+    <div id="gameSelectorRememberRow">
+      <label>
+        <input type="checkbox" id="gameSelectorRemember">
+        Remember my choice and skip this screen
+      </label>
+    </div>
+
+    <button class="btn btn-primary" id="gameSelectorLaunch" style="width:100%;max-width:280px;" disabled>Launch</button>
   </div>
 </div>
 
@@ -1815,6 +1937,22 @@
       <!-- PAGE: Settings -->
       <div class="page" id="page-settings">
         <div class="page-content" style="overflow-y:auto;">
+          <div class="settings-section">
+            <h3>App</h3>
+            <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
+              <div>
+                <div class="setting-label">Show game selector on launch</div>
+                <div class="setting-hint">Ask which title you're playing each time the app opens</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingShowGameSelector" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-section">
             <h3>UDP Connection</h3>
             <div class="setting-row">
@@ -2422,7 +2560,7 @@
         const setupDone = localStorage.getItem('lifx_setup_complete') === '1'
           || (window._loadedSettings && window._loadedSettings.setup_complete);
         if (setupDone) {
-          enterApp();
+          _showGameSelectorOrEnterApp(false);
         } else {
           showBrandSelector();
         }
@@ -3262,6 +3400,14 @@
     callApi('save_gui_settings', { debug_timing: enabled });
   });
 
+  document.getElementById('settingShowGameSelector').addEventListener('change', function() {
+    const show = this.checked;
+    const skip = !show;
+    if (!window._loadedSettings) window._loadedSettings = {};
+    window._loadedSettings.skip_game_selector = skip;
+    callApi('save_gui_settings', { skip_game_selector: skip });
+  });
+
   document.getElementById('settingNanoleafDiag').addEventListener('change', function() {
     const enabled = this.checked;
     callApi('set_nanoleaf_diag', enabled);
@@ -3638,6 +3784,7 @@
       if (s.dry_run != null) document.getElementById('settingDryRun').checked = s.dry_run;
       if (s.debug_timing != null) document.getElementById('settingDebugTiming').checked = s.debug_timing;
       if (s.nanoleaf_diag != null) document.getElementById('settingNanoleafDiag').checked = s.nanoleaf_diag;
+      if (s.skip_game_selector != null) document.getElementById('settingShowGameSelector').checked = !s.skip_game_selector;
       callApi('set_listen_address', s.ip || '0.0.0.0', s.port || 20777);
       callApi('set_debug_timing', !!s.debug_timing);
       callApi('set_nanoleaf_diag', !!s.nanoleaf_diag);
@@ -4650,6 +4797,89 @@
     requestAnimationFrame(() => bs.classList.add('visible'));
   }
 
+  // ---- game selector ----
+
+  function _showGameSelectorOrEnterApp(fromSetup) {
+    const s = window._loadedSettings || {};
+    if (s.skip_game_selector && s.last_game) {
+      enterApp(fromSetup);
+    } else {
+      showGameSelector(fromSetup);
+    }
+  }
+
+  function showGameSelector(fromSetup) {
+    const gs = document.getElementById('gameSelector');
+    if (!gs) { enterApp(fromSetup); return; }
+    gs.style.display = '';
+    // Pre-select last_game if saved
+    const last = (window._loadedSettings || {}).last_game;
+    if (last) {
+      document.querySelectorAll('.game-card[data-game]').forEach(c => {
+        c.classList.toggle('game-card-selected', c.dataset.game === last);
+      });
+      document.getElementById('gameSelectorLaunch').disabled = false;
+    } else {
+      document.querySelectorAll('.game-card').forEach(c => c.classList.remove('game-card-selected'));
+      document.getElementById('gameSelectorLaunch').disabled = true;
+    }
+    const rem = (window._loadedSettings || {}).skip_game_selector;
+    document.getElementById('gameSelectorRemember').checked = !!rem;
+    gs._fromSetup = fromSetup;
+    requestAnimationFrame(() => gs.classList.add('visible'));
+  }
+
+  function hideGameSelector(cb) {
+    const gs = document.getElementById('gameSelector');
+    if (!gs) { if (cb) cb(); return; }
+    gs.classList.add('hiding');
+    gs.classList.remove('visible');
+    gs.addEventListener('transitionend', () => {
+      gs.classList.remove('hiding');
+      gs.style.display = 'none';
+      if (cb) cb();
+    }, { once: true });
+  }
+
+  (function () {
+    // Game tile selection
+    document.querySelectorAll('.game-card[data-game]').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.game-card').forEach(c => c.classList.remove('game-card-selected'));
+        card.classList.add('game-card-selected');
+        document.getElementById('gameSelectorLaunch').disabled = false;
+      });
+
+      // Cursor spotlight
+      card.addEventListener('mousemove', e => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--sx', `${e.clientX - r.left}px`);
+        card.style.setProperty('--sy', `${e.clientY - r.top}px`);
+      });
+    });
+
+    // Launch
+    document.getElementById('gameSelectorLaunch').addEventListener('click', () => {
+      const selected = document.querySelector('.game-card-selected[data-game]');
+      if (!selected) return;
+      const game = selected.dataset.game;
+      const skip = document.getElementById('gameSelectorRemember').checked;
+      if (!window._loadedSettings) window._loadedSettings = {};
+      window._loadedSettings.last_game       = game;
+      window._loadedSettings.skip_game_selector = skip;
+      callApi('save_gui_settings', { last_game: game, skip_game_selector: skip });
+      const fromSetup = document.getElementById('gameSelector')._fromSetup;
+      hideGameSelector(() => enterApp(fromSetup));
+    });
+
+    // Remember checkbox — save immediately so it persists if user closes without launching
+    document.getElementById('gameSelectorRemember').addEventListener('change', function () {
+      if (!window._loadedSettings) window._loadedSettings = {};
+      window._loadedSettings.skip_game_selector = this.checked;
+      callApi('save_gui_settings', { skip_game_selector: this.checked });
+    });
+  })();
+
   (function () {
     const lifxCard = document.getElementById('brandLifx');
     const hueCard  = document.getElementById('brandHue');
@@ -4883,11 +5113,11 @@
     });
 
     continueBtn.addEventListener('click', () => {
-      hideSetupHue(() => enterApp(true));
+      hideSetupHue(() => _showGameSelectorOrEnterApp(true));
     });
 
     skipBtn.addEventListener('click', () => {
-      hideSetupHue(() => enterApp(true));
+      hideSetupHue(() => _showGameSelectorOrEnterApp(true));
     });
   })();
 
@@ -4968,7 +5198,7 @@
   });
 
   document.getElementById('setupDiscoverSkip').addEventListener('click', () => {
-    hideSetupDiscover(() => enterApp(true));
+    hideSetupDiscover(() => _showGameSelectorOrEnterApp(true));
   });
 
   // ---- setup: group page ----
@@ -5015,7 +5245,7 @@
       .map(el => el.textContent);
     callApi('save_group', name, labels);
     callApi('save_gui_settings', { last_group: name });
-    hideSetupGroup(() => enterApp(true));
+    hideSetupGroup(() => _showGameSelectorOrEnterApp(true));
   });
 
   document.getElementById('setupGroupNameInput').addEventListener('keydown', e => {
@@ -5023,7 +5253,7 @@
   });
 
   document.getElementById('setupGroupSkip').addEventListener('click', () => {
-    hideSetupGroup(() => enterApp(true));
+    hideSetupGroup(() => _showGameSelectorOrEnterApp(true));
   });
 
   // ---- tutorial flow ----
