@@ -280,6 +280,52 @@ class HueController:
             (self.brightness_max - self.brightness_min) * pct / 100
         )))
 
+    def _get_gradient_strip_ids(self) -> list[str]:
+        """Return the subset of selected_lights that are gradient lightstrips."""
+        gradient_ids = {l["id"] for l in self._lights_cache if l["is_gradient"]}
+        return [lid for lid in self.selected_lights if lid in gradient_ids]
+
+    def _get_regular_light_ids(self) -> list[str]:
+        """Return the subset of selected_lights that are NOT gradient lightstrips."""
+        gradient_ids = {l["id"] for l in self._lights_cache if l["is_gradient"]}
+        return [lid for lid in self.selected_lights if lid not in gradient_ids]
+
+    def _put_gradient(self, light_id: str, points: list[dict], bri: int, duration_ms: int = 40):
+        """PUT a gradient payload to a single light."""
+        body = {
+            "on":      {"on": True},
+            "dimming": {"brightness": bri},
+            "dynamics": {"duration": duration_ms},
+            "gradient": {
+                "points": points,
+                "mode":   "interpolated_palette",
+            },
+        }
+        self._put(f"{_CLIP}/light/{light_id}", body)
+
+    def _build_gradient_points(self, num_lit: int, total_points: int = 7) -> list[dict]:
+        """
+        Build gradient point array for the start lights sweep.
+
+        The first N points are red (lit zones); the rest show the idle colour
+        (unlit zones). 7 points is the minimum supported by all gradient strips.
+
+        num_lit: 0–5 matching the F1 start lights count.
+        """
+        red_x, red_y     = _rgb_to_xy(220, 0, 0)
+        idle_x, idle_y   = _rgb_to_xy(*self.idle_rgb)
+        lit_count = round(num_lit * total_points / 5)
+        return [
+            {"color": {"xy": {"x": red_x,  "y": red_y }}} if i < lit_count
+            else {"color": {"xy": {"x": idle_x, "y": idle_y}}}
+            for i in range(total_points)
+        ]
+
+    def _gradient_idle_points(self, total_points: int = 7) -> list[dict]:
+        """Return a uniform idle-colour gradient (used to reset strip after start lights)."""
+        idle_x, idle_y = _rgb_to_xy(*self.idle_rgb)
+        return [{"color": {"xy": {"x": idle_x, "y": idle_y}}} for _ in range(total_points)]
+
     # ── Effect state ─────────────────────────────────────────────────────────
 
     def set_active_effect(self, name: str):
@@ -325,7 +371,19 @@ class HueController:
     def set_idle(self):
         """Return all selected lights to the configured idle colour."""
         r, g, b = self.idle_rgb
-        self.set_color(r, g, b, brightness_pct=40, duration_ms=800)
+        # Reset gradient strips to uniform idle colour so the start-lights
+        # pattern doesn't linger after lights_out.
+        for lid in self._get_gradient_strip_ids():
+            self._put_gradient(lid, self._gradient_idle_points(),
+                               self._scale_brightness(40), duration_ms=800)
+        for lid in self._get_regular_light_ids():
+            x, y = _rgb_to_xy(r, g, b)
+            self._put(f"{_CLIP}/light/{lid}", {
+                "on":      {"on": True},
+                "color":   {"xy": {"x": x, "y": y}},
+                "dimming": {"brightness": self._scale_brightness(40)},
+                "dynamics": {"duration": 800},
+            })
 
     # ── Flash helper ─────────────────────────────────────────────────────────
 
@@ -445,22 +503,55 @@ class HueController:
         ], loops=5, hold_ms=300)
         self.neutral()
 
+    def _flash_gradient_strips_green(self, bri: int):
+        """Send a full-green gradient to all gradient strips in selected_lights."""
+        gx, gy = _rgb_to_xy(0, 255, 0)
+        pts = [{"color": {"xy": {"x": gx, "y": gy}}} for _ in range(7)]
+        for lid in self._get_gradient_strip_ids():
+            self._put_gradient(lid, pts, bri, duration_ms=0)
+
     def lights_out(self):
         self.clear_active_effect()
         self._current_effect_key = "lights_out"
-        self._snap_and_wait(0, 255, 0, 100, 200)
+        # Green flash — gradient strips get a full-green gradient to immediately
+        # replace the start-lights red pattern; regular bulbs use set_color.
+        self._flash_gradient_strips_green(self._scale_brightness(100))
+        self._snap_and_wait(0, 255, 0, 100, 200)   # also covers regular bulbs
         self._snap_and_wait(0, 0, 0, 1, 150)
+        self._flash_gradient_strips_green(self._scale_brightness(100))
         self._snap_and_wait(0, 255, 0, 100, 350)
         self.set_idle()
 
     def start_lights(self, num_lights: int):
-        """Solid red at increasing brightness as start lights 1-5 appear."""
+        """
+        Start lights sweep.
+
+        Gradient strips: fill segments left-to-right one by one as each F1
+        start light illuminates (points 0..N become red, rest stay idle colour).
+
+        Regular bulbs: solid red at stepped brightness matching num_lights.
+        """
         self.clear_active_effect()
         self._current_effect_key = "start_lights"
         num_lights = max(0, min(5, num_lights))
+
+        # Gradient strips — progressive fill
+        for lid in self._get_gradient_strip_ids():
+            pts = self._build_gradient_points(num_lights)
+            self._put_gradient(lid, pts, self._scale_brightness(100))
+
+        # Regular bulbs — stepped brightness
         brightness_by_count = {0: 15, 1: 30, 2: 45, 3: 65, 4: 80, 5: 100}
-        bri = brightness_by_count[num_lights]
-        self.set_color(255, 0, 0, brightness_pct=bri, duration_ms=40)
+        bri_pct = brightness_by_count[num_lights]
+        x, y = _rgb_to_xy(220, 0, 0)
+        body = {
+            "on":      {"on": True},
+            "color":   {"xy": {"x": x, "y": y}},
+            "dimming": {"brightness": self._scale_brightness(bri_pct)},
+            "dynamics": {"duration": 40},
+        }
+        for lid in self._get_regular_light_ids():
+            self._put(f"{_CLIP}/light/{lid}", body)
 
     # ── Class-level helpers ───────────────────────────────────────────────────
 
