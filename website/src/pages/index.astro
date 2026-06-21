@@ -1,5 +1,5 @@
 ---
-const version = "0.5.0";
+const version = "0.6.0";
 const downloadUrl = `https://github.com/onxtane/f1-lifx-bridge/releases/download/v${version}/F1LifxBridge-v${version}.zip`;
 const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
 
@@ -30,9 +30,9 @@ const features = [
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>F1 LIFX Bridge — Feel the race in your room</title>
+  <title>GridGlow — Feel the race in your room</title>
   <meta name="description" content="Sync your LIFX and Nanoleaf lights to live F1 25 race events. Start lights, yellow flags, fastest laps — every moment on track, reflected in your room. No cloud. Sub-second latency." />
-  <meta property="og:title" content="F1 LIFX Bridge" />
+  <meta property="og:title" content="GridGlow" />
   <meta property="og:description" content="Feel the race in your room. Nine race events. Your LIFX and Nanoleaf lights. Sub-second, over LAN." />
   <meta property="og:type" content="website" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -44,7 +44,7 @@ const features = [
     <div class="nav-inner">
       <span class="nav-logo">
         <span class="logo-dot"></span>
-        F1 LIFX Bridge
+        GridGlow
       </span>
       <div class="nav-actions">
         <a href="/roadmap" class="btn-ghost">Roadmap</a>
@@ -61,7 +61,7 @@ const features = [
     <div class="hero-glow glow-teal"></div>
 
     <div class="hero-inner">
-      <div class="hero-badge rise" style="--d:.05s">F1 25 &nbsp;·&nbsp; LIFX &nbsp;·&nbsp; Nanoleaf</div>
+      <div class="hero-badge rise" style="--d:.05s">F1 25 / 24 &nbsp;·&nbsp; LIFX &nbsp;·&nbsp; Nanoleaf</div>
 
       <h1 class="rise" style="--d:.14s">From lights out<br/><em>to chequered flag.</em></h1>
 
@@ -81,6 +81,7 @@ const features = [
       </div>
 
       <p class="hero-meta rise" style="--d:.42s">Free · Open source · No account required</p>
+      <p class="hero-meta rise" style="--d:.48s; opacity:.55;">macOS support in development</p>
     </div>
 
     <!-- light strip bar -->
@@ -101,7 +102,7 @@ const features = [
       <div class="screenshots-grid">
         <div class="screenshot-card screenshot-main">
           <div class="screenshot-label">Dashboard</div>
-          <img src="/screenshots/dashboard.png" alt="F1 LIFX Bridge dashboard showing bridge status, discovered lights, race control log and quick effect buttons" loading="lazy" />
+          <img src="/screenshots/dashboard.png" alt="GridGlow dashboard showing bridge status, discovered lights, race control log and quick effect buttons" loading="lazy" />
         </div>
         <div class="screenshot-card">
           <div class="screenshot-label">Effects</div>
@@ -124,7 +125,7 @@ const features = [
     <div class="container">
       <p class="eyebrow">9 RACE EVENTS</p>
       <h2>Every moment on track.</h2>
-      <p class="section-sub">Nine distinct effects fire the instant F1 25 broadcasts the event — each mapped to a colour, a pulse, a sweep across your room.</p>
+      <p class="section-sub">Nine distinct effects fire the instant F1 25 or F1 24 broadcasts the event — each mapped to a colour, a pulse, a sweep across your room.</p>
 
       <div class="events-grid">
         {events.map(e => (
@@ -156,7 +157,7 @@ const features = [
         <div class="step">
           <div class="step-num">02</div>
           <div class="step-body">
-            <h3>Enable UDP telemetry in F1 25</h3>
+            <h3>Enable UDP telemetry in F1 25 or F1 24</h3>
             <p>Settings → Telemetry Settings. Set UDP to On, point it at your PC's local IP, your chosen port (20777 by default).</p>
           </div>
         </div>
@@ -267,17 +268,17 @@ const features = [
       <h2>Ready for another layer of immersion?</h2>
       <p>Free. Open source. Runs entirely on your local network.</p>
       <a href={downloadUrl} class="btn-primary btn-xl btn-cta">
-        Download F1 LIFX Bridge
+        Download GridGlow
         <span class="btn-chip">v{version} · Windows</span>
       </a>
-      <p class="cta-meta">Requires F1 25 with UDP telemetry enabled &amp; LIFX or Nanoleaf on the same network</p>
+      <p class="cta-meta">Requires F1 25 or F1 24 with UDP telemetry enabled &amp; LIFX or Nanoleaf on the same network</p>
     </div>
   </section>
 
   <!-- ═══ FOOTER ═══ -->
   <footer>
     <div class="container footer-inner">
-      <span class="footer-logo">F1 LIFX Bridge</span>
+      <span class="footer-logo">GridGlow</span>
       <div class="footer-links">
         <a href={githubUrl} target="_blank" rel="noopener">GitHub</a>
         <a href={`${githubUrl}/releases`} target="_blank" rel="noopener">Releases</a>

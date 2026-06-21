@@ -56,10 +56,10 @@ GROUPS_FILE = "lifx_groups.json"
 USE_SAVED_LIGHT_GROUPS = True
 
 # ============================================================
-# F1 25 CONSTANTS
+# PACKET CONSTANTS (F1 24 / F1 25)
 # ============================================================
 
-# PacketHeader from the F1 25 UDP spec:
+# PacketHeader — identical layout for F1 24 and F1 25:
 # uint16 m_packetFormat
 # uint8  m_gameYear
 # uint8  m_gameMajorVersion
@@ -77,7 +77,9 @@ USE_SAVED_LIGHT_GROUPS = True
 HEADER_FORMAT = "<HBBBBBQfIIBB"
 HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
+PACKET_FORMAT_F1_24 = 2024
 PACKET_FORMAT_F1_25 = 2025
+SUPPORTED_PACKET_FORMATS = {PACKET_FORMAT_F1_24, PACKET_FORMAT_F1_25}
 PACKET_ID_EVENT = 3
 PACKET_ID_CAR_STATUS = 7
 PACKET_ID_SESSION = 1
@@ -1355,7 +1357,7 @@ class F1LifxBridgeCore:
         if header is None:
             return
 
-        if header.packet_format != PACKET_FORMAT_F1_25:
+        if header.packet_format not in SUPPORTED_PACKET_FORMATS:
             return
 
         if self.total_packets % 250 == 0:

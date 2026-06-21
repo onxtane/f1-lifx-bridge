@@ -1023,6 +1023,27 @@
   }
   .gs-checkbox-box svg{ opacity:0; transition:opacity .15s ease; }
   .gs-checkbox input:checked ~ .gs-checkbox-box svg{ opacity:1; }
+  .gs-coming-section{ width:100%; margin-bottom:28px; }
+  .gs-coming-label{
+    font-size:10px; font-weight:600; letter-spacing:3px; text-transform:uppercase;
+    color:var(--text-muted); margin-bottom:14px; text-align:center;
+  }
+  .gs-coming-scroll{
+    display:flex; gap:12px; overflow-x:auto; padding-bottom:10px;
+    scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+    mask-image:linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+    -webkit-mask-image:linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  }
+  .gs-coming-scroll::-webkit-scrollbar{ display:none; }
+  .gs-mini-card{
+    flex-shrink:0; width:128px; padding:16px 12px 14px;
+    border-radius:14px; opacity:0.30; cursor:not-allowed;
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.10);
+    text-align:center; scroll-snap-align:start;
+  }
+  .gs-mini-card-icon{ margin:0 auto 10px; }
+  .gs-mini-card-name{ font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:2px; }
+  .gs-mini-card-sub{ font-size:10px; color:var(--text-muted); line-height:1.4; }
 
   /* ---- mini mode ---- */
   body.mini-mode .scene,
@@ -1382,7 +1403,7 @@
 
     <div id="gameCards">
 
-      <!-- F1 25 -->
+      <!-- F1 25 / 24 — active -->
       <div class="game-card" id="gameF125" data-game="f1_25">
         <div class="game-card-icon-area">
           <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1396,41 +1417,91 @@
             <circle cx="42" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
           </svg>
         </div>
-        <div class="game-card-name">F1® 25</div>
+        <div class="game-card-name">F1® 25 / 24</div>
         <div class="game-card-sub">EA Sports · Codemasters</div>
       </div>
 
-      <!-- F1 24 — coming soon -->
-      <div class="game-card game-card-locked">
-        <span class="game-soon-badge">Soon</span>
-        <div class="game-card-icon-area">
-          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 22 Q11 13 20 12 L36 12 Q46 12 48 18 L50 22 L48 24 L6 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            <path d="M22 12 Q26 7 28 7 Q30 7 34 12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            <path d="M46 19 L53 19 L53 22 L48 22" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            <path d="M8 17 L4 17 L4 22 L8 22" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-          </svg>
-        </div>
-        <div class="game-card-name">F1® 24</div>
-        <div class="game-card-sub">EA Sports · Codemasters</div>
-      </div>
+    </div>
 
-      <!-- F1 Manager 24 — coming soon -->
-      <div class="game-card game-card-locked">
-        <span class="game-soon-badge">Soon</span>
-        <div class="game-card-icon-area" style="margin-bottom:14px;">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="3" y="13" width="4" height="8" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            <rect x="10" y="9"  width="4" height="12" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            <rect x="17" y="5" width="4" height="16" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-          </svg>
-        </div>
-        <div class="game-card-name">F1® Manager</div>
-        <div class="game-card-sub">Frontier Developments</div>
-      </div>
+    <!-- Coming soon strip -->
+    <div class="gs-coming-section">
+      <div class="gs-coming-label">Coming soon</div>
+      <div class="gs-coming-scroll">
 
+        <!-- Forza Horizon 5 / Motorsport -->
+        <div class="gs-mini-card">
+          <div class="gs-mini-card-icon">
+            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 22 Q7 14 16 13 L40 13 Q48 13 50 18 L51 22 L49 24 L5 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <path d="M18 13 Q23 9 28 9 Q33 9 38 13" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="gs-mini-card-name">Forza</div>
+          <div class="gs-mini-card-sub">Horizon 5 &amp; Motorsport</div>
+        </div>
+
+        <!-- DiRT Rally 2.0 / EA WRC -->
+        <div class="gs-mini-card">
+          <div class="gs-mini-card-icon">
+            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 22 Q9 12 17 11 L37 11 Q45 12 47 17 L49 22 L47 24 L7 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <path d="M22 11 L22 7 L33 7 L33 11" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <circle cx="14" cy="24" r="5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <circle cx="40" cy="24" r="5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="gs-mini-card-name">DiRT / WRC</div>
+          <div class="gs-mini-card-sub">Rally 2.0 &amp; EA WRC</div>
+        </div>
+
+        <!-- Assetto Corsa -->
+        <div class="gs-mini-card">
+          <div class="gs-mini-card-icon">
+            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 22 Q10 14 18 13 L36 13 Q44 13 46 18 L48 22 L46 24 L8 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <path d="M20 13 Q25 9 28 9 Q31 9 36 13" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <line x1="38" y1="13" x2="38" y2="10" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <line x1="34" y1="10" x2="48" y2="10" stroke="rgba(255,255,255,0.32)" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="gs-mini-card-name">Assetto Corsa</div>
+          <div class="gs-mini-card-sub">Kunos Simulazioni</div>
+        </div>
+
+        <!-- Project CARS 2 -->
+        <div class="gs-mini-card">
+          <div class="gs-mini-card-icon">
+            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 22 Q5 17 14 16 L42 16 Q50 17 53 21 L53 24 L3 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <path d="M21 16 Q24 12 28 12 Q32 12 35 16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <path d="M3 22 L0 22 L0 23 L3 23" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <path d="M53 21 L56 21 L56 23 L53 23" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <circle cx="13" cy="24" r="4" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <circle cx="43" cy="24" r="4" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="gs-mini-card-name">Project CARS 2</div>
+          <div class="gs-mini-card-sub">Slightly Mad Studios</div>
+        </div>
+
+        <!-- F1 Manager -->
+        <div class="gs-mini-card">
+          <div class="gs-mini-card-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="13" width="4" height="8" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <rect x="10" y="9" width="4" height="12" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+              <rect x="17" y="5" width="4" height="16" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="gs-mini-card-name">F1® Manager</div>
+          <div class="gs-mini-card-sub">Frontier Developments</div>
+        </div>
+
+      </div>
     </div>
 
     <div id="gameSelectorRememberRow">
@@ -2293,7 +2364,7 @@
             <h3>About</h3>
             <div class="setting-row">
               <div class="setting-label">GridGlow</div>
-              <div style="font-size:13px;color:var(--text-muted);">v0.4.0</div>
+              <div style="font-size:13px;color:var(--text-muted);">v0.6.0</div>
             </div>
             <div class="setting-row">
               <div>

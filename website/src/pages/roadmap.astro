@@ -1,0 +1,356 @@
+---
+const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
+const issueUrl  = "https://github.com/onxtane/f1-lifx-bridge/issues/31";
+
+const titles = [
+  {
+    name: "F1 24",
+    status: "done",
+    color: "#22c55e",
+    desc: "Identical 29-byte UDP header to F1 25. Shipped — select F1 25 / 24 in the game selector.",
+    eta: "Done",
+  },
+  {
+    name: "F1 2021 – 2023",
+    status: "next",
+    color: "#ef4444",
+    desc: "Same Codemasters UDP protocol, but a different header layout (24–28 bytes vs 29). Requires version-aware packet parsing. STLG/LGOT events present in all three titles.",
+    eta: "Up next",
+  },
+  {
+    name: "Forza Horizon 5",
+    status: "planned",
+    color: "#3b82f6",
+    desc: "Native UDP Data Out built into HUD & Gameplay settings. Clean, well-documented packet format. Large player base.",
+    eta: "Planned",
+  },
+  {
+    name: "Forza Motorsport",
+    status: "planned",
+    color: "#2563eb",
+    desc: "Same UDP format as Forza Horizon. One parser covers both titles.",
+    eta: "Planned",
+  },
+  {
+    name: "EA Sports WRC",
+    status: "planned",
+    color: "#f59e0b",
+    desc: "UDP JSON telemetry configured in Documents\\My Games\\WRC\\telemetry\\. Rich stage and rally event data.",
+    eta: "Planned",
+  },
+  {
+    name: "DiRT Rally 2.0",
+    status: "planned",
+    color: "#f97316",
+    desc: "UDP via hardware_settings_config.xml with extradata=3. Established OutSim protocol.",
+    eta: "Planned",
+  },
+  {
+    name: "WRC 8 / 9 / 10 / Generations",
+    status: "planned",
+    color: "#eab308",
+    desc: "UDP telemetry confirmed across the KT Racing WRC series. Widely supported by third-party dash apps.",
+    eta: "Planned",
+  },
+  {
+    name: "Assetto Corsa",
+    status: "planned",
+    color: "#22c55e",
+    desc: "UDP remote telemetry server on port 9996. Broad sim community, excellent documentation.",
+    eta: "Planned",
+  },
+  {
+    name: "Project CARS / CARS 2",
+    status: "planned",
+    color: "#06b6d4",
+    desc: "UDP Shared Data output with configurable IP and port. Covers the SMS engine used across multiple titles.",
+    eta: "Planned",
+  },
+  {
+    name: "BeamNG.drive",
+    status: "planned",
+    color: "#a78bfa",
+    desc: "OutGauge UDP available via in-game app activation. Unique open-world crash physics add a new dimension to lighting effects.",
+    eta: "Planned",
+  },
+  {
+    name: "Live For Speed",
+    status: "considering",
+    color: "#64748b",
+    desc: "One of the earliest OutSim/OutGauge UDP implementations. Niche but dedicated community.",
+    eta: "Considering",
+  },
+  {
+    name: "KartKraft",
+    status: "considering",
+    color: "#64748b",
+    desc: "Native UDP output configurable via Game.ini. Karting-specific event set.",
+    eta: "Considering",
+  },
+  {
+    name: "DiRT 4",
+    status: "considering",
+    color: "#64748b",
+    desc: "Same OutSim protocol as DiRT Rally series. Legacy title but straightforward to add.",
+    eta: "Considering",
+  },
+];
+
+const statusOrder = ["next", "planned", "considering"];
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roadmap — GridGlow</title>
+  <meta name="description" content="GridGlow is expanding beyond F1 25. See which sim racing titles are coming next — Forza, DiRT, WRC, Assetto Corsa and more." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+
+  <!-- ═══ NAV ═══ -->
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-dot"></span>
+        GridGlow
+      </a>
+      <div class="nav-actions">
+        <a href="/roadmap" class="btn-ghost nav-active">Roadmap</a>
+        <a href={githubUrl} class="btn-ghost" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+    <div class="hero-glow glow-purple"></div>
+    <div class="hero-glow glow-teal"></div>
+
+    <div class="hero-inner">
+      <div class="hero-badge rise" style="--d:.05s">Coming soon</div>
+      <h1 class="rise" style="--d:.14s">More sims.<br/><em>Same immersion.</em></h1>
+      <p class="hero-sub rise" style="--d:.24s">
+        GridGlow started with F1 25. It won't stop there.<br/>
+        Support for more sim racing titles is in active development — here's what's coming.
+      </p>
+      <a href={issueUrl} class="btn-ghost rise" style="--d:.34s" target="_blank" rel="noopener">
+        Follow development on GitHub →
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══ ROADMAP GRID ═══ -->
+  <section class="section">
+    <div class="container">
+      <p class="eyebrow">TITLE SUPPORT</p>
+      <h2>The plan.</h2>
+      <p class="section-sub">Every title on this list broadcasts UDP telemetry — the same mechanism F1 25 uses. The core bridge is already built; what changes is the packet parser and event mapping for each game.</p>
+
+      <div class="roadmap-grid">
+        {titles.map(t => (
+          <div class={`roadmap-card status-${t.status}`}>
+            <div class="roadmap-accent" style={`background: linear-gradient(90deg, transparent, ${t.color}, transparent)`}></div>
+            <div class="roadmap-header">
+              <span class="roadmap-name">{t.name}</span>
+              <span class={`roadmap-badge badge-${t.status}`}>{t.eta}</span>
+            </div>
+            <p class="roadmap-desc">{t.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <div class="not-listed">
+        <h3>Not on this list?</h3>
+        <p>Some titles — Assetto Corsa Competizione, iRacing, rFactor 2, RaceRoom — use shared memory rather than UDP broadcast and require a different integration path. They're not forgotten; they're a different workstream. Open an issue if there's a title you'd like to see added.</p>
+        <a href={`${githubUrl}/issues`} class="btn-ghost" target="_blank" rel="noopener">Open an issue</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    <div class="container footer-inner">
+      <span class="footer-logo">GridGlow</span>
+      <div class="footer-links">
+        <a href="/">Home</a>
+        <a href={githubUrl} target="_blank" rel="noopener">GitHub</a>
+        <a href={`${githubUrl}/releases`} target="_blank" rel="noopener">Releases</a>
+        <a href={`${githubUrl}/blob/main/CHANGELOG.md`} target="_blank" rel="noopener">Changelog</a>
+      </div>
+      <p class="footer-disclaimer">Not affiliated with Formula 1, FIA, LIFX, Nanoleaf, Codemasters, or any title listed above.</p>
+    </div>
+  </footer>
+
+<script>
+(function () {
+  const SEL = '.eyebrow, h2, .section-sub, .roadmap-card, .not-listed';
+  document.querySelectorAll('.section').forEach(section => {
+    section.querySelectorAll(SEL).forEach(el => el.classList.add('rise'));
+  });
+
+  const io = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.querySelectorAll('.rise:not(.playing)').forEach((el, i) => {
+        el.style.setProperty('--d', `${i * 0.06}s`);
+        el.classList.add('playing');
+      });
+      obs.unobserve(entry.target);
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.section').forEach(s => io.observe(s));
+}());
+</script>
+</body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0b1020;
+    --card:     rgba(255,255,255,0.05);
+    --border:   rgba(255,255,255,0.10);
+    --border-s: rgba(255,255,255,0.06);
+    --purple:   #8b7cf6;
+    --purple-l: #a78bfa;
+    --text:     #f3f5f9;
+    --muted:    #aab2c5;
+    --red:      #ef4444;
+    --teal:     #06b6d4;
+    --radius:   18px;
+    --radius-s: 10px;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+  /* ── PAGE-LOAD RISE ── */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .rise {
+    opacity: 0;
+    animation: rise .52s cubic-bezier(.22,.8,.36,1) both;
+    animation-delay: var(--d, 0s);
+    animation-play-state: paused;
+  }
+  .hero .rise,
+  .rise.playing { animation-play-state: running; }
+
+  a { color: inherit; text-decoration: none; }
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-s);
+  }
+  .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 28px; height: 58px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: -0.3px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 8px var(--purple); flex-shrink: 0; }
+  .nav-actions { display: flex; align-items: center; gap: 10px; }
+
+  /* ── BUTTONS ── */
+  .btn-ghost {
+    padding: 8px 16px; border-radius: var(--radius-s);
+    border: 1px solid var(--border); font-size: 13px; font-weight: 500;
+    color: var(--text); transition: background .15s, border-color .15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.2); }
+  .nav-active { border-color: rgba(139,124,246,0.5); color: var(--purple-l); background: rgba(139,124,246,0.08); }
+
+  /* ── HERO ── */
+  .hero { position: relative; padding: 100px 24px 80px; text-align: center; overflow: hidden; }
+  .hero-glow { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; }
+  .glow-purple { width: 500px; height: 500px; top: -160px; left: 50%; transform: translateX(-50%); background: rgba(139,124,246,0.18); }
+  .glow-teal   { width: 320px; height: 320px; bottom: -80px; right: 10%; background: rgba(6,182,212,0.10); }
+  .hero-inner { position: relative; max-width: 680px; margin: 0 auto; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--purple-l); background: rgba(139,124,246,0.12);
+    border: 1px solid rgba(139,124,246,0.25); border-radius: 99px;
+    padding: 5px 14px; margin-bottom: 28px;
+  }
+  .hero-inner h1 { font-size: clamp(40px,7vw,72px); font-weight: 800; letter-spacing: -2px; line-height: 1.05; margin-bottom: 24px; }
+  .hero-inner h1 em { font-style: normal; color: var(--purple-l); }
+  .hero-sub { font-size: 17px; color: var(--muted); line-height: 1.7; margin-bottom: 36px; }
+
+  /* ── SECTION ── */
+  .section { padding: 80px 0; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--purple-l); margin-bottom: 12px; }
+  h2 { font-size: clamp(28px,4vw,42px); font-weight: 800; letter-spacing: -1px; margin-bottom: 14px; }
+  .section-sub { font-size: 15px; color: var(--muted); max-width: 640px; margin-bottom: 48px; line-height: 1.7; }
+
+  /* ── ROADMAP GRID ── */
+  .roadmap-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 64px; }
+
+  .roadmap-card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .roadmap-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+  }
+  .roadmap-accent {
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  }
+
+  .roadmap-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 8px;
+  }
+  .roadmap-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+  .roadmap-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .roadmap-badge {
+    flex-shrink: 0; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 20px; border: 1px solid currentColor;
+  }
+  .badge-done        { color: #22c55e; background: rgba(34,197,94,0.12); }
+  .badge-next        { color: #f59e0b; background: rgba(245,158,11,0.1); }
+  .badge-planned     { color: var(--purple-l); background: rgba(139,124,246,0.1); }
+  .badge-considering { color: var(--muted); background: rgba(170,178,197,0.08); }
+
+  .status-done    { border-top-color: rgba(34,197,94,0.35); opacity: 0.85; }
+  .status-next    { border-top-color: rgba(245,158,11,0.3); }
+  .status-planned { border-top-color: rgba(139,124,246,0.25); }
+
+  /* ── NOT LISTED BOX ── */
+  .not-listed {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 36px;
+  }
+  .not-listed h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .not-listed p  { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 20px; max-width: 580px; }
+
+  /* ── FOOTER ── */
+  footer { border-top: 1px solid var(--border-s); padding: 40px 0; margin-top: 40px; }
+  .footer-inner { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+  .footer-logo { font-size: 14px; font-weight: 700; color: var(--muted); }
+  .footer-links { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .footer-links a { font-size: 13px; color: var(--muted); transition: color .15s; }
+  .footer-links a:hover { color: var(--text); }
+  .footer-disclaimer { font-size: 12px; color: rgba(170,178,197,0.5); }
+
+  @media (max-width: 600px) {
+    .roadmap-header { flex-direction: column; align-items: flex-start; }
+    .not-listed { padding: 24px 20px; }
+  }
+</style>

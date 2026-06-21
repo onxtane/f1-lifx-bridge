@@ -4,6 +4,27 @@ All notable changes are documented here.
 
 ---
 
+## [0.6.0] — 2026-06-21
+
+### Added
+- **F1 24 support** — identical 29-byte UDP header to F1 25; both formats now accepted by the packet filter (`bridge_core.py`). Game selector card updated to "F1® 25 / 24" (#46)
+- **Multi-title game selector** — Forza Horizon 5 / Motorsport, DiRT Rally 2.0 / EA WRC, Assetto Corsa, Project CARS 2, and F1® Manager shown as a coming-soon horizontal scroll strip below the active card
+
+---
+
+## [0.5.0] — 2026-06-21
+
+### Added
+- **Philips Hue integration** — full CLIP v2 local API client: bridge discovery (mDNS + cloud fallback), button-press pairing, CIE 1931 XY colour space conversion, brightness scaling (#42)
+- **Gradient Lightstrip support** — per-segment start lights sweep on Hue Gradient Lightstrip Plus; up to 7 gradient points; unlit segments use idle colour (#43)
+- **Brand picker** — Hue added to setup flow alongside LIFX; routes to bridge pairing screen on first run (#42)
+- **Hue Settings section** — in-app configuration: bridge IP, paired status, light selection, enabled toggle (#42)
+- **Game selector screen** — on launch, choose your title; routes through after any setup flow; "Remember my choice" skips the screen next time (#38)
+- **Sidebar game selector button** — quick-access above the mini mode button (#38)
+- **Skip game selector setting** — toggle in Settings → App to auto-launch with the last selected game (#38)
+
+---
+
 ## [0.4.0] — 2026-06-20
 
 ### Added
