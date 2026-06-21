@@ -242,7 +242,7 @@
   #tutActions{ display:flex; gap:8px; align-items:center; justify-content:space-between; }
 
   /* ---- setup: discover page ---- */
-  #setupDiscover{
+  #setupDiscover, #setupHue{
     position:fixed; inset:0; z-index:9997;
     background:#0b1020;
     backdrop-filter:blur(28px) saturate(1.4);
@@ -251,9 +251,9 @@
     opacity:0; pointer-events:none;
     transition:opacity .5s ease;
   }
-  #setupDiscover.visible{ opacity:1; pointer-events:auto; }
-  #setupDiscover.hiding { opacity:0; pointer-events:none; }
-  #setupDiscoverInner{
+  #setupDiscover.visible, #setupHue.visible{ opacity:1; pointer-events:auto; }
+  #setupDiscover.hiding,  #setupHue.hiding { opacity:0; pointer-events:none; }
+  #setupDiscoverInner, #setupHueInner{
     display:flex; flex-direction:column; align-items:center;
     width:min(560px,90vw);
   }
@@ -964,6 +964,7 @@
   body.mini-mode #splash,
   body.mini-mode #brandSelect,
   body.mini-mode #setupDiscover,
+  body.mini-mode #setupHue,
   body.mini-mode #setupGroup,
   body.mini-mode #tutorial,
   body.mini-mode #panelLayoutOverlay,
@@ -1190,8 +1191,7 @@
       </div>
 
       <!-- Philips Hue -->
-      <div class="brand-card brand-card-locked">
-        <span class="brand-coming-soon">Coming Soon</span>
+      <div class="brand-card" id="brandHue">
         <div class="brand-card-icon-wrap" style="background:rgba(255,160,50,0.1);border-color:rgba(255,160,50,0.22);box-shadow:0 0 28px rgba(255,160,50,0.1);">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="3" y="11" width="18" height="9" rx="2.5" stroke="rgba(255,160,50,0.7)" stroke-width="1.5"/>
@@ -1203,7 +1203,6 @@
         </div>
         <div class="brand-card-name">Philips Hue</div>
         <div class="brand-card-tagline">Requires Hue Bridge<br>on your network</div>
-        <div class="brand-card-note">Support will be added in a future update</div>
       </div>
 
     </div>
@@ -1249,6 +1248,40 @@
       <button class="btn btn-primary" id="setupDiscoverContinue" style="width:100%;max-width:280px;" disabled>Continue</button>
       <button class="btn btn-ghost btn-sm" id="setupDiscoverRescan" style="opacity:0.7;">Scan Again</button>
       <button class="btn btn-ghost btn-sm" id="setupDiscoverSkip" style="opacity:0.4;font-size:12px;">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<div id="setupHue">
+  <div id="setupHueInner">
+    <div style="text-align:center;margin-bottom:40px;">
+      <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,160,50,0.9);font-weight:600;margin-bottom:18px;">Setup · Step 2</div>
+      <h2 style="font-size:28px;font-weight:700;margin:0 0 10px;color:var(--text-main);">Connect Hue Bridge</h2>
+      <p style="font-size:14px;color:var(--text-muted);margin:0;">Make sure your Hue Bridge is powered on and connected to this network</p>
+    </div>
+
+    <div style="width:100%;margin-bottom:16px;">
+      <div style="display:flex;gap:8px;align-items:center;width:100%;">
+        <input type="text" id="setupHueIp" placeholder="Bridge IP  e.g. 192.168.1.2" autocomplete="off" spellcheck="false"
+          style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--text-main);outline:none;">
+        <button class="btn btn-ghost btn-sm" id="setupHueDiscoverBtn" style="white-space:nowrap;">Auto-Detect</button>
+      </div>
+      <p id="setupHueDiscoverHint" style="font-size:12px;color:var(--text-muted);margin:8px 0 0;text-align:center;">Click Auto-Detect to find your bridge, or enter the IP manually</p>
+    </div>
+
+    <div style="width:100%;background:rgba(255,160,50,0.06);border:1px solid rgba(255,160,50,0.18);border-radius:14px;padding:18px 20px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:600;color:rgba(255,160,50,0.9);margin-bottom:8px;">Before pairing</div>
+      <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.7;">Press the <strong style="color:var(--text-main);">round link button</strong> on top of your Hue Bridge, then click Pair within 30 seconds.</p>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:24px;">
+      <span id="setupHueBadge" style="font-size:11px;padding:3px 12px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
+      <button class="btn btn-primary btn-sm" id="setupHuePairBtn">Pair</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;">
+      <button class="btn btn-primary" id="setupHueContinue" style="width:100%;max-width:280px;" disabled>Continue</button>
+      <button class="btn btn-ghost btn-sm" id="setupHueSkip" style="opacity:0.4;font-size:12px;">Skip for now</button>
     </div>
   </div>
 </div>
@@ -1939,6 +1972,55 @@
               <div class="setting-control">
                 <button class="btn btn-ghost btn-sm" id="nanoleafLayoutBtn">Edit Layout</button>
               </div>
+            </div>
+          </div>
+
+          <!-- Philips Hue -->
+          <div class="settings-section">
+            <h3>Philips Hue</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Enable Hue</div>
+                <div class="setting-hint">Fire effects on Hue lights alongside your other devices</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingHueEnabled">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Bridge IP</div>
+                <div class="setting-hint" id="hueDiscoverHint">Click Detect to find your Hue Bridge automatically, or enter the IP manually</div>
+              </div>
+              <div class="setting-control" style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="settingHueIp" placeholder="e.g. 192.168.1.100" style="width:145px;">
+                <button class="btn btn-ghost btn-sm" id="hueDiscoverBtn">Detect</button>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Pairing</div>
+                <div class="setting-hint">Press the link button on your Hue Bridge, then click Pair</div>
+              </div>
+              <div class="setting-control" style="display:flex;gap:8px;align-items:center;">
+                <span id="hueStatusBadge" style="font-size:11px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
+                <button class="btn btn-ghost btn-sm" id="huePairBtn">Pair</button>
+              </div>
+            </div>
+            <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
+              <div>
+                <div class="setting-label">Lights</div>
+                <div class="setting-hint">Lights detected on this bridge</div>
+              </div>
+              <div class="setting-control">
+                <button class="btn btn-ghost btn-sm" id="hueRefreshLightsBtn">Refresh</button>
+              </div>
+            </div>
+            <div id="hueLightList" style="padding:0 0 8px;display:none;">
+              <p id="hueLightEmpty" style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;margin:0;">No lights found</p>
             </div>
           </div>
 
@@ -3311,6 +3393,126 @@
     });
   })();
 
+  // ---- Hue settings ----
+  (function () {
+    const enabledToggle = document.getElementById('settingHueEnabled');
+    const ipInput       = document.getElementById('settingHueIp');
+    const discoverBtn   = document.getElementById('hueDiscoverBtn');
+    const discoverHint  = document.getElementById('hueDiscoverHint');
+    const pairBtn       = document.getElementById('huePairBtn');
+    const badge         = document.getElementById('hueStatusBadge');
+    const lightList     = document.getElementById('hueLightList');
+    const lightEmpty    = document.getElementById('hueLightEmpty');
+    const refreshBtn    = document.getElementById('hueRefreshLightsBtn');
+
+    function setBadge(text, ok) {
+      badge.textContent   = text;
+      badge.style.background  = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(255,255,255,0.07)';
+      badge.style.borderColor = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(255,255,255,0.14)';
+      badge.style.color       = ok ? '#3ddc84' : ok === false ? '#ff7070' : 'var(--text-muted)';
+    }
+
+    function renderLights(lights) {
+      lightList.querySelectorAll('.hue-light-item').forEach(el => el.remove());
+      if (!lights || lights.length === 0) {
+        lightEmpty.style.display = '';
+        lightList.style.display  = 'none';
+        return;
+      }
+      lightEmpty.style.display = 'none';
+      lightList.style.display  = '';
+      lights.forEach(l => {
+        const row = document.createElement('div');
+        row.className = 'hue-light-item';
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:var(--text-muted);';
+        row.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${l.on ? '#3ddc84' : 'rgba(255,255,255,0.2)'};flex-shrink:0;"></span><span style="color:var(--text-main);">${l.name || l.id}</span>`;
+        lightList.appendChild(row);
+      });
+    }
+
+    window.addEventListener('pywebviewready', () => {
+      callApi('get_hue_settings').then(cfg => {
+        if (!cfg) return;
+        if (cfg.ip)     ipInput.value        = cfg.ip;
+        if (cfg.enabled != null) enabledToggle.checked = !!cfg.enabled;
+        if (cfg.paired) {
+          setBadge('Paired ✓', true);
+          callApi('get_hue_lights').then(lights => renderLights(lights)).catch(() => {});
+        }
+      }).catch(() => {});
+    });
+
+    enabledToggle.addEventListener('change', function () {
+      callApi('set_hue_enabled', this.checked);
+      callApi('save_hue_settings', { ip: ipInput.value.trim(), enabled: this.checked });
+    });
+
+    ipInput.addEventListener('change', function () {
+      callApi('save_hue_settings', { ip: this.value.trim(), enabled: enabledToggle.checked });
+    });
+
+    discoverBtn.addEventListener('click', async () => {
+      discoverBtn.disabled    = true;
+      discoverBtn.textContent = 'Scanning…';
+      discoverHint.textContent = 'Scanning your network for a Hue Bridge…';
+      try {
+        const devices = await callApi('discover_hue');
+        if (devices && devices.length > 0) {
+          ipInput.value = devices[0].ip;
+          discoverHint.textContent = `Found bridge at ${devices[0].ip} — press link button then Pair.`;
+          callApi('save_hue_settings', { ip: devices[0].ip, enabled: enabledToggle.checked });
+        } else {
+          discoverHint.textContent = 'No bridge found. Check it\'s on the same network.';
+        }
+      } catch (e) {
+        discoverHint.textContent = 'Discovery failed — check logs.';
+      } finally {
+        discoverBtn.disabled    = false;
+        discoverBtn.textContent = 'Detect';
+      }
+    });
+
+    pairBtn.addEventListener('click', async () => {
+      const ip = ipInput.value.trim();
+      if (!ip) { setBadge('Enter an IP first', false); return; }
+      pairBtn.disabled    = true;
+      pairBtn.textContent = 'Pairing…';
+      setBadge('Pairing…', null);
+      try {
+        const res = await callApi('pair_hue', ip);
+        if (res && res.ok) {
+          setBadge('Paired ✓', true);
+          enabledToggle.checked = true;
+          callApi('set_hue_enabled', true);
+          callApi('get_hue_lights').then(lights => renderLights(lights)).catch(() => {});
+        } else {
+          setBadge(res?.error || 'Pairing failed', false);
+        }
+      } catch (e) {
+        setBadge('Error — check logs', false);
+      } finally {
+        pairBtn.disabled    = false;
+        pairBtn.textContent = 'Pair';
+      }
+    });
+
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.disabled    = true;
+      refreshBtn.textContent = 'Loading…';
+      try {
+        const lights = await callApi('get_hue_lights');
+        renderLights(lights);
+      } catch (e) {
+        lightEmpty.textContent  = 'Failed to load lights';
+        lightEmpty.style.display = '';
+        lightList.style.display  = 'none';
+      } finally {
+        refreshBtn.disabled    = false;
+        refreshBtn.textContent = 'Refresh';
+      }
+    });
+  })();
+
   // ---- effects page collapsibles ----
   document.querySelectorAll('.effects-collapse-header').forEach(header => {
     header.addEventListener('click', () => {
@@ -4450,20 +4652,35 @@
 
   (function () {
     const lifxCard = document.getElementById('brandLifx');
-    if (!lifxCard) return;
+    const hueCard  = document.getElementById('brandHue');
 
-    lifxCard.addEventListener('click', () => {
-      callApi('save_gui_settings', { brand: 'lifx' });
-      // Cross-fade: show discover (z:9997) under brand (z:9998) as brand fades out.
-      showSetupDiscover();
+    function hideBrandSelect(cb) {
       const bs = document.getElementById('brandSelect');
       bs.classList.add('hiding');
       bs.classList.remove('visible');
       bs.addEventListener('transitionend', () => {
         bs.classList.remove('hiding');
         bs.style.display = 'none';
+        if (cb) cb();
       }, { once: true });
-    });
+    }
+
+    if (lifxCard) {
+      lifxCard.addEventListener('click', () => {
+        callApi('save_gui_settings', { brand: 'lifx' });
+        // Cross-fade: show discover (z:9997) under brand (z:9998) as brand fades out.
+        showSetupDiscover();
+        hideBrandSelect();
+      });
+    }
+
+    if (hueCard) {
+      hueCard.addEventListener('click', () => {
+        callApi('save_gui_settings', { brand: 'hue' });
+        showSetupHue();
+        hideBrandSelect();
+      });
+    }
 
     // Cursor spotlight on brand cards
     document.querySelectorAll('.brand-card:not(.brand-card-locked)').forEach(card => {
@@ -4569,6 +4786,110 @@
       if (cb) cb();
     }, { once: true });
   }
+
+  // ---- setup: Hue pairing page ----
+  function showSetupHue() {
+    const sh = document.getElementById('setupHue');
+    if (!sh) { enterApp(); return; }
+    sh.style.display = '';
+    document.getElementById('setupHueBadge').textContent = 'Not paired';
+    document.getElementById('setupHueBadge').style.cssText = 'font-size:11px;padding:3px 12px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;';
+    document.getElementById('setupHueContinue').disabled = true;
+    requestAnimationFrame(() => sh.classList.add('visible'));
+
+    // Pre-fill IP if already saved
+    callApi('get_hue_settings').then(cfg => {
+      if (!cfg) return;
+      if (cfg.ip) document.getElementById('setupHueIp').value = cfg.ip;
+      if (cfg.paired) {
+        _setupHueSetBadge('Paired', true);
+        document.getElementById('setupHueContinue').disabled = false;
+      }
+    }).catch(() => {});
+  }
+
+  function hideSetupHue(cb) {
+    const sh = document.getElementById('setupHue');
+    if (!sh) { if (cb) cb(); return; }
+    sh.classList.add('hiding');
+    sh.classList.remove('visible');
+    sh.addEventListener('transitionend', () => {
+      sh.classList.remove('hiding');
+      sh.style.display = 'none';
+      if (cb) cb();
+    }, { once: true });
+  }
+
+  function _setupHueSetBadge(text, ok) {
+    const badge = document.getElementById('setupHueBadge');
+    if (!badge) return;
+    badge.textContent   = text;
+    badge.style.background  = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(255,255,255,0.07)';
+    badge.style.borderColor = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(255,255,255,0.14)';
+    badge.style.color       = ok ? '#3ddc84' : ok === false ? '#ff7070' : 'var(--text-muted)';
+  }
+
+  (function () {
+    const discoverBtn  = document.getElementById('setupHueDiscoverBtn');
+    const discoverHint = document.getElementById('setupHueDiscoverHint');
+    const ipInput      = document.getElementById('setupHueIp');
+    const pairBtn      = document.getElementById('setupHuePairBtn');
+    const continueBtn  = document.getElementById('setupHueContinue');
+    const skipBtn      = document.getElementById('setupHueSkip');
+    if (!discoverBtn) return;
+
+    discoverBtn.addEventListener('click', async () => {
+      discoverBtn.disabled    = true;
+      discoverBtn.textContent = 'Scanning…';
+      discoverHint.textContent = 'Scanning your network for a Hue Bridge…';
+      try {
+        const devices = await callApi('discover_hue');
+        if (devices && devices.length > 0) {
+          ipInput.value = devices[0].ip;
+          discoverHint.textContent = `Found bridge at ${devices[0].ip} — press the link button then click Pair.`;
+          callApi('save_hue_settings', { ip: devices[0].ip });
+        } else {
+          discoverHint.textContent = 'No bridge found. Make sure it\'s powered on and on the same network.';
+        }
+      } catch (e) {
+        discoverHint.textContent = 'Discovery failed — check logs.';
+      } finally {
+        discoverBtn.disabled    = false;
+        discoverBtn.textContent = 'Auto-Detect';
+      }
+    });
+
+    pairBtn.addEventListener('click', async () => {
+      const ip = ipInput.value.trim();
+      if (!ip) { _setupHueSetBadge('Enter an IP first', false); return; }
+      pairBtn.disabled    = true;
+      pairBtn.textContent = 'Pairing…';
+      _setupHueSetBadge('Pairing…', null);
+      try {
+        const res = await callApi('pair_hue', ip);
+        if (res && res.ok) {
+          _setupHueSetBadge('Paired ✓', true);
+          continueBtn.disabled = false;
+          callApi('set_hue_enabled', true);
+        } else {
+          _setupHueSetBadge(res?.error || 'Pairing failed — hold link button first', false);
+        }
+      } catch (e) {
+        _setupHueSetBadge('Error — check logs', false);
+      } finally {
+        pairBtn.disabled    = false;
+        pairBtn.textContent = 'Pair';
+      }
+    });
+
+    continueBtn.addEventListener('click', () => {
+      hideSetupHue(() => enterApp(true));
+    });
+
+    skipBtn.addEventListener('click', () => {
+      hideSetupHue(() => enterApp(true));
+    });
+  })();
 
   function renderSetupDiscoveryList(lights) {
     const sd = document.getElementById('setupDiscover');
