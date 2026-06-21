@@ -151,6 +151,7 @@ class NanoleafController:
         self.ip = ip
         self.auth_token = auth_token
         self.log_callback = log_callback
+        self.nanoleaf_diag = False
 
         # Brightness scaling (same semantics as LocalLifxController).
         self.brightness_min = 0
@@ -361,7 +362,7 @@ class NanoleafController:
                         "palette":  [],
                     }
                 }, timeout=2)
-                if not self._diag_logged:
+                if self.nanoleaf_diag and not self._diag_logged:
                     self._diag_logged = True
                     self._log(f"[NANOLEAF DIAG] effects/custom status={resp.status_code} anim_data={anim_data[:120]}")
                     if resp.status_code >= 300:
@@ -369,7 +370,7 @@ class NanoleafController:
                 if resp.status_code < 200 or resp.status_code >= 300:
                     self._state_put(h, s, b_scaled)
             else:
-                if not self._diag_logged:
+                if self.nanoleaf_diag and not self._diag_logged:
                     self._diag_logged = True
                     self._log(f"[NANOLEAF DIAG] no panel IDs — using /state fallback")
                 self._state_put(h, s, b_scaled)

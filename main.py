@@ -110,7 +110,15 @@ class Api:
         return {"ok": True}
 
     def load_group(self, name: str):
-        self.runner.load_group(name)
+        missing = self.runner.load_group(name)
+        if missing:
+            labels = ", ".join(sorted(missing))
+            n = len(missing)
+            self._push_toast(
+                f"{n} device{'s' if n != 1 else ''} not found: {labels}",
+                "warning",
+                4000,
+            )
         return {"ok": True}
 
     # ---- GUI settings ----
@@ -148,6 +156,10 @@ class Api:
 
     def set_debug_timing(self, enabled: bool):
         self.runner.set_debug_timing(enabled)
+        return {"ok": True}
+
+    def set_nanoleaf_diag(self, enabled: bool):
+        self.runner.set_nanoleaf_diag(enabled)
         return {"ok": True}
 
     # ---- Nanoleaf ----
@@ -214,6 +226,9 @@ class Api:
 
     def _push_log(self, line: str):
         self._enqueue("appendLog", line)
+
+    def _push_toast(self, message: str, type: str = "success", duration_ms: int = 2200):
+        self._enqueue("showToast", message, type, duration_ms)
 
     def _push_stat(self, key: str, value: str):
         self._enqueue("setStat", key, value)

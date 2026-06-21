@@ -957,6 +957,7 @@
   .toast-icon{ font-size:15px; line-height:1; flex-shrink:0; }
   .toast.toast-success .toast-icon{ color:#3ddc84; }
   .toast.toast-error   .toast-icon{ color:#e83030; }
+  .toast.toast-warning .toast-icon{ color:#f59e0b; }
 
   /* ---- mini mode ---- */
   body.mini-mode .scene,
@@ -1877,6 +1878,18 @@
               <div class="setting-control">
                 <label class="toggle-switch">
                   <input type="checkbox" id="settingDebugTiming">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Nanoleaf Diagnostics</div>
+                <div class="setting-hint">Emit verbose Nanoleaf API logs to the log view — off by default, enable when investigating Nanoleaf issues</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingNanoleafDiag">
                   <span class="toggle-track"></span>
                 </label>
               </div>
@@ -3167,6 +3180,12 @@
     callApi('save_gui_settings', { debug_timing: enabled });
   });
 
+  document.getElementById('settingNanoleafDiag').addEventListener('change', function() {
+    const enabled = this.checked;
+    callApi('set_nanoleaf_diag', enabled);
+    callApi('save_gui_settings', { nanoleaf_diag: enabled });
+  });
+
   // ---- Nanoleaf ----
   (function () {
     const enabledToggle  = document.getElementById('settingNanoleafEnabled');
@@ -3353,6 +3372,7 @@
         bulb_count:                parseInt(document.getElementById('settingBulbCount')?.value) || 40,
         dry_run:                   !!document.getElementById('settingDryRun')?.checked,
         debug_timing:              !!document.getElementById('settingDebugTiming')?.checked,
+        nanoleaf_diag:             !!document.getElementById('settingNanoleafDiag')?.checked,
       };
     }
 
@@ -3415,9 +3435,11 @@
       if (s.bulb_count) document.getElementById('settingBulbCount').value = s.bulb_count;
       if (s.dry_run != null) document.getElementById('settingDryRun').checked = s.dry_run;
       if (s.debug_timing != null) document.getElementById('settingDebugTiming').checked = s.debug_timing;
+      if (s.nanoleaf_diag != null) document.getElementById('settingNanoleafDiag').checked = s.nanoleaf_diag;
       callApi('set_listen_address', s.ip || '0.0.0.0', s.port || 20777);
       callApi('set_debug_timing', !!s.debug_timing);
-      callApi('save_gui_settings', { port: s.port, ip: s.ip, bulb_count: s.bulb_count, dry_run: s.dry_run, debug_timing: s.debug_timing });
+      callApi('set_nanoleaf_diag', !!s.nanoleaf_diag);
+      callApi('save_gui_settings', { port: s.port, ip: s.ip, bulb_count: s.bulb_count, dry_run: s.dry_run, debug_timing: s.debug_timing, nanoleaf_diag: s.nanoleaf_diag });
     }
 
     function captureSnapshot() {
@@ -3469,7 +3491,7 @@
         card.innerHTML = `
           <div class="profile-card-radio"><div class="profile-card-radio-dot"></div></div>
           <div class="profile-card-info">
-            <div class="profile-card-name">${p.name}</div>
+            <div class="profile-card-name">${escHtml(p.name)}</div>
             <div class="profile-card-meta">Created ${formatDate(p.createdAt)}</div>
           </div>
           <div class="profile-card-actions">
@@ -3719,7 +3741,7 @@
           header.innerHTML = `
             <div style="display:flex;align-items:center;gap:8px;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"/></svg>
-              <span class="la-card-name">${label}</span>
+              <span class="la-card-name">${escHtml(label)}</span>
             </div>
             <span style="font-size:11px;background:rgba(61,220,132,0.12);border:1px solid rgba(61,220,132,0.35);color:#3ddc84;border-radius:99px;padding:4px 10px;flex-shrink:0;">Always Active</span>`;
           card.appendChild(header);
@@ -3769,7 +3791,7 @@
         btnGroup.appendChild(assignOneBtn);
         btnGroup.appendChild(removeOneBtn);
         btnGroup.appendChild(identifyBtn);
-        header.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><span class="la-card-icon">💡</span><span class="la-card-name">${label}</span></div>`;
+        header.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><span class="la-card-icon">💡</span><span class="la-card-name">${escHtml(label)}</span></div>`;
         header.appendChild(btnGroup);
         card.appendChild(header);
 
@@ -5348,8 +5370,14 @@
   window.showToast = function (message, type = 'success', durationMs = 2200) {
     const toast = document.createElement('div');
     toast.className = 'toast toast-' + type;
-    const icon = type === 'success' ? '✓' : '✕';
-    toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
+    const icon = type === 'success' ? '✓' : type === 'warning' ? '⚠' : '✕';
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'toast-icon';
+    iconSpan.textContent = icon;
+    const msgSpan = document.createElement('span');
+    msgSpan.textContent = message;
+    toast.appendChild(iconSpan);
+    toast.appendChild(msgSpan);
     container.appendChild(toast);
 
     requestAnimationFrame(() => {

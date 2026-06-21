@@ -92,6 +92,7 @@ class BridgeRunner:
         self._pending_forwarding = None       # (enabled, host, port)
         self._pending_listen = None           # (ip, port)
         self._pending_mz_startlights = None  # (direction, mode)
+        self._nanoleaf_diag = False
 
         self._light_assignments = {}  # {label: None | [effect_keys]}
 
@@ -256,15 +257,23 @@ class BridgeRunner:
             self.on_log("[GUI] No lights discovered yet — cannot apply selection.")
             return
         wanted = {l.lower() for l in labels}
-        selected = [
-            light for light in self.bridge.lifx.discovered_lights
-            if self._safe_label(light).lower() in wanted
-        ]
+        found = set()
+        selected = []
+        for light in self.bridge.lifx.discovered_lights:
+            lbl = self._safe_label(light).lower()
+            if lbl in wanted:
+                selected.append(light)
+                found.add(lbl)
+        missing = wanted - found
         self.bridge.lifx.lights = selected
         self._active_group_name = group_name
         self.on_log(f"[GUI] Applied {len(selected)} selected light(s) to bridge.")
+        if missing:
+            for lbl in sorted(missing):
+                self.on_log(f"[GROUP WARNING] Device not found: {lbl}")
         self._push_light_stats()
         self.on_selection_changed(self._get_active_labels())
+        return missing
 
     # ---- group persistence ----
 
@@ -309,6 +318,11 @@ class BridgeRunner:
         if self.bridge is not None and self.bridge.lifx is not None:
             self.bridge.lifx.debug_timing = enabled
 
+    def set_nanoleaf_diag(self, enabled: bool):
+        self._nanoleaf_diag = enabled
+        if self.bridge is not None and self.bridge.nanoleaf is not None:
+            self.bridge.nanoleaf.nanoleaf_diag = enabled
+
     # ---- Nanoleaf management ----
 
     def _connect_nanoleaf_if_configured(self):
@@ -325,6 +339,7 @@ class BridgeRunner:
         ctrl = NanoleafController.try_connect(ip, token, log_callback=self.on_log)
         self.bridge.nanoleaf = ctrl  # None if connection failed
         if ctrl is not None:
+            ctrl.nanoleaf_diag = self._nanoleaf_diag
             # Propagate multizone start-lights settings.
             if self._pending_mz_startlights is not None:
                 direction, mode = self._pending_mz_startlights
@@ -512,11 +527,12 @@ class BridgeRunner:
         groups = self.get_groups()
         if name not in groups:
             self.on_log(f"[GROUP] Group '{name}' not found.")
-            return
+            return set()
         labels = groups[name]
-        self.set_selected_lights(labels, group_name=name)
+        missing = self.set_selected_lights(labels, group_name=name) or set()
         self.save_gui_settings({"last_group": name})
         self.on_log(f"[GROUP] Loaded group: {name} ({len(labels)} light(s))")
+        return missing
 
     # ---- network interface enumeration ----
 
@@ -612,37 +628,31 @@ class BridgeRunner:
         if last_group and last_group in groups:
             labels = groups[last_group]
             wanted = {l.lower() for l in labels}
-            selected = [
-                light for light in self.bridge.lifx.discovered_lights
-                if self._safe_label(light).lower() in wanted
-            ]
+            found = set()
+            selected = []
+            for light in self.bridge.lifx.discovered_lights:
+                lbl = self._safe_label(light).lower()
+                if lbl in wanted:
+                    selected.append(light)
+                    found.add(lbl)
             if selected:
                 self.bridge.lifx.lights = selected
                 self._active_group_name = last_group
                 self.on_log(f"[GROUP] Auto-loaded last group: {last_group} ({len(selected)} light(s))")
                 self.on_selection_changed(self._get_active_labels())
+            missing = wanted - found
+            for lbl in sorted(missing):
+                self.on_log(f"[GROUP WARNING] Device not found: {lbl}")
 
     def _do_discover(self):
         """Discover lights, auto-apply last saved group, then push to UI."""
         self.on_discovering(True)
         self.on_status_text("Discovering lights...")
+        # Reset active group so _maybe_apply_last_group always re-applies
+        # against the freshly discovered light objects.
+        self._active_group_name = None
         self.bridge.discover_lights()
-
-        settings = self.get_gui_settings()
-        last_group = settings.get("last_group")
-        groups = self.get_groups()
-
-        if last_group and last_group in groups:
-            labels = groups[last_group]
-            wanted = {l.lower() for l in labels}
-            selected = [
-                light for light in self.bridge.lifx.discovered_lights
-                if self._safe_label(light).lower() in wanted
-            ]
-            if selected:
-                self.bridge.lifx.lights = selected
-                self._active_group_name = last_group
-                self.on_log(f"[GROUP] Auto-loaded last group: {last_group} ({len(selected)} light(s))")
+        self._maybe_apply_last_group()
 
         if self._pending_brightness is not None and self.bridge.lifx is not None:
             self.bridge.lifx.brightness_min, self.bridge.lifx.brightness_max = self._pending_brightness
