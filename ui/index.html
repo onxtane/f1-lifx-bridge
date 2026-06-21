@@ -1236,14 +1236,14 @@
     <div style="text-align:center;margin-bottom:40px;">
       <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--purple);font-weight:600;margin-bottom:18px;">Setup · Step 2</div>
       <h2 style="font-size:28px;font-weight:700;margin:0 0 10px;color:var(--text-main);">Discover Your Lights</h2>
-      <p style="font-size:14px;color:var(--text-muted);margin:0;">Make sure your LIFX bulbs are powered on and connected to this network</p>
+      <p style="font-size:14px;color:var(--text-muted);margin:0;">Make sure your lights are powered on and connected to this network</p>
     </div>
     <div id="setupDiscoverScanRow">
       <div class="spinner active" id="setupDiscoverSpinner"></div>
       <span id="setupDiscoverStatus" style="font-size:13px;color:var(--text-muted);">Scanning your network…</span>
     </div>
     <div id="setupDiscoverList">
-      <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0;" id="setupDiscoverEmpty">Searching for LIFX bulbs…</p>
+      <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0;" id="setupDiscoverEmpty">Searching for lights…</p>
     </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;">
       <button class="btn btn-primary" id="setupDiscoverContinue" style="width:100%;max-width:280px;" disabled>Continue</button>
@@ -1363,7 +1363,7 @@
             <p class="value" id="stat-bridge">Stopped</p>
           </div>
           <div class="stat-card glass">
-            <p class="label">LIFX Lights</p>
+            <p class="label">Lights</p>
             <p class="value" id="stat-lifx_lights">-</p>
           </div>
           <div class="stat-card glass">
@@ -1379,7 +1379,7 @@
         <div class="lower-row">
           <div class="race-control glass">
             <h2>Race Control</h2>
-            <p class="sub">Live F1 events, flags, and LIFX triggers</p>
+            <p class="sub">Live F1 events, flags, and lighting triggers</p>
             <p class="waiting">Waiting for F1 25 telemetry...</p>
             <div class="rc-actions">
               <button class="btn btn-primary btn-sm" id="discoverBtn">Discover Lights</button>
@@ -1406,7 +1406,7 @@
       <div class="page" id="page-lights">
         <div class="page-content glass">
           <div class="lights-header">
-            <h2>LIFX Lights</h2>
+            <h2>Lights</h2>
             <div style="display:flex;gap:10px;">
               <button class="btn btn-primary btn-sm" id="discoverBtn2">Discover Lights</button>
               <button class="btn btn-ghost btn-sm" id="testBtn2">Test Selected</button>
@@ -1414,7 +1414,7 @@
               <button class="btn btn-ghost btn-sm" id="loadGroupBtn">Load Group</button>
             </div>
           </div>
-          <p class="lights-sub">Discover LIFX bulbs, select active lights, and manage saved groups.</p>
+          <p class="lights-sub">Discover lights, select active devices, and manage saved groups.</p>
 
           <div class="collapsible-header" id="lightsCollapseToggle">
             <p class="section-title" style="font-size:13px;color:var(--text-muted);margin:0;">Discovered Lights</p>
@@ -1848,7 +1848,7 @@
           </div>
 
           <div class="settings-section">
-            <h3>LIFX Discovery</h3>
+            <h3>Light Discovery</h3>
             <div class="setting-row">
               <div>
                 <div class="setting-label">Max Bulb Count</div>
@@ -1902,7 +1902,7 @@
             <div class="setting-row">
               <div>
                 <div class="setting-label">Enable Nanoleaf</div>
-                <div class="setting-hint">Fire effects on connected Nanoleaf device alongside LIFX</div>
+                <div class="setting-hint">Fire effects on connected Nanoleaf device alongside your lights</div>
               </div>
               <div class="setting-control">
                 <label class="toggle-switch">
@@ -2052,7 +2052,7 @@
             <div class="setting-row">
               <div>
                 <div class="setting-label">bridge_core.py</div>
-                <div class="setting-hint">Handles F1 25 UDP telemetry → LIFX LAN commands</div>
+                <div class="setting-hint">Handles F1 25 UDP telemetry → lighting commands</div>
               </div>
             </div>
           </div>
@@ -4549,7 +4549,7 @@
     // Reset state
     sd.style.display = '';
     document.getElementById('setupDiscoverEmpty').style.display = '';
-    document.getElementById('setupDiscoverEmpty').textContent = 'Searching for LIFX bulbs…';
+    document.getElementById('setupDiscoverEmpty').textContent = 'Searching for lights…';
     document.getElementById('setupDiscoverList').querySelectorAll('.setup-light-item').forEach(el => el.remove());
     document.getElementById('setupDiscoverContinue').disabled = true;
     document.getElementById('setupDiscoverSpinner').classList.add('active');
@@ -4586,7 +4586,7 @@
 
     if (!lights || lights.length === 0) {
       empty.style.display = '';
-      empty.textContent = 'No LIFX bulbs found. Make sure they\'re powered on.';
+      empty.textContent = 'No lights found. Make sure they\'re powered on.';
       status.textContent = 'Scan complete — no bulbs found';
       document.getElementById('setupDiscoverContinue').disabled = true;
       return;
@@ -4641,7 +4641,7 @@
     document.getElementById('setupDiscoverStatus').textContent = 'Scanning your network…';
     document.getElementById('setupDiscoverList').querySelectorAll('.setup-light-item').forEach(el => el.remove());
     document.getElementById('setupDiscoverEmpty').style.display = '';
-    document.getElementById('setupDiscoverEmpty').textContent = 'Searching for LIFX bulbs…';
+    document.getElementById('setupDiscoverEmpty').textContent = 'Searching for lights…';
     document.getElementById('setupDiscoverContinue').disabled = true;
     callApi('discover_lights');
   });
@@ -4726,7 +4726,7 @@
       {
         page: 'lights', target: '#lightsCollapsible',
         title: 'Managing Your Lights',
-        body: 'Your discovered LIFX bulbs appear here. Only checked bulbs react to race events. Hit Save Group to make your selection reload automatically next time.',
+        body: 'Your discovered lights appear here. Only checked devices react to race events. Hit Save Group to make your selection reload automatically next time.',
         beforeShow() {
           const b = document.getElementById('lightsCollapsible');
           if (b && b.classList.contains('collapsed')) {
