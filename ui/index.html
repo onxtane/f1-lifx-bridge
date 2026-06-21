@@ -1057,13 +1057,13 @@
     cursor:pointer; transition:background .12s, color .12s; flex-shrink:0;
   }
   .mini-expand:hover{ background:rgba(255,255,255,0.1); color:var(--text-main); }
-  #miniModeBtn{
+  #miniModeBtn, #gameSelectorBtn{
     width:36px; height:36px; display:flex; align-items:center; justify-content:center;
     border-radius:12px; border:1px solid var(--glass-border);
     background:rgba(255,255,255,0.05); color:var(--text-muted);
     cursor:pointer; transition:background .12s, color .12s; flex-shrink:0; padding:0;
   }
-  #miniModeBtn:hover{ background:rgba(255,255,255,0.1); color:var(--text-main); }
+  #miniModeBtn:hover, #gameSelectorBtn:hover{ background:rgba(255,255,255,0.1); color:var(--text-main); }
 
   /* ---- console IP picker ---- */
   .console-ip-section{ margin-top:18px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.06); }
@@ -1507,6 +1507,9 @@
         </svg>
       </div>
       <div class="spacer"></div>
+      <button id="gameSelectorBtn" title="Switch game">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M12 6V3M8 3h8"/></svg>
+      </button>
       <button id="miniModeBtn" title="Mini mode">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
       </button>
@@ -5898,6 +5901,7 @@
       callApi('set_mini_mode', false);
     }
 
+    document.getElementById('gameSelectorBtn').addEventListener('click', () => showGameSelector(false));
     document.getElementById('miniModeBtn').addEventListener('click', enterMini);
     document.getElementById('miniExpandBtn').addEventListener('click', exitMini);
     document.getElementById('miniStartBtn').addEventListener('click', () => callApi('start_bridge'));
