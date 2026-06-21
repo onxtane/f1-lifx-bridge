@@ -15,6 +15,7 @@ env/
 f1lifx_gui_settings.json
 lifx_groups.json
 nanoleaf_settings.json
+hue_settings.json
 webview_storage/
 
 # Claude Code session data
