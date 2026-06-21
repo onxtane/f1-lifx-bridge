@@ -514,12 +514,27 @@
   .rc-actions{ display:flex; gap:10px; margin-bottom:18px; }
   .log-box{
     flex:1; border-radius:16px; background:rgba(0,0,0,0.18);
-    border:1px solid var(--glass-border); padding:16px 18px; overflow-y:auto;
-    font-family:"SF Mono",Consolas,monospace; font-size:13px; color:#cfd6e6; line-height:1.7;
+    border:1px solid var(--glass-border); padding:10px 12px; overflow-y:auto;
+    font-size:13px; color:#cfd6e6; line-height:1.5;
     user-select:text; -webkit-user-select:text;
   }
-  .log-box p{ margin:0 0 4px; white-space:pre-wrap; word-break:break-word; }
-  .log-box p.muted{ color:var(--text-muted); }
+  .log-entry{ display:flex; align-items:baseline; gap:8px; padding:5px 6px; border-radius:8px; }
+  .log-entry:hover{ background:rgba(255,255,255,0.04); }
+  .log-tag{
+    flex-shrink:0; font-size:10px; font-weight:700; letter-spacing:0.06em;
+    text-transform:uppercase; padding:2px 7px; border-radius:20px;
+    border:1px solid currentColor; opacity:0.85;
+  }
+  .log-msg{ flex:1; word-break:break-word; color:var(--text-main); font-size:13px; }
+  .log-entry.muted .log-msg{ color:var(--text-muted); font-style:italic; }
+  .log-tag-event    { color:#a78bfa; }
+  .log-tag-group    { color:#06b6d4; }
+  .log-tag-gui      { color:#60a5fa; }
+  .log-tag-error    { color:#ef4444; }
+  .log-tag-warning  { color:#f59e0b; }
+  .log-tag-nanoleaf { color:#06b6d4; }
+  .log-tag-lan      { color:#38bdf8; }
+  .log-tag-info     { color:#aab2c5; }
 
   .quick-effects{ padding:24px 24px; display:flex; flex-direction:column; gap:12px; }
   .quick-effects h2{ margin:0 0 6px; font-size:22px; font-weight:600; }
@@ -548,7 +563,19 @@
     cursor:pointer; transition:background .12s;
   }
   .light-item:hover{ background:rgba(255,255,255,0.09); }
-  .light-item input[type=checkbox]{ width:16px; height:16px; accent-color:var(--purple); cursor:pointer; flex-shrink:0; }
+  .light-check-box{
+    width:16px; height:16px; border-radius:4px; flex-shrink:0;
+    border:1.5px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.06);
+    position:relative; transition:border-color .12s, background .12s;
+  }
+  .light-check-box.is-checked{
+    background:var(--purple); border-color:var(--purple);
+  }
+  .light-check-box.is-checked::after{
+    content:''; position:absolute; left:4px; top:1.5px;
+    width:5px; height:9px; border:2px solid #fff;
+    border-top:none; border-left:none; transform:rotate(45deg);
+  }
   .light-index{ font-size:12px; color:var(--text-muted); width:22px; flex-shrink:0; }
   .light-name{ font-weight:600; flex:1; }
   .light-ip{ font-size:12px; color:var(--text-muted); }
@@ -835,12 +862,10 @@
   .logs-toolbar h2{ margin:0; font-size:18px; font-weight:600; }
   .log-box-full{
     flex:1; border-radius:16px; background:rgba(0,0,0,0.22);
-    border:1px solid var(--glass-border); padding:16px 18px; overflow-y:auto;
-    font-family:"SF Mono",Consolas,monospace; font-size:13px; color:#cfd6e6; line-height:1.7;
+    border:1px solid var(--glass-border); padding:10px 12px; overflow-y:auto;
+    font-size:13px; color:#cfd6e6; line-height:1.5;
     user-select:text; -webkit-user-select:text;
   }
-  .log-box-full p{ margin:0 0 4px; white-space:pre-wrap; word-break:break-word; }
-  .log-box-full p.muted{ color:var(--text-muted); }
 
   /* ---- collapsible section ---- */
   .collapsible-header{
@@ -891,7 +916,8 @@
     transition:background .12s;
   }
   .ar-row:hover{ background:rgba(255,255,255,0.07); }
-  .ar-icon{ font-size:18px; width:26px; text-align:center; flex-shrink:0; }
+  .ar-icon{ width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .ar-icon svg{ width:20px; height:20px; flex-shrink:0; }
   .ar-info{ flex:1; }
   .ar-name{ font-size:14px; font-weight:600; }
   .ar-desc{ font-size:12px; color:var(--text-muted); margin-top:2px; }
@@ -1359,7 +1385,7 @@
               <button class="btn btn-ghost btn-sm" id="testBtn">Test Selected</button>
             </div>
             <div class="log-box" id="logBox">
-              <p class="muted">No bridge output yet. Press Start Bridge to launch.</p>
+              <div class="log-entry muted"><span class="log-msg">No bridge output yet. Press Start Bridge to launch.</span></div>
             </div>
           </div>
 
@@ -1525,7 +1551,7 @@
             <div class="collapsible-body collapsed" id="effectsAutoBody">
             <div class="auto-response-list">
               <div class="ar-row" data-event="start_lights">
-                <div class="ar-icon">🔴</div>
+                <div class="ar-icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7a5 5 0 0 1 5-5a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5a5 5 0 0 1-5-5l0-10"/><path d="M11 7a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/><path d="M11 17a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Start Lights</div>
                   <div class="ar-desc">Lights ramp up as formation lights appear on track</div>
@@ -1536,7 +1562,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="lights_out">
-                <div class="ar-icon">🟢</div>
+                <div class="ar-icon" style="color:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1-7 0a5 5 0 0 0-7 0v-9"/><path d="M5 21v-7"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Lights Out</div>
                   <div class="ar-desc">Green flash when the race starts</div>
@@ -1547,7 +1573,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="yellow_flag">
-                <div class="ar-icon">🟡</div>
+                <div class="ar-icon" style="color:#f59e0b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14h14l-4.5-4.5l4.5-4.5h-14v16"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Yellow Flag</div>
                   <div class="ar-desc">Flashing yellow on caution / marshal zone</div>
@@ -1558,7 +1584,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="blue_flag">
-                <div class="ar-icon">🔵</div>
+                <div class="ar-icon" style="color:#60a5fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Blue Flag</div>
                   <div class="ar-desc">Solid blue when a faster car is behind you</div>
@@ -1569,7 +1595,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="red_flag">
-                <div class="ar-icon">🚩</div>
+                <div class="ar-icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14h14l-4.5-4.5l4.5-4.5h-14v16"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Red Flag</div>
                   <div class="ar-desc">Red flash when the session is stopped</div>
@@ -1580,7 +1606,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="fastest_lap">
-                <div class="ar-icon">💜</div>
+                <div class="ar-icon" style="color:#c084fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Fastest Lap</div>
                   <div class="ar-desc">Purple flash when you set the fastest lap</div>
@@ -1591,7 +1617,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="chequered_flag">
-                <div class="ar-icon">🏁</div>
+                <div class="ar-icon" style="color:#e2e8f0"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M227.32,48.75A8,8,0,0,0,218.76,50c-28,24.22-51.72,12.48-79.21-1.13C111.07,34.76,78.78,18.79,42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,28.49,14.09,60.77,30.06,96.79-1.13a8,8,0,0,0,2.76-6V56A8,8,0,0,0,227.32,48.75ZM216,71.6v40.65c-14,11.06-27,13.22-40,10.88V79.34A60.05,60.05,0,0,0,216,71.6Zm-56,3.76v43c-6.66-2.67-13.43-6-20.45-9.48-8.82-4.37-18-8.91-27.55-12.18v-43c6.66,2.66,13.43,6,20.45,9.48C141.27,67.55,150.46,72.09,160,75.36ZM96,48.91V92.69a60.06,60.06,0,0,0-40,7.75V59.78C70,48.72,83,46.57,96,48.91ZM86.58,152A60.06,60.06,0,0,0,56,160.43V119.78c14-11.06,27-13.22,40-10.88v43.8A65.61,65.61,0,0,0,86.58,152ZM112,156.67v-43c6.66,2.66,13.43,6,20.45,9.48,8.82,4.37,18,8.9,27.55,12.17v43c-6.66-2.67-13.43-6-20.45-9.48C130.73,164.47,121.54,159.94,112,156.67Zm64,26.45v-43.8a65.61,65.61,0,0,0,9.42.72A60.11,60.11,0,0,0,216,131.57v40.68C202,183.31,189,185.46,176,183.12Z"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Chequered Flag</div>
                   <div class="ar-desc">White/green flash at the end of the race</div>
@@ -1602,7 +1628,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="white_warning">
-                <div class="ar-icon">⚪</div>
+                <div class="ar-icon" style="color:#f1f5f9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0"/><path d="M12 16h.01"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">White Warning</div>
                   <div class="ar-desc">White flash on track limit / penalty warnings</div>
@@ -1613,7 +1639,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="black_flag">
-                <div class="ar-icon">🏴</div>
+                <div class="ar-icon" style="color:#64748b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Black Flag</div>
                   <div class="ar-desc">Dark pulse on disqualification</div>
@@ -1624,7 +1650,7 @@
                 </label>
               </div>
               <div class="ar-row" data-event="neutral">
-                <div class="ar-icon">💡</div>
+                <div class="ar-icon" style="color:#fbbf24"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h1m8-9v1m8 8h1m-15.4-6.4l.7.7m12.1-.7l-.7.7"/><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3"/><path d="M9.7 17l4.6 0"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">Track Clear / Neutral</div>
                   <div class="ar-desc">Warm white when flags clear or session resets</div>
@@ -1747,7 +1773,7 @@
             </div>
           </div>
           <div class="log-box-full" id="logBoxFull">
-            <p class="muted">No logs yet.</p>
+            <div class="log-entry muted"><span class="log-msg">No logs yet.</span></div>
           </div>
         </div>
       </div>
@@ -1905,11 +1931,11 @@
 
           <div class="settings-section">
             <h3>Light Effects</h3>
-            <div id="staggerSection">
+            <div id="staggerSection" style="opacity:0.4;pointer-events:none;">
             <div class="setting-row" id="staggerRow">
               <div>
                 <div class="setting-label" id="staggerLabel">Stagger Lights</div>
-                <div class="setting-hint" id="staggerHint">Cascade flash effects across bulbs instead of firing all at once. Select more than one bulb to enable.</div>
+                <div class="setting-hint" id="staggerHint">Cascade flash effects across bulbs instead of firing all at once.</div>
               </div>
               <div class="setting-control">
                 <label class="toggle-switch" id="staggerToggleWrap">
@@ -1926,6 +1952,10 @@
               <div class="setting-control">
                 <input type="number" id="settingStaggerMs" value="50" min="10" max="300" disabled>
               </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:8px 10px;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.22);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0"/><path d="M12 16h.01"/></svg>
+              <span style="font-size:12px;color:#f59e0b;">Temporarily unavailable — stagger is under investigation (<a href="https://github.com/onxtane/f1-lifx-bridge/issues/30" target="_blank" style="color:#f59e0b;text-decoration:underline;">#30</a>).</span>
             </div>
             </div><!-- /staggerSection -->
 
@@ -2004,7 +2034,7 @@
             <h3>About</h3>
             <div class="setting-row">
               <div class="setting-label">F1 LIFX Bridge</div>
-              <div style="font-size:13px;color:var(--text-muted);">v0.3.0</div>
+              <div style="font-size:13px;color:var(--text-muted);">v0.4.0</div>
             </div>
             <div class="setting-row">
               <div>
@@ -2110,10 +2140,11 @@
 
   // ---- velocity scrolling ----
   (function () {
-    const FRICTION = 0.88;   // velocity decay per frame (lower = stops faster)
-    const BOOST    = 4.5;    // multiplier on wheel delta
+    const FRICTION = 0.82;  // decay per frame — lower stops faster
+    const BOOST    = 0.28;  // scale applied to normalised delta
+    const MAX_VEL  = 60;    // px/frame cap
 
-    const state = new WeakMap(); // per-element { velocity, rafId }
+    const state = new WeakMap();
 
     function getState(el) {
       if (!state.has(el)) state.set(el, { velocity: 0, rafId: null });
@@ -2121,9 +2152,8 @@
     }
 
     function isScrollable(el) {
-      const style = getComputedStyle(el);
-      const overflow = style.overflowY;
-      return (overflow === 'auto' || overflow === 'scroll') && el.scrollHeight > el.clientHeight;
+      const ov = getComputedStyle(el).overflowY;
+      return (ov === 'auto' || ov === 'scroll') && el.scrollHeight > el.clientHeight;
     }
 
     function findScrollParent(target) {
@@ -2137,13 +2167,9 @@
 
     function animate(el) {
       const s = getState(el);
-      if (Math.abs(s.velocity) < 0.5) {
-        s.velocity = 0;
-        s.rafId = null;
-        return;
-      }
+      if (Math.abs(s.velocity) < 0.3) { s.velocity = 0; s.rafId = null; return; }
       el.scrollTop += s.velocity;
-      s.velocity *= FRICTION;
+      s.velocity   *= FRICTION;
       s.rafId = requestAnimationFrame(() => animate(el));
     }
 
@@ -2151,13 +2177,20 @@
       const el = findScrollParent(e.target);
       if (!el) return;
 
-      // Let the browser do the scroll, then add momentum on top
-      const s = getState(el);
-      s.velocity += e.deltaY * BOOST * 0.01;
+      e.preventDefault(); // take full control — no native scroll
 
-      if (s.rafId) cancelAnimationFrame(s.rafId);
-      s.rafId = requestAnimationFrame(() => animate(el));
-    }, { passive: true });
+      // Normalise across deltaMode (px / line / page)
+      let delta = e.deltaY;
+      if (e.deltaMode === 1) delta *= 20;
+      if (e.deltaMode === 2) delta *= el.clientHeight;
+
+      const s = getState(el);
+      s.velocity += delta * BOOST;
+      if (s.velocity >  MAX_VEL) s.velocity =  MAX_VEL;
+      if (s.velocity < -MAX_VEL) s.velocity = -MAX_VEL;
+
+      if (!s.rafId) s.rafId = requestAnimationFrame(() => animate(el));
+    }, { passive: false });
   })();
 
   // ---- shared log state ----
@@ -2169,10 +2202,39 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  const LOG_TAGS = {
+    '[NANOLEAF ERROR]': { cls: 'log-tag-error',    label: 'Nanoleaf Error' },
+    '[NANOLEAF]':       { cls: 'log-tag-nanoleaf',  label: 'Nanoleaf' },
+    '[EVENT]':          { cls: 'log-tag-event',     label: 'Event' },
+    '[GROUP]':          { cls: 'log-tag-group',     label: 'Group' },
+    '[ERROR]':          { cls: 'log-tag-error',     label: 'Error' },
+    '[WARNING]':        { cls: 'log-tag-warning',   label: 'Warning' },
+    '[GUI]':            { cls: 'log-tag-gui',       label: 'GUI' },
+    '[LAN]':            { cls: 'log-tag-lan',       label: 'LAN' },
+    '[preview]':        { cls: 'log-tag-info',      label: 'Preview' },
+  };
+
+  function formatLogLine(raw) {
+    // Bare ERROR: prefix (no brackets)
+    if (/^ERROR[: ]/i.test(raw)) {
+      return `<div class="log-entry"><span class="log-tag log-tag-error">Error</span><span class="log-msg">${escHtml(raw.replace(/^ERROR[: ]*/i, ''))}</span></div>`;
+    }
+    for (const [prefix, { cls, label }] of Object.entries(LOG_TAGS)) {
+      if (raw.startsWith(prefix)) {
+        const msg = raw.slice(prefix.length).replace(/^[\s:]+/, '');
+        return `<div class="log-entry"><span class="log-tag ${cls}">${label}</span><span class="log-msg">${escHtml(msg)}</span></div>`;
+      }
+    }
+    // No recognised tag — plain info line
+    const isEmpty = raw.trim() === '' || /^={3,}$/.test(raw.trim());
+    if (isEmpty) return `<div class="log-entry muted"><span class="log-msg">${escHtml(raw)}</span></div>`;
+    return `<div class="log-entry"><span class="log-tag log-tag-info">Info</span><span class="log-msg">${escHtml(raw)}</span></div>`;
+  }
+
   function renderLogs() {
     const html = logLines.length === 0
-      ? '<p class="muted">No logs yet.</p>'
-      : logLines.map(l => `<p>${escHtml(l)}</p>`).join('');
+      ? '<div class="log-entry muted"><span class="log-msg">No logs yet.</span></div>'
+      : logLines.map(formatLogLine).join('');
     [logBox, logBoxFull].forEach(box => {
       box.innerHTML = html;
       box.scrollTop = box.scrollHeight;
@@ -2417,8 +2479,8 @@
         ? `<span style="font-size:11px;background:rgba(139,124,246,0.18);border:1px solid rgba(139,124,246,0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
         : '';
       return `
-        <div class="light-item" onclick="toggleLightCheck(event, ${i})">
-          <input type="checkbox" class="light-check" data-index="${i}" ${checked ? 'checked' : ''}>
+        <div class="light-item" data-index="${i}" onclick="toggleLightCheck(event, ${i})">
+          <div class="light-check-box${checked ? ' is-checked' : ''}" data-index="${i}"></div>
           <span class="light-index">[${num}]</span>
           <span class="light-name">${escHtml(l.label)}</span>
           ${zoneBadge}
@@ -2432,8 +2494,8 @@
     _activeLabels = new Set(labels);
     // Update checkboxes in-place without rebuilding the whole list.
     _discoveredLights.forEach((l, i) => {
-      const cb = document.querySelector(`.light-check[data-index="${i}"]`);
-      if (cb) cb.checked = _activeLabels.has(l.label);
+      const cb = document.querySelector(`.light-check-box[data-index="${i}"]`);
+      if (cb) cb.classList.toggle('is-checked', _activeLabels.has(l.label));
     });
     updateStaggerAvailability();
     if (window._lpRefresh) window._lpRefresh(labels);
@@ -2444,19 +2506,13 @@
   }
 
   function toggleLightCheck(event, index) {
-    // If the click landed directly on the checkbox, it already toggled itself.
-    // Just sync the selection and return so the div onclick doesn't double-flip it.
-    if (event.target.type === 'checkbox') {
-      pushSelectedLights();
-      return;
-    }
-    const cb = document.querySelector(`.light-check[data-index="${index}"]`);
-    if (cb) cb.checked = !cb.checked;
+    const cb = document.querySelector(`.light-check-box[data-index="${index}"]`);
+    if (cb) cb.classList.toggle('is-checked');
     pushSelectedLights();
   }
 
   function getCheckedLabels() {
-    return Array.from(document.querySelectorAll('.light-check:checked'))
+    return Array.from(document.querySelectorAll('.light-check-box.is-checked'))
       .map(cb => _discoveredLights[parseInt(cb.dataset.index)]?.label)
       .filter(Boolean);
   }
@@ -2716,16 +2772,7 @@
 
   // ---- stagger lights ----
   function updateStaggerAvailability() {
-    const multipleSelected = _activeLabels.size > 1;
-    const toggleInput = document.getElementById('settingStagger');
-    const delayInput  = document.getElementById('settingStaggerMs');
-    const section     = document.getElementById('staggerSection');
-
-    toggleInput.disabled = !multipleSelected;
-    delayInput.disabled  = !multipleSelected || !toggleInput.checked;
-    section.style.opacity   = multipleSelected ? '1' : '0.45';
-    section.style.transition = 'opacity .2s ease';
-    section.style.pointerEvents = multipleSelected ? '' : 'none';
+    // Stagger is temporarily disabled pending investigation — see issue #30.
   }
 
   function applyStaggerToBackend() {

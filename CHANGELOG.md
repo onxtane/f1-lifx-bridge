@@ -4,6 +4,21 @@ All notable changes are documented here.
 
 ---
 
+## [0.4.0] — 2026-06-20
+
+### Added
+- **Landing website** — Astro-based marketing page with animated race event cards, hover effect simulations, app screenshots, platform cards (LIFX, Nanoleaf, Philips Hue coming soon)
+- **Philips Hue teaser** — coming-soon card on website and in-app; CLIP v2 integration tracked in #26
+
+### Fixed
+- Log view restyled — entries now show colour-coded badges (EVENT, GROUP, GUI, ERROR, WARNING, NANOLEAF, LAN) instead of raw terminal text (#29)
+- Auto-response icons replaced with matching SVGs from Manual Triggers section — emojis removed (#27)
+- Light list checkbox scroll glitch — replaced native checkboxes with CSS-driven custom ones; GPU scroll compositing can no longer corrupt visual state (#28)
+- Velocity scrolling — rewrote scroll handler with `preventDefault()` to eliminate double-scroll (native + RAF); normalised `deltaMode` for consistent trackpad/mouse behaviour; added velocity cap
+- Stagger Lights disabled with notice pending investigation (#30)
+
+---
+
 ## [0.3.0] — 2026-06-20
 
 ### Added
