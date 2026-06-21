@@ -1108,6 +1108,7 @@ class F1LifxBridgeCore:
 
         self.lifx = None
         self.nanoleaf = None  # NanoleafController, set externally by BridgeRunner
+        self.hue = None       # HueController, set externally by BridgeRunner
         self.sock = None
         self.running = False
 
@@ -1164,6 +1165,13 @@ class F1LifxBridgeCore:
                 except Exception as exc:
                     self.log(f"[NANOLEAF ERROR] {method}: {exc}")
             threading.Thread(target=_nl_call, daemon=True).start()
+        if self.hue is not None:
+            def _hue_call(ctrl=self.hue):
+                try:
+                    getattr(ctrl, method)(*args)
+                except Exception as exc:
+                    self.log(f"[HUE ERROR] {method}: {exc}")
+            threading.Thread(target=_hue_call, daemon=True).start()
         # Wait for LIFX to finish so the caller's timing is preserved.
         for t in threads:
             t.join()

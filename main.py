@@ -184,6 +184,32 @@ class Api:
         self.runner.set_nanoleaf_enabled(enabled)
         return {"ok": True}
 
+    # ---- Hue ----
+
+    def get_hue_settings(self):
+        return self.runner.get_hue_settings()
+
+    def save_hue_settings(self, data: dict):
+        self.runner.save_hue_settings_data(data)
+        return {"ok": True}
+
+    def set_hue_enabled(self, enabled: bool):
+        self.runner.set_hue_enabled(enabled)
+        return {"ok": True}
+
+    def pair_hue(self, ip: str):
+        return self.runner.pair_hue(ip)
+
+    def discover_hue(self):
+        return self.runner.discover_hue_devices()
+
+    def get_hue_lights(self):
+        return self.runner.get_hue_lights()
+
+    def set_hue_diag(self, enabled: bool):
+        self.runner.set_hue_diag(enabled)
+        return {"ok": True}
+
     def get_nanoleaf_layout(self):
         return self.runner.get_nanoleaf_layout()
 

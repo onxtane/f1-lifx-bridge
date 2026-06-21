@@ -44,6 +44,27 @@ _CLIP = "/clip/v2/resource"
 
 # ── Colour conversion ────────────────────────────────────────────────────────
 
+def _hsbk_to_rgb(h: int, s: int, b: int) -> tuple[int, int, int]:
+    """Convert LIFX HSBK (0-65535 per channel) to RGB (0-255)."""
+    h_f = (h / 65535.0) * 360.0
+    s_f = s / 65535.0
+    b_f = b / 65535.0
+    c = b_f * s_f
+    x = c * (1.0 - abs((h_f / 60.0) % 2.0 - 1.0))
+    m = b_f - c
+    if h_f < 60:   r1, g1, b1 = c, x, 0.0
+    elif h_f < 120: r1, g1, b1 = x, c, 0.0
+    elif h_f < 180: r1, g1, b1 = 0.0, c, x
+    elif h_f < 240: r1, g1, b1 = 0.0, x, c
+    elif h_f < 300: r1, g1, b1 = x, 0.0, c
+    else:           r1, g1, b1 = c, 0.0, x
+    return (
+        max(0, min(255, int((r1 + m) * 255))),
+        max(0, min(255, int((g1 + m) * 255))),
+        max(0, min(255, int((b1 + m) * 255))),
+    )
+
+
 def _rgb_to_xy(r: int, g: int, b: int) -> tuple[float, float]:
     """Convert sRGB (0-255) to CIE 1931 xy for Hue CLIP v2."""
     r_f = r / 255.0
@@ -289,6 +310,17 @@ class HueController:
         }
         for light_id in self.selected_lights:
             self._put(f"{_CLIP}/light/{light_id}", body)
+
+    def set_color_all(self, hsbk: list, duration_ms: int = 50, stagger: bool = True):
+        """Bridge-compatible interface — accepts LIFX HSBK and converts to Hue XY.
+
+        Called by bridge_core._fire() so the shared bridge loops (yellow/blue/red
+        flag) drive Hue alongside LIFX and Nanoleaf with no extra coordination.
+        """
+        h, s, b, _k = hsbk
+        r, g, bl = _hsbk_to_rgb(h, s, b)
+        bri = max(1, min(100, int(b / 65535.0 * 100)))
+        self.set_color(r, g, bl, brightness_pct=bri, duration_ms=duration_ms)
 
     def set_idle(self):
         """Return all selected lights to the configured idle colour."""

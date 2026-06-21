@@ -36,6 +36,27 @@ except ImportError:
     def save_nanoleaf_settings(_data):
         pass
 
+try:
+    from hue_controller import (
+        HueController,
+        discover_hue_bridge,
+        load_hue_settings,
+        save_hue_settings,
+    )
+    _HUE_AVAILABLE = True
+except ImportError:
+    HueController = None
+    _HUE_AVAILABLE = False
+
+    def discover_hue_bridge(*_a, **_kw):
+        return []
+
+    def load_hue_settings():
+        return {}
+
+    def save_hue_settings(_data):
+        pass
+
 
 class BridgeRunner:
     """
@@ -93,10 +114,12 @@ class BridgeRunner:
         self._pending_listen = None           # (ip, port)
         self._pending_mz_startlights = None  # (direction, mode)
         self._nanoleaf_diag = False
+        self._hue_diag = False
 
         self._light_assignments = {}  # {label: None | [effect_keys]}
 
         self._nanoleaf_settings: dict = load_nanoleaf_settings()
+        self._hue_settings: dict = load_hue_settings()
 
         self._stat_stop = threading.Event()
         self._stat_thread = None
@@ -179,6 +202,7 @@ class BridgeRunner:
             self.bridge.lifx.light_assignments = self._light_assignments
 
         self._connect_nanoleaf_if_configured()
+        self._connect_hue_if_configured()
 
         return True
 
@@ -322,6 +346,89 @@ class BridgeRunner:
         self._nanoleaf_diag = enabled
         if self.bridge is not None and self.bridge.nanoleaf is not None:
             self.bridge.nanoleaf.nanoleaf_diag = enabled
+
+    # ---- Hue management ----
+
+    def _connect_hue_if_configured(self):
+        """Auto-connect HueController if settings are present and enabled."""
+        if not _HUE_AVAILABLE or self.bridge is None:
+            return
+        cfg = self._hue_settings
+        if not cfg.get("enabled"):
+            return
+        ip = cfg.get("ip", "")
+        username = cfg.get("username", "")
+        if not ip or not username:
+            return
+        ctrl = HueController.try_connect(ip, username, log_callback=self.on_log)
+        self.bridge.hue = ctrl
+        if ctrl is not None:
+            ctrl.hue_diag = self._hue_diag
+            selected = cfg.get("selected_lights", [])
+            if selected:
+                ctrl.selected_lights = selected
+
+    def get_hue_settings(self) -> dict:
+        safe = dict(self._hue_settings)
+        safe.pop("username", None)
+        safe.pop("clientkey", None)
+        paired = bool(self._hue_settings.get("username"))
+        safe["paired"] = paired
+        return safe
+
+    def save_hue_settings_data(self, data: dict):
+        self._hue_settings.update(data)
+        save_hue_settings(self._hue_settings)
+        if self.bridge is not None and self.bridge.hue is not None:
+            selected = data.get("selected_lights")
+            if selected is not None:
+                self.bridge.hue.selected_lights = selected
+
+    def pair_hue(self, ip: str) -> dict:
+        """Press the Bridge link button, then call this to register GridGlow."""
+        if not _HUE_AVAILABLE:
+            return {"ok": False, "error": "hue_controller is not available."}
+        result = HueController.pair(ip)
+        if result:
+            cfg = {
+                **self._hue_settings,
+                "ip": ip,
+                "username": result["username"],
+                "clientkey": result.get("clientkey", ""),
+                "enabled": True,
+            }
+            self._hue_settings = cfg
+            save_hue_settings(cfg)
+            if self.bridge is not None:
+                ctrl = HueController.try_connect(ip, result["username"], log_callback=self.on_log)
+                self.bridge.hue = ctrl
+                if ctrl is not None:
+                    ctrl.hue_diag = self._hue_diag
+            return {"ok": True, "lights": self.get_hue_lights()}
+        return {"ok": False, "error": "Pairing failed. Press the link button on the Bridge and try again."}
+
+    def get_hue_lights(self) -> list:
+        if self.bridge is not None and self.bridge.hue is not None:
+            return self.bridge.hue.list_lights()
+        return []
+
+    def discover_hue_devices(self, timeout: int = 5) -> list:
+        return discover_hue_bridge(timeout)
+
+    def set_hue_enabled(self, enabled: bool):
+        self._hue_settings["enabled"] = enabled
+        save_hue_settings(self._hue_settings)
+        if self.bridge is not None:
+            if not enabled:
+                self.bridge.hue = None
+                self.on_log("[HUE] Disabled.")
+            elif self.bridge.hue is None:
+                self._connect_hue_if_configured()
+
+    def set_hue_diag(self, enabled: bool):
+        self._hue_diag = enabled
+        if self.bridge is not None and self.bridge.hue is not None:
+            self.bridge.hue.hue_diag = enabled
 
     # ---- Nanoleaf management ----
 
@@ -491,6 +598,9 @@ class BridgeRunner:
         if self.bridge is not None and self.bridge.nanoleaf is not None:
             self.bridge.nanoleaf.brightness_min = min_b
             self.bridge.nanoleaf.brightness_max = max_b
+        if self.bridge is not None and self.bridge.hue is not None:
+            self.bridge.hue.brightness_min = int(min_pct)
+            self.bridge.hue.brightness_max = int(max_pct)
 
     def set_light_assignments(self, assignments: dict):
         """assignments: {label: None | [effect_keys]}.  None = all effects."""
@@ -678,7 +788,7 @@ class BridgeRunner:
             self.on_log(f"ERROR during identify: {exc}")
 
     def _test_worker(self):
-        if self.bridge is None or (self.bridge.lifx is None and self.bridge.nanoleaf is None):
+        if self.bridge is None or (self.bridge.lifx is None and self.bridge.nanoleaf is None and self.bridge.hue is None):
             self.on_log("No lights discovered yet - click Discover Lights first.")
             return
         try:
@@ -749,10 +859,18 @@ class BridgeRunner:
             except Exception as exc:
                 self.on_log(f"[NANOLEAF ERROR] running '{name}': {exc}")
 
+        def _run_hue():
+            try:
+                lifx_action(self.bridge.hue)
+            except Exception as exc:
+                self.on_log(f"[HUE ERROR] running '{name}': {exc}")
+
         t_lifx = threading.Thread(target=_run_lifx, daemon=True)
         t_lifx.start()
         if self.bridge.nanoleaf is not None:
             threading.Thread(target=_run_nanoleaf, daemon=True).start()
+        if self.bridge.hue is not None:
+            threading.Thread(target=_run_hue, daemon=True).start()
         t_lifx.join()
 
     def _stat_loop(self):
