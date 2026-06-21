@@ -538,6 +538,7 @@
 
   .quick-effects{ padding:24px 24px; display:flex; flex-direction:column; gap:12px; }
   .quick-effects h2{ margin:0 0 6px; font-size:22px; font-weight:600; }
+  #quickEffectsBar{ display:flex; flex-direction:column; gap:12px; }
   .effect-btn{ border:none; border-radius:999px; padding:14px; font-size:14px; font-weight:600; width:100%; cursor:pointer; }
   .effect-btn.coral{ background:linear-gradient(135deg,#ff9d8a,#ff6f6f); color:#3a0d0d;}
   .effect-btn.green{ background:linear-gradient(135deg,#7be8a8,#3ddc84); color:#0c321b;}
@@ -1417,8 +1418,24 @@
             <circle cx="42" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
           </svg>
         </div>
-        <div class="game-card-name">F1® 25 / 24</div>
+        <div class="game-card-name">F1® 25 – F1® 21</div>
         <div class="game-card-sub">EA Sports · Codemasters</div>
+      </div>
+
+      <!-- DiRT Rally 2.0 — active -->
+      <div class="game-card" id="gameDR2" data-game="dr2">
+        <div class="game-card-icon-area">
+          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 22 Q9 12 17 11 L37 11 Q45 12 47 17 L49 22 L47 24 L7 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M22 11 L22 7 L33 7 L33 11" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="14" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="14" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
+            <circle cx="40" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="40" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
+          </svg>
+        </div>
+        <div class="game-card-name">DiRT Rally 2.0</div>
+        <div class="game-card-sub">Codemasters · Port 20777</div>
       </div>
 
     </div>
@@ -1440,20 +1457,6 @@
           </div>
           <div class="gs-mini-card-name">Forza</div>
           <div class="gs-mini-card-sub">Horizon 5 &amp; Motorsport</div>
-        </div>
-
-        <!-- DiRT Rally 2.0 / EA WRC -->
-        <div class="gs-mini-card">
-          <div class="gs-mini-card-icon">
-            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 22 Q9 12 17 11 L37 11 Q45 12 47 17 L49 22 L47 24 L7 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <path d="M22 11 L22 7 L33 7 L33 11" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <circle cx="14" cy="24" r="5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <circle cx="40" cy="24" r="5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="gs-mini-card-name">DiRT / WRC</div>
-          <div class="gs-mini-card-sub">Rally 2.0 &amp; EA WRC</div>
         </div>
 
         <!-- Assetto Corsa -->
@@ -1570,11 +1573,9 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="2"/><rect x="2" y="10" width="20" height="5" rx="2"/><rect x="2" y="17" width="20" height="5" rx="2"/><circle cx="18" cy="5.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="18" cy="12.5" r="1.5" fill="currentColor" stroke="none"/></svg>
       </div>
       <div class="nav-btn" data-page="settings" title="Settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
-          <line x1="20" y1="12" x2="22" y2="12"/><line x1="16" y1="18.93" x2="17" y2="20.66"/>
-          <line x1="8" y1="18.93" x2="7" y2="20.66"/><line x1="4" y1="12" x2="2" y2="12"/>
-          <line x1="8" y1="5.07" x2="7" y2="3.34"/><line x1="16" y1="5.07" x2="17" y2="3.34"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
       </div>
       <div class="spacer"></div>
@@ -1631,8 +1632,8 @@
         <div class="lower-row">
           <div class="race-control glass">
             <h2>Race Control</h2>
-            <p class="sub">Live F1 events, flags, and lighting triggers</p>
-            <p class="waiting">Waiting for F1 25 telemetry...</p>
+            <p class="sub" id="rcSub">Live F1 events, flags, and lighting triggers</p>
+            <p class="waiting" id="rcWaiting">Waiting for F1 25 telemetry...</p>
             <div class="rc-actions">
               <button class="btn btn-primary btn-sm" id="discoverBtn">Discover Lights</button>
               <button class="btn btn-ghost btn-sm" id="testBtn">Test Selected</button>
@@ -1644,12 +1645,14 @@
 
           <div class="quick-effects glass">
             <h2>Quick Effects</h2>
-            <button class="effect-btn coral" data-effect="Start Lights">Start Lights</button>
-            <button class="effect-btn green" data-effect="Lights Out">Lights Out</button>
-            <button class="effect-btn amber" data-effect="Yellow Flag">Yellow Flag</button>
-            <button class="effect-btn blue" data-effect="Blue Flag">Blue Flag</button>
-            <button class="effect-btn red" data-effect="Red Flag">Red Flag</button>
-            <button class="effect-btn purple" data-effect="Fastest Lap">Fastest Lap</button>
+            <div id="quickEffectsBar">
+              <button class="effect-btn coral" data-effect="Start Lights">Start Lights</button>
+              <button class="effect-btn green" data-effect="Lights Out">Lights Out</button>
+              <button class="effect-btn amber" data-effect="Yellow Flag">Yellow Flag</button>
+              <button class="effect-btn blue" data-effect="Blue Flag">Blue Flag</button>
+              <button class="effect-btn red" data-effect="Red Flag">Red Flag</button>
+              <button class="effect-btn purple" data-effect="Fastest Lap">Fastest Lap</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1740,48 +1743,48 @@
               <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
             <div class="collapsible-body collapsed" id="effectsManualBody">
-              <div class="effects-grid" style="padding-bottom:4px;">
-              <div class="effect-card" data-effect="Start Lights">
+              <div class="effects-grid" id="effectsManualGrid" style="padding-bottom:4px;">
+              <div class="effect-card" data-effect="Start Lights" data-effect-key="start_lights">
                 <div class="icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7a5 5 0 0 1 5-5a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5a5 5 0 0 1-5-5l0-10"/><path d="M11 7a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/><path d="M11 17a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/></svg></div>
                 <div class="name">Start Lights</div>
                 <div class="desc">Red formation lights ramp up</div>
               </div>
-              <div class="effect-card" data-effect="Lights Out">
+              <div class="effect-card" data-effect="Lights Out" data-effect-key="lights_out">
                 <div class="icon" style="color:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1-7 0a5 5 0 0 0-7 0v-9"/><path d="M5 21v-7"/></svg></div>
                 <div class="name">Lights Out</div>
                 <div class="desc">Green flash — race start</div>
               </div>
-              <div class="effect-card" data-effect="Yellow Flag">
+              <div class="effect-card" data-effect="Yellow Flag" data-effect-key="yellow_flag">
                 <div class="icon" style="color:#f59e0b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14h14l-4.5-4.5l4.5-4.5h-14v16"/></svg></div>
                 <div class="name">Yellow Flag</div>
                 <div class="desc">Continuous yellow flashing</div>
               </div>
-              <div class="effect-card" data-effect="Blue Flag">
+              <div class="effect-card" data-effect="Blue Flag" data-effect-key="blue_flag">
                 <div class="icon" style="color:#60a5fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></div>
                 <div class="name">Blue Flag</div>
                 <div class="desc">Solid blue — let faster car past</div>
               </div>
-              <div class="effect-card" data-effect="Red Flag">
+              <div class="effect-card" data-effect="Red Flag" data-effect-key="red_flag">
                 <div class="icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14h14l-4.5-4.5l4.5-4.5h-14v16"/></svg></div>
                 <div class="name">Red Flag</div>
                 <div class="desc">Session stopped</div>
               </div>
-              <div class="effect-card" data-effect="Fastest Lap">
+              <div class="effect-card" data-effect="Fastest Lap" data-effect-key="fastest_lap">
                 <div class="icon" style="color:#c084fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg></div>
                 <div class="name">Fastest Lap</div>
                 <div class="desc">Purple flash celebration</div>
               </div>
-              <div class="effect-card" data-effect="Chequered Flag">
+              <div class="effect-card" data-effect="Chequered Flag" data-effect-key="chequered_flag">
                 <div class="icon" style="color:#e2e8f0"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M227.32,48.75A8,8,0,0,0,218.76,50c-28,24.22-51.72,12.48-79.21-1.13C111.07,34.76,78.78,18.79,42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,28.49,14.09,60.77,30.06,96.79-1.13a8,8,0,0,0,2.76-6V56A8,8,0,0,0,227.32,48.75ZM216,71.6v40.65c-14,11.06-27,13.22-40,10.88V79.34A60.05,60.05,0,0,0,216,71.6Zm-56,3.76v43c-6.66-2.67-13.43-6-20.45-9.48-8.82-4.37-18-8.91-27.55-12.18v-43c6.66,2.66,13.43,6,20.45,9.48C141.27,67.55,150.46,72.09,160,75.36ZM96,48.91V92.69a60.06,60.06,0,0,0-40,7.75V59.78C70,48.72,83,46.57,96,48.91ZM86.58,152A60.06,60.06,0,0,0,56,160.43V119.78c14-11.06,27-13.22,40-10.88v43.8A65.61,65.61,0,0,0,86.58,152ZM112,156.67v-43c6.66,2.66,13.43,6,20.45,9.48,8.82,4.37,18,8.9,27.55,12.17v43c-6.66-2.67-13.43-6-20.45-9.48C130.73,164.47,121.54,159.94,112,156.67Zm64,26.45v-43.8a65.61,65.61,0,0,0,9.42.72A60.11,60.11,0,0,0,216,131.57v40.68C202,183.31,189,185.46,176,183.12Z"/></svg></div>
                 <div class="name">Chequered Flag</div>
                 <div class="desc">Race over — white/green flash</div>
               </div>
-              <div class="effect-card" data-effect="White Warning">
+              <div class="effect-card" data-effect="White Warning" data-effect-key="white_warning">
                 <div class="icon" style="color:#f1f5f9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0"/><path d="M12 16h.01"/></svg></div>
                 <div class="name">White Warning</div>
                 <div class="desc">Penalty warning flash</div>
               </div>
-              <div class="effect-card" data-effect="Neutral">
+              <div class="effect-card" data-effect="Neutral" data-effect-key="neutral">
                 <div class="icon" style="color:#fbbf24"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h1m8-9v1m8 8h1m-15.4-6.4l.7.7m12.1-.7l-.7.7"/><path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3"/><path d="M9.7 17l4.6 0"/></svg></div>
                 <div class="name">Neutral</div>
                 <div class="desc">Warm white — reset to idle</div>
@@ -1797,7 +1800,7 @@
             <div class="collapsible-header effects-collapse-header" data-target="effectsAutoBody">
               <div>
                 <div style="font-size:16px;font-weight:600;">Auto-Response</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Which F1 events trigger your lights</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="arSub">Which F1 events trigger your lights</div>
               </div>
               <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
@@ -2261,7 +2264,7 @@
 
           <div class="settings-section">
             <h3>Light Effects</h3>
-            <div id="staggerSection" style="opacity:0.4;pointer-events:none;">
+            <div id="staggerSection">
             <div class="setting-row" id="staggerRow">
               <div>
                 <div class="setting-label" id="staggerLabel">Stagger Lights</div>
@@ -2269,7 +2272,7 @@
               </div>
               <div class="setting-control">
                 <label class="toggle-switch" id="staggerToggleWrap">
-                  <input type="checkbox" id="settingStagger" disabled>
+                  <input type="checkbox" id="settingStagger">
                   <span class="toggle-track"></span>
                 </label>
               </div>
@@ -2282,10 +2285,6 @@
               <div class="setting-control">
                 <input type="number" id="settingStaggerMs" value="50" min="10" max="300" disabled>
               </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:8px 10px;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.22);">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0"/><path d="M12 16h.01"/></svg>
-              <span style="font-size:12px;color:#f59e0b;">Temporarily unavailable — stagger is under investigation (<a href="https://github.com/onxtane/f1-lifx-bridge/issues/30" target="_blank" style="color:#f59e0b;text-decoration:underline;">#30</a>).</span>
             </div>
             </div><!-- /staggerSection -->
 
@@ -2364,7 +2363,7 @@
             <h3>About</h3>
             <div class="setting-row">
               <div class="setting-label">GridGlow</div>
-              <div style="font-size:13px;color:var(--text-muted);">v0.6.0</div>
+              <div style="font-size:13px;color:var(--text-muted);">v0.7.0</div>
             </div>
             <div class="setting-row">
               <div>
@@ -3005,6 +3004,186 @@
   sliderMax.addEventListener('input', () => { updateBrightnessUI(); saveBrightness(); });
   updateBrightnessUI();
 
+  // ---- game definitions ----
+  window._currentGame = 'f1_25';
+
+  window._GAME_DEFS = {
+    f1_25: {
+      label: 'F1 25',
+      rcSub: 'Live F1 events, flags, and lighting triggers',
+      rcWaiting: 'Waiting for F1 25 telemetry...',
+      arSub: 'Which F1 events trigger your lights',
+      events: ['start_lights','lights_out','yellow_flag','blue_flag','red_flag',
+               'fastest_lap','chequered_flag','white_warning','black_flag','neutral'],
+      // Display name / desc overrides for shared keys (empty = use HTML defaults)
+      names: {},
+      descs: {},
+      qeEffects: [
+        { trigger: 'Start Lights',   label: 'Start Lights',   cls: 'coral'  },
+        { trigger: 'Lights Out',     label: 'Lights Out',     cls: 'green'  },
+        { trigger: 'Yellow Flag',    label: 'Yellow Flag',    cls: 'amber'  },
+        { trigger: 'Blue Flag',      label: 'Blue Flag',      cls: 'blue'   },
+        { trigger: 'Red Flag',       label: 'Red Flag',       cls: 'red'    },
+        { trigger: 'Fastest Lap',    label: 'Fastest Lap',    cls: 'purple' },
+      ],
+      laEffects: [
+        { key: 'start_lights',   label: 'Start Lights',   icon: '🔴' },
+        { key: 'lights_out',     label: 'Lights Out',     icon: '🟢' },
+        { key: 'yellow_flag',    label: 'Yellow Flag',    icon: '🟡' },
+        { key: 'blue_flag',      label: 'Blue Flag',      icon: '🔵' },
+        { key: 'red_flag',       label: 'Red Flag',       icon: '🚩' },
+        { key: 'fastest_lap',    label: 'Fastest Lap',    icon: '💜' },
+        { key: 'chequered_flag', label: 'Chequered Flag', icon: '🏁' },
+        { key: 'white_warning',  label: 'White Warning',  icon: '⚪' },
+        { key: 'black_flag',     label: 'Black Flag',     icon: '🏴' },
+        { key: 'neutral',        label: 'Track Clear',    icon: '💡' },
+      ],
+      lpPills: [
+        { label: 'Idle',          animKey: 'Idle'          },
+        { label: 'Start Lights',  animKey: 'Start Lights'  },
+        { label: 'Lights Out',    animKey: 'Lights Out'    },
+        { label: 'Yellow Flag',   animKey: 'Yellow Flag'   },
+        { label: 'Blue Flag',     animKey: 'Blue Flag'     },
+        { label: 'Red Flag',      animKey: 'Red Flag'      },
+        { label: 'Fastest Lap',   animKey: 'Fastest Lap'   },
+        { label: 'Chequered',     animKey: 'Chequered'     },
+        { label: 'White Warning', animKey: 'White Warning' },
+        { label: 'Neutral',       animKey: 'Neutral'       },
+      ],
+    },
+    dr2: {
+      label: 'DiRT Rally 2.0',
+      rcSub: 'Stage events and rally lighting triggers',
+      rcWaiting: 'Waiting for DiRT Rally 2.0 UDP packets...',
+      arSub: 'Which rally events trigger your lights',
+      events: ['lights_out','fastest_lap','chequered_flag','neutral'],
+      names: {
+        lights_out:     'Stage Start',
+        fastest_lap:    'Split Checkpoint',
+        chequered_flag: 'Stage Finish',
+        neutral:        'Service Park',
+      },
+      descs: {
+        lights_out:     'Green flash when the stage begins',
+        fastest_lap:    'Purple flash at each split checkpoint',
+        chequered_flag: 'White/green flash when the stage ends',
+        neutral:        'Warm white on return to service park',
+      },
+      qeEffects: [
+        { trigger: 'Lights Out',     label: 'Stage Start',      cls: 'green'  },
+        { trigger: 'Fastest Lap',    label: 'Split Checkpoint', cls: 'purple' },
+        { trigger: 'Chequered Flag', label: 'Stage Finish',     cls: 'coral'  },
+        { trigger: 'Neutral',        label: 'Service Park',     cls: 'amber'  },
+      ],
+      laEffects: [
+        { key: 'lights_out',     label: 'Stage Start',      icon: '🟢' },
+        { key: 'fastest_lap',    label: 'Split Checkpoint', icon: '💜' },
+        { key: 'chequered_flag', label: 'Stage Finish',     icon: '🏁' },
+        { key: 'neutral',        label: 'Service Park',     icon: '💡' },
+      ],
+      lpPills: [
+        { label: 'Idle',             animKey: 'Idle'         },
+        { label: 'Stage Start',      animKey: 'Lights Out'   },
+        { label: 'Split Checkpoint', animKey: 'Fastest Lap'  },
+        { label: 'Stage Finish',     animKey: 'Chequered'    },
+        { label: 'Service Park',     animKey: 'Neutral'      },
+      ],
+    },
+  };
+
+  // Apply per-game names stored before this block so ar-rows/cards get renamed once.
+  // The full apply runs from _applyGameEffects after pywebviewready.
+  // Cache original names/descs so we can restore them on game switch.
+  const _arOriginals = {};
+  document.querySelectorAll('.ar-row[data-event]').forEach(row => {
+    const key = row.dataset.event;
+    _arOriginals[key] = {
+      name: row.querySelector('.ar-name')?.textContent || '',
+      desc: row.querySelector('.ar-desc')?.textContent || '',
+    };
+  });
+  const _mtOriginals = {};
+  document.querySelectorAll('.effect-card[data-effect-key]').forEach(card => {
+    const key = card.dataset.effectKey;
+    _mtOriginals[key] = {
+      name: card.querySelector('.name')?.textContent || '',
+      desc: card.querySelector('.desc')?.textContent || '',
+    };
+  });
+
+  // Apply game-aware UI state across all sections.
+  window._applyGameEffects = function(game) {
+    const def = window._GAME_DEFS[game];
+    if (!def) return;
+    window._currentGame = game;
+    const evSet = new Set(def.events);
+
+    // RC subtitle + waiting text
+    const rcSub = document.getElementById('rcSub');
+    if (rcSub) rcSub.textContent = def.rcSub;
+    const rcWaiting = document.getElementById('rcWaiting');
+    if (rcWaiting) rcWaiting.textContent = def.rcWaiting;
+
+    // Stat card label
+    const pktLabel = document.querySelector('#stat-f1_packets')?.previousElementSibling;
+    if (pktLabel) pktLabel.textContent = def.label + ' Packets';
+
+    // Auto-Response subtitle
+    const arSub = document.getElementById('arSub');
+    if (arSub) arSub.textContent = def.arSub;
+
+    // Auto-Response rows: show/hide, rename
+    document.querySelectorAll('.ar-row[data-event]').forEach(row => {
+      const key = row.dataset.event;
+      const visible = evSet.has(key);
+      row.style.display = visible ? '' : 'none';
+      if (visible) {
+        const nameEl = row.querySelector('.ar-name');
+        const descEl = row.querySelector('.ar-desc');
+        if (nameEl) nameEl.textContent = def.names[key] || _arOriginals[key]?.name || nameEl.textContent;
+        if (descEl) descEl.textContent = def.descs[key] || _arOriginals[key]?.desc || descEl.textContent;
+      }
+    });
+
+    // Manual trigger cards: show/hide, rename
+    document.querySelectorAll('.effect-card[data-effect-key]').forEach(card => {
+      const key = card.dataset.effectKey;
+      const visible = evSet.has(key);
+      card.style.display = visible ? '' : 'none';
+      if (visible && def.names[key]) {
+        const nameEl = card.querySelector('.name');
+        if (nameEl) nameEl.textContent = def.names[key];
+      } else if (visible && _mtOriginals[key]) {
+        const nameEl = card.querySelector('.name');
+        if (nameEl) nameEl.textContent = _mtOriginals[key].name;
+      }
+    });
+
+    // Quick Effects bar: rebuild buttons
+    const qeBar = document.getElementById('quickEffectsBar');
+    if (qeBar) {
+      qeBar.innerHTML = '';
+      def.qeEffects.forEach(qe => {
+        const btn = document.createElement('button');
+        btn.className = `effect-btn ${qe.cls}`;
+        btn.dataset.effect = qe.trigger;
+        btn.textContent = qe.label;
+        btn.addEventListener('click', () => callApi('trigger_effect', qe.trigger));
+        qeBar.appendChild(btn);
+      });
+    }
+
+    // Light Assignment chips: swap effect list and rebuild
+    window._laEffects = def.laEffects;
+    if (window._laRebuild) window._laRebuild();
+
+    // Light Preview pills
+    if (window._lpSetGame) window._lpSetGame(def.lpPills);
+
+    // Push the game-filtered enabled events to the backend (in-memory only, no file write)
+    if (typeof getEnabledEvents === 'function') callApi('set_enabled_events', getEnabledEvents());
+  };
+
   // ---- auto-response toggles ----
   const ALL_EVENTS = [
     'start_lights','lights_out','yellow_flag','blue_flag','red_flag',
@@ -3012,7 +3191,9 @@
   ];
 
   function getEnabledEvents() {
-    return ALL_EVENTS.filter(key => {
+    const def = window._GAME_DEFS[window._currentGame];
+    const keys = def ? def.events : ALL_EVENTS;
+    return keys.filter(key => {
       const cb = document.querySelector(`.event-toggle[data-event="${key}"]`);
       return cb && cb.checked;
     });
@@ -3029,8 +3210,10 @@
 
   function saveEnabledEvents() {
     const enabled = getEnabledEvents();
-    // If all are on, store null so future "all events added" are on by default
-    const value = enabled.length === ALL_EVENTS.length ? null : enabled;
+    const def = window._GAME_DEFS[window._currentGame];
+    const gameEvents = def ? def.events : ALL_EVENTS;
+    // If all game events are on, store null so new events default to enabled
+    const value = enabled.length === gameEvents.length ? null : enabled;
     callApi('save_gui_settings', { enabled_events: value });
     callApi('set_enabled_events', value);
   }
@@ -3087,6 +3270,17 @@
     applyMzStartlightsToBackend();
     updateMzDirectionRowVisibility();
 
+    // Apply saved game mode so the right bridge class is used on start.
+    if (settings.last_game) {
+      callApi('set_game_mode', settings.last_game);
+      window._applyGameEffects(settings.last_game);
+    }
+
+    // Load UDP listen address
+    if (settings.ip)   document.getElementById('settingIp').value   = settings.ip;
+    if (settings.port) document.getElementById('settingPort').value = settings.port;
+    callApi('set_listen_address', settings.ip || '0.0.0.0', parseInt(settings.port) || 20777);
+
     // Load forwarding settings
     if (Object.prototype.hasOwnProperty.call(settings, 'fwd_enabled')) {
       document.getElementById('settingFwdEnabled').checked = !!settings.fwd_enabled;
@@ -3094,6 +3288,13 @@
     if (settings.fwd_host) document.getElementById('settingFwdHost').value = settings.fwd_host;
     if (settings.fwd_port) document.getElementById('settingFwdPort').value = settings.fwd_port;
     applyForwardingToBackend();
+
+    // Restore intensity curves from backend settings (source of truth after restart).
+    // localStorage may differ if a prior session crashed before syncing.
+    if (settings.curves && typeof settings.curves === 'object') {
+      try { localStorage.setItem('lifx_intensity_curves', JSON.stringify(settings.curves)); } catch {}
+      window._reloadCurves && window._reloadCurves();
+    }
 
     // Capture the fully-loaded settings into the active profile so switching
     // back to it after creating other profiles restores the correct state.
@@ -3467,11 +3668,9 @@
 
     copyBtn.addEventListener('click', () => {
       if (!_selected) return;
-      navigator.clipboard.writeText(_selected).then(() => {
+      callApi('copy_to_clipboard', _selected).then(() => {
         copyBtn.textContent = 'Copied!';
         setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1800);
-      }).catch(() => {
-        copyBtn.textContent = 'Copy';
       });
     });
 
@@ -3977,6 +4176,7 @@
       // Notify other IIFEs to re-read localStorage
       window._refreshPillIndicators && window._refreshPillIndicators();
       window._laRefresh && window._laRefresh(typeof _activeLabels !== 'undefined' ? [..._activeLabels] : []);
+      window._reloadCurves && window._reloadCurves();
     }
 
     function saveCurrentSettings() {
@@ -4090,20 +4290,23 @@
   })();
 
   // ---- light assignment ----
+  // Full effect list — _applyGameEffects() swaps this out per game.
+  window._laEffects = [
+    { key: 'start_lights',   label: 'Start Lights',    icon: '🔴' },
+    { key: 'lights_out',     label: 'Lights Out',      icon: '🟢' },
+    { key: 'yellow_flag',    label: 'Yellow Flag',     icon: '🟡' },
+    { key: 'blue_flag',      label: 'Blue Flag',       icon: '🔵' },
+    { key: 'red_flag',       label: 'Red Flag',        icon: '🚩' },
+    { key: 'fastest_lap',    label: 'Fastest Lap',     icon: '💜' },
+    { key: 'chequered_flag', label: 'Chequered Flag',  icon: '🏁' },
+    { key: 'white_warning',  label: 'White Warning',   icon: '⚪' },
+    { key: 'black_flag',     label: 'Black Flag',      icon: '🏴' },
+    { key: 'neutral',        label: 'Track Clear',     icon: '💡' },
+  ];
+
   (function () {
     const STORAGE_KEY = 'lifx_light_assignments';
-    const EFFECTS = [
-      { key: 'start_lights',   label: 'Start Lights',    icon: '🔴' },
-      { key: 'lights_out',     label: 'Lights Out',      icon: '🟢' },
-      { key: 'yellow_flag',    label: 'Yellow Flag',     icon: '🟡' },
-      { key: 'blue_flag',      label: 'Blue Flag',       icon: '🔵' },
-      { key: 'red_flag',       label: 'Red Flag',        icon: '🚩' },
-      { key: 'fastest_lap',    label: 'Fastest Lap',     icon: '💜' },
-      { key: 'chequered_flag', label: 'Chequered Flag',  icon: '🏁' },
-      { key: 'white_warning',  label: 'White Warning',   icon: '⚪' },
-      { key: 'black_flag',     label: 'Black Flag',      icon: '🏴' },
-      { key: 'neutral',        label: 'Track Clear',     icon: '💡' },
-    ];
+    const getEffects = () => window._laEffects;
 
     // null = all effects; Set = specific effects enabled
     let _assignments = {};  // { lightLabel: null | Set<effectKey> }
@@ -4136,14 +4339,14 @@
       const v = _assignments[lightLabel];
       // If currently all-on (null/undefined), expand to explicit full set minus this one
       if (v === undefined || v === null) {
-        _assignments[lightLabel] = new Set(EFFECTS.map(e => e.key).filter(k => k !== effectKey));
+        _assignments[lightLabel] = new Set(getEffects().map(e => e.key).filter(k => k !== effectKey));
       } else {
         if (v.has(effectKey)) {
           v.delete(effectKey);
         } else {
           v.add(effectKey);
           // If all effects now on, collapse back to null
-          if (v.size === EFFECTS.length) _assignments[lightLabel] = null;
+          if (v.size === getEffects().length) _assignments[lightLabel] = null;
         }
       }
       save();
@@ -4183,22 +4386,42 @@
         header.className = 'la-card-header';
 
         if (isNl) {
-          // Nanoleaf fires on all effects automatically — show as read-only.
-          header.innerHTML = `
-            <div style="display:flex;align-items:center;gap:8px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"/></svg>
-              <span class="la-card-name">${escHtml(label)}</span>
-            </div>
-            <span style="font-size:11px;background:rgba(61,220,132,0.12);border:1px solid rgba(61,220,132,0.35);color:#3ddc84;border-radius:99px;padding:4px 10px;flex-shrink:0;">Always Active</span>`;
+          const btnStyle = 'font-size:11px;padding:5px 10px;white-space:nowrap;';
+          const assignOneBtn = document.createElement('button');
+          assignOneBtn.className = 'btn btn-ghost btn-sm';
+          assignOneBtn.style.cssText = btnStyle;
+          assignOneBtn.textContent = 'Assign to All Effects';
+          assignOneBtn.addEventListener('click', () => {
+            _assignments[label] = null;
+            save();
+            card.querySelectorAll('.la-chip').forEach(c => c.classList.add('on'));
+          });
+          const removeOneBtn = document.createElement('button');
+          removeOneBtn.className = 'btn btn-ghost btn-sm';
+          removeOneBtn.style.cssText = btnStyle;
+          removeOneBtn.textContent = 'Remove from All Effects';
+          removeOneBtn.addEventListener('click', () => {
+            _assignments[label] = new Set();
+            save();
+            card.querySelectorAll('.la-chip').forEach(c => c.classList.remove('on'));
+          });
+          const btnGroup = document.createElement('div');
+          btnGroup.style.cssText = 'display:flex;flex-direction:column;gap:4px;flex-shrink:0;';
+          btnGroup.appendChild(assignOneBtn);
+          btnGroup.appendChild(removeOneBtn);
+          header.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"/></svg><span class="la-card-name">${escHtml(label)}</span></div>`;
+          header.appendChild(btnGroup);
           card.appendChild(header);
           const chips = document.createElement('div');
           chips.className = 'la-chips';
-          EFFECTS.forEach(eff => {
+          getEffects().forEach(eff => {
             const chip = document.createElement('div');
-            chip.className = 'la-chip on';
-            chip.style.cssText = 'cursor:default;opacity:0.7;';
-            chip.title = 'Nanoleaf fires on all effects';
+            chip.className = 'la-chip' + (isOn(label, eff.key) ? ' on' : '');
             chip.textContent = eff.label;
+            chip.addEventListener('click', () => {
+              toggle(label, eff.key);
+              chip.classList.toggle('on', isOn(label, eff.key));
+            });
             chips.appendChild(chip);
           });
           card.appendChild(chips);
@@ -4243,7 +4466,7 @@
 
         const chips = document.createElement('div');
         chips.className = 'la-chips';
-        EFFECTS.forEach(eff => {
+        getEffects().forEach(eff => {
           const chip = document.createElement('div');
           chip.className = 'la-chip' + (isOn(label, eff.key) ? ' on' : '');
           chip.textContent = eff.label;
@@ -4273,6 +4496,11 @@
       load();   // re-read localStorage in case profile switch updated it
       render(labels);
       pushToBackend();
+    };
+
+    // Expose rebuild so _applyGameEffects can refresh chips after swapping _laEffects
+    window._laRebuild = function() {
+      render(Object.keys(_assignments));
     };
 
     load();
@@ -4493,8 +4721,22 @@
       getBulbs().forEach(b => lit(b, '#ffd9a0', 'rgba(255,217,160,0.4)', 0.35));
     }
 
-    const EFFECTS = [
-      { label: 'Idle',          anim: animIdle         },
+    // Anim lookup map — keyed by canonical label so _lpSetGame can build game-specific lists.
+    const _animByLabel = {
+      'Idle':          animIdle,
+      'Start Lights':  animStartLights,
+      'Lights Out':    animLightsOut,
+      'Yellow Flag':   animYellowFlag,
+      'Blue Flag':     animBlueFlag,
+      'Red Flag':      animRedFlag,
+      'Fastest Lap':   animFastestLap,
+      'Chequered':     animChequered,
+      'White Warning': animWhiteWarning,
+      'Neutral':       animNeutral,
+    };
+
+    const F1_EFFECTS = [
+      { label: 'Idle',          anim: animIdle          },
       { label: 'Start Lights',  anim: animStartLights   },
       { label: 'Lights Out',    anim: animLightsOut     },
       { label: 'Yellow Flag',   anim: animYellowFlag    },
@@ -4526,38 +4768,52 @@
 
     let _currentAnim = null;
 
-    EFFECTS.forEach(eff => {
-      const pill = document.createElement('div');
-      pill.className = 'lp-pill';
-      pill.textContent = eff.label;
-      pill.dataset.effect = eff.label;
-      pill.addEventListener('click', () => {
-        if (activePill === pill) {
-          pill.classList.remove('active');
-          activePill = null; _currentAnim = null;
-          stopAnim(); dimAll();
-        } else {
-          if (activePill) activePill.classList.remove('active');
-          pill.classList.add('active');
-          activePill = pill;
-          const curvePts = window._getCurvePoints && window._getCurvePoints(eff.label);
-          if (curvePts) {
-            const dur = (window._getCurveDuration && window._getCurveDuration(eff.label)) || 2000;
-            _currentAnim = () => _runWithCurve(eff.anim, curvePts, dur);
+    function buildPills(effects) {
+      pillRow.innerHTML = '';
+      if (activePill) { activePill = null; _currentAnim = null; }
+      effects.forEach(eff => {
+        const pill = document.createElement('div');
+        pill.className = 'lp-pill';
+        pill.textContent = eff.label;
+        pill.dataset.effect = eff.label;
+        pill.addEventListener('click', () => {
+          if (activePill === pill) {
+            pill.classList.remove('active');
+            activePill = null; _currentAnim = null;
+            stopAnim(); dimAll();
           } else {
-            _currentAnim = eff.anim;
+            if (activePill) activePill.classList.remove('active');
+            pill.classList.add('active');
+            activePill = pill;
+            const curvePts = window._getCurvePoints && window._getCurvePoints(eff.label);
+            if (curvePts) {
+              const dur = (window._getCurveDuration && window._getCurveDuration(eff.label)) || 2000;
+              _currentAnim = () => _runWithCurve(eff.anim, curvePts, dur);
+            } else {
+              _currentAnim = eff.anim;
+            }
+            startAnim(_currentAnim);
           }
-          startAnim(_currentAnim);
-        }
+        });
+        pillRow.appendChild(pill);
       });
-      pillRow.appendChild(pill);
-    });
+      window._refreshPillIndicators && window._refreshPillIndicators();
+    }
+
+    buildPills(F1_EFFECTS);
 
     window._refreshPillIndicators = function() {
       document.querySelectorAll('#lpPillRow .lp-pill').forEach(pill => {
         const hasCurve = !!(window._getCurvePoints && window._getCurvePoints(pill.dataset.effect));
         pill.classList.toggle('has-curve', hasCurve);
       });
+    };
+
+    // Rebuild pills for a new game. gamePillDefs = [{label, animKey}] where animKey is a key in _animByLabel.
+    window._lpSetGame = function(gamePillDefs) {
+      stopAnim(); dimAll();
+      const effects = gamePillDefs.map(d => ({ label: d.label, anim: _animByLabel[d.animKey] || animIdle }));
+      buildPills(effects);
     };
 
     window._lpRefresh = function(labels) {
@@ -4583,6 +4839,7 @@
 
     function persist() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(_curves));
+      callApi('save_gui_settings', { curves: _curves });
     }
 
     function evalPts(pts, t) {
@@ -4598,10 +4855,15 @@
       return 1;
     }
 
-    // Exposed globals used by light preview IIFE
+    // Exposed globals used by light preview IIFE and external callers
     window._getCurvePoints  = label => (_curves[label]?.points?.length >= 2) ? _curves[label].points : null;
     window._getCurveDuration = label => _curves[label]?.duration || 2000;
     window._evalCurvePts    = evalPts;
+    // Called after profile switch or startup to re-read localStorage and push to backend.
+    window._reloadCurves = function() {
+      load();
+      callApi('save_gui_settings', { curves: _curves });
+    };
 
     // --- canvas setup ---
     const canvas  = document.getElementById('curveCanvas');
@@ -4965,6 +5227,8 @@
       window._loadedSettings.last_game       = game;
       window._loadedSettings.skip_game_selector = skip;
       callApi('save_gui_settings', { last_game: game, skip_game_selector: skip });
+      callApi('set_game_mode', game);
+      window._applyGameEffects(game);
       const fromSetup = document.getElementById('gameSelector')._fromSetup;
       hideGameSelector(() => enterApp(fromSetup));
     });

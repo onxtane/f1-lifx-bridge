@@ -118,12 +118,18 @@ class BridgeRunner:
 
         self._light_assignments = {}  # {label: None | [effect_keys]}
 
+        # Load persisted settings so they survive restarts.
+        _saved = self._read_json(GUI_SETTINGS_FILE, {})
+        self._curves: dict    = _saved.get('curves', {})
+        self._game_mode: str  = _saved.get('last_game', 'f1_25')
+
         self._nanoleaf_settings: dict = load_nanoleaf_settings()
         self._hue_settings: dict = load_hue_settings()
 
         self._stat_stop = threading.Event()
         self._stat_thread = None
         self._lock = threading.Lock()
+        self._settings_lock = threading.Lock()  # serialises read-modify-write on settings files
 
     def is_running(self) -> bool:
         return self.bridge is not None and self.bridge.running
@@ -159,13 +165,23 @@ class BridgeRunner:
 
         listen_ip, listen_port = self._pending_listen or (self._module.UDP_IP, self._module.UDP_PORT)
         try:
-            self.bridge = self._module.F1LifxBridgeCore(
-                udp_ip=listen_ip,
-                udp_port=listen_port,
-                bulb_count=self._module.LIFX_BULB_COUNT,
-                dry_run=self._module.DRY_RUN,
-                log_callback=self.on_log,
-            )
+            if self._game_mode == 'dr2':
+                import dr2_bridge as _dr2
+                self.bridge = _dr2.DR2BridgeCore(
+                    udp_ip=listen_ip,
+                    udp_port=listen_port,
+                    bulb_count=self._module.LIFX_BULB_COUNT,
+                    dry_run=self._module.DRY_RUN,
+                    log_callback=self.on_log,
+                )
+            else:
+                self.bridge = self._module.F1LifxBridgeCore(
+                    udp_ip=listen_ip,
+                    udp_port=listen_port,
+                    bulb_count=self._module.LIFX_BULB_COUNT,
+                    dry_run=self._module.DRY_RUN,
+                    log_callback=self.on_log,
+                )
         except Exception as exc:
             self.on_log(f"ERROR: could not construct bridge: {exc}")
             self.on_status_text("Error")
@@ -200,8 +216,10 @@ class BridgeRunner:
 
         if self._light_assignments and self.bridge.lifx is not None:
             self.bridge.lifx.light_assignments = self._light_assignments
+        if self._curves and self.bridge.lifx is not None:
+            self.bridge.lifx.curves = self._curves
 
-        self._connect_nanoleaf_if_configured()
+        self._connect_nanoleaf_if_configured()  # nanoleaf assigned/curves below after connection
         self._connect_hue_if_configured()
 
         return True
@@ -265,14 +283,10 @@ class BridgeRunner:
                     label = "Unknown LIFX"
                 zones = self.bridge.lifx.get_zone_count(light)
                 result.append({"label": label, "ip": ip, "zones": zones, "type": "lifx"})
-        # Append connected Nanoleaf as a virtual always-active entry.
+        # Append connected Nanoleaf device — label matches nl.label for assignment lookup.
         if self.bridge is not None and self.bridge.nanoleaf is not None:
             nl = self.bridge.nanoleaf
-            info = nl.device_info
-            name = info.get('name', 'Nanoleaf') if info else 'Nanoleaf'
-            model = info.get('model_name', '') if info else ''
-            label = f"{name} ({model})" if model and model.lower() not in name.lower() else name
-            result.append({"label": label, "ip": nl.ip, "zones": 0, "type": "nanoleaf"})
+            result.append({"label": nl.label, "ip": nl.ip, "zones": 0, "type": "nanoleaf"})
         return result
 
     def set_selected_lights(self, labels: list[str], group_name: str | None = None):
@@ -456,6 +470,10 @@ class BridgeRunner:
             layout = self.get_nanoleaf_layout()
             if layout and layout.get("panels"):
                 ctrl.update_panel_order(layout["panels"])
+            if self._light_assignments:
+                ctrl.light_assignments = self._light_assignments
+            if self._curves:
+                ctrl.curves = self._curves
             if ctrl.device_info:
                 cfg["device_info"] = ctrl.device_info
                 self._nanoleaf_settings = cfg
@@ -560,6 +578,23 @@ class BridgeRunner:
             elif self.bridge.nanoleaf is None:
                 self._connect_nanoleaf_if_configured()
 
+    def set_game_mode(self, mode: str):
+        """Switch game mode ('f1_25' or 'dr2').  Restarts the bridge if running."""
+        if mode not in ('f1_25', 'dr2'):
+            return
+        self._game_mode = mode
+        if self.is_running():
+            threading.Thread(target=self._restart_for_game_mode, daemon=True).start()
+
+    def _restart_for_game_mode(self):
+        self.bridge.stop()
+        for _ in range(30):
+            if not self.bridge.running:
+                break
+            time.sleep(0.1)
+        self.bridge = None
+        self.start()
+
     def set_listen_address(self, ip: str, port: int):
         self._pending_listen = (ip, int(port))
         if self.is_running():
@@ -605,8 +640,20 @@ class BridgeRunner:
     def set_light_assignments(self, assignments: dict):
         """assignments: {label: None | [effect_keys]}.  None = all effects."""
         self._light_assignments = assignments or {}
-        if self.bridge is not None and self.bridge.lifx is not None:
-            self.bridge.lifx.light_assignments = self._light_assignments
+        if self.bridge is not None:
+            if self.bridge.lifx is not None:
+                self.bridge.lifx.light_assignments = self._light_assignments
+            if self.bridge.nanoleaf is not None:
+                self.bridge.nanoleaf.light_assignments = self._light_assignments
+
+    def set_curves(self, curves: dict):
+        """curves: {label: {points: [[t,v],...], duration_ms: int}}."""
+        self._curves = curves or {}
+        if self.bridge is not None:
+            if self.bridge.lifx is not None:
+                self.bridge.lifx.curves = self._curves
+            if self.bridge.nanoleaf is not None:
+                self.bridge.nanoleaf.curves = self._curves
 
     def set_enabled_events(self, names: list[str] | None):
         """Pass None to enable everything, or a list of event key strings to restrict."""
@@ -681,9 +728,12 @@ class BridgeRunner:
         return self._read_json(GUI_SETTINGS_FILE, {})
 
     def save_gui_settings(self, data: dict):
-        current = self.get_gui_settings()
-        current.update(data)
-        self._write_json(GUI_SETTINGS_FILE, current)
+        with self._settings_lock:
+            current = self._read_json(GUI_SETTINGS_FILE, {})
+            current.update(data)
+            self._write_json(GUI_SETTINGS_FILE, current)
+        if 'curves' in data:
+            self.set_curves(data['curves'])
 
     # ---- background workers ----
 
@@ -769,8 +819,11 @@ class BridgeRunner:
         if self._pending_brightness is not None and self.bridge.nanoleaf is not None:
             self.bridge.nanoleaf.brightness_min, self.bridge.nanoleaf.brightness_max = self._pending_brightness
 
-        if self._light_assignments and self.bridge.lifx is not None:
-            self.bridge.lifx.light_assignments = self._light_assignments
+        if self._light_assignments:
+            if self.bridge.lifx is not None:
+                self.bridge.lifx.light_assignments = self._light_assignments
+            if self.bridge.nanoleaf is not None:
+                self.bridge.nanoleaf.light_assignments = self._light_assignments
 
         self._push_light_stats()
         self.on_lights_discovered(self.get_discovered_lights())

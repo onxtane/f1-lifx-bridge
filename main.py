@@ -7,6 +7,15 @@ from pathlib import Path
 # Force the Qt (PySide6) backend to avoid WebView2 threading issues on Windows.
 os.environ.setdefault("PYWEBVIEW_GUI", "qt")
 
+# When a fullscreen game occludes this window, Chromium's GPU compositor normally
+# pauses to save resources. On resume it outputs a brief blank frame before the
+# first real paint — the visible "flicker". These flags keep the compositor running
+# at full rate regardless of occlusion/focus state, eliminating the blank frame.
+os.environ.setdefault(
+    "QTWEBENGINE_CHROMIUM_FLAGS",
+    "--disable-backgrounding-occluded-windows --disable-renderer-backgrounding",
+)
+
 import webview
 
 from bridge_runner import BridgeRunner
@@ -229,11 +238,45 @@ class Api:
             self.window.resize(1320, 860)
         return {"ok": True}
 
+    def copy_to_clipboard(self, text: str):
+        if sys.platform == "win32":
+            import ctypes
+            CF_UNICODETEXT = 13
+            GMEM_MOVEABLE = 0x0002
+            encoded = (text + "\0").encode("utf-16-le")
+            kernel32 = ctypes.windll.kernel32
+            user32   = ctypes.windll.user32
+            kernel32.GlobalAlloc.restype       = ctypes.c_void_p
+            kernel32.GlobalAlloc.argtypes      = [ctypes.c_uint, ctypes.c_size_t]
+            kernel32.GlobalLock.restype        = ctypes.c_void_p
+            kernel32.GlobalLock.argtypes       = [ctypes.c_void_p]
+            kernel32.GlobalUnlock.argtypes     = [ctypes.c_void_p]
+            kernel32.GlobalFree.argtypes       = [ctypes.c_void_p]
+            user32.SetClipboardData.argtypes   = [ctypes.c_uint, ctypes.c_void_p]
+            hMem = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(encoded))
+            if not hMem:
+                return {"ok": False}
+            ptr = kernel32.GlobalLock(hMem)
+            if not ptr:
+                kernel32.GlobalFree(hMem)
+                return {"ok": False}
+            ctypes.memmove(ptr, encoded, len(encoded))
+            kernel32.GlobalUnlock(hMem)
+            user32.OpenClipboard(0)
+            user32.EmptyClipboard()
+            user32.SetClipboardData(CF_UNICODETEXT, hMem)
+            user32.CloseClipboard()
+        return {"ok": True}
+
     def get_lan_interfaces(self):
         return self.runner.get_lan_interfaces()
 
     def set_listen_address(self, ip: str, port: int):
         self.runner.set_listen_address(ip, int(port))
+        return {"ok": True}
+
+    def set_game_mode(self, mode: str):
+        self.runner.set_game_mode(mode)
         return {"ok": True}
 
     def set_light_assignments(self, data: dict):
@@ -275,6 +318,26 @@ class Api:
         self._enqueue("setActiveLabels", labels)
 
 
+def _disable_dwm_transitions(win: webview.Window) -> None:
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        native = win.native
+        if native is None:
+            return
+        DWMWA_TRANSITIONS_FORCEDISABLED = 3
+        value = ctypes.c_int(1)
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            int(native.winId()),
+            DWMWA_TRANSITIONS_FORCEDISABLED,
+            ctypes.byref(value),
+            ctypes.sizeof(value),
+        )
+    except Exception:
+        pass
+
+
 def main():
     api = Api()
 
@@ -288,6 +351,7 @@ def main():
         background_color="#0b1020",
     )
     api.set_window(window)
+    window.events.loaded += lambda: _disable_dwm_transitions(window)
 
     storage = _APP_DIR / "webview_storage"
     webview.start(private_mode=False, storage_path=str(storage))
