@@ -1306,7 +1306,7 @@ class F1LifxBridgeCore:
 
     def listener_loop(self):
         self.log("===================================================")
-        self.log("F1 25 Local LIFX Bridge")
+        self.log("GridGlow")
         self.log("===================================================")
         self.log(f"UDP listener: {self.udp_ip}:{self.udp_port}")
         self.log(f"DRY_RUN: {self.dry_run}")

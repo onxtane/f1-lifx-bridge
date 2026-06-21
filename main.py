@@ -253,7 +253,7 @@ def main():
     api = Api()
 
     window = webview.create_window(
-        "F1 LIFX Bridge",
+        "GridGlow",
         url=UI_FILE.as_uri(),
         js_api=api,
         width=1320,

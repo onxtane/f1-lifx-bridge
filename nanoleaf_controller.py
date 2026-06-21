@@ -1,5 +1,5 @@
 """
-Nanoleaf integration for F1 LIFX Bridge.
+Nanoleaf integration for GridGlow.
 
 Provides:
   - NanoleafController  — mirrors LocalLifxController so effects fire on
