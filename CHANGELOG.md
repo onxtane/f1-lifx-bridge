@@ -4,6 +4,13 @@ All notable changes are documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Nanoleaf auto-discovery** — replaced the single-socket SSDP probe (unreliable on multi-homed Windows hosts with VPN / Hyper-V / WSL virtual adapters) with a dependency-free scan that sends both mDNS (`_nanoleafapi._tcp.local.`) and SSDP probes from every LAN interface, using each reply's source address as the device IP and resolving the friendly device name from the mDNS instance label. Falls back to the previous library discovery only if the scan finds nothing (#23)
+
+---
+
 ## [0.7.0] — 2026-06-22
 
 ### Added

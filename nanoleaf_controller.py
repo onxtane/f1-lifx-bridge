@@ -11,6 +11,8 @@ Provides:
 
 import json
 import os
+import socket
+import struct
 import sys
 import threading
 import time
@@ -110,22 +112,243 @@ def save_nanoleaf_settings(data: dict):
 
 
 # ── Discovery ────────────────────────────────────────────────────────────────
+#
+# Nanoleaf devices advertise on two protocols:
+#   • mDNS  — service `_nanoleafapi._tcp.local.` on 224.0.0.251:5353 (modern firmware)
+#   • SSDP  — M-SEARCH on 239.255.255.250:1900, ST `nanoleaf_aurora:light` / `nanoleaf:nl29`
+#
+# The reason `nanoleafapi.discover_devices()` (SSDP only) fails on Windows is that it
+# sends the multicast probe from a single default socket; on a multi-homed host (VPN
+# tunnels, Hyper-V / WSL virtual adapters, multiple NICs) the OS routes that probe out
+# the wrong adapter and the device never hears it. The fix below sends probes from
+# *every* LAN interface explicitly (binding the socket + IP_MULTICAST_IF to each local
+# address) and reads the unicast replies, whose source IP is the device address.
+# Pure stdlib — works whether or not nanoleafapi is installed.
+
+_SSDP_ADDR  = "239.255.255.250"
+_SSDP_PORT  = 1900
+_MDNS_ADDR  = "224.0.0.251"
+_MDNS_PORT  = 5353
+_NL_SERVICE = "_nanoleafapi._tcp.local."
+
+
+_DISCOVERY_LOCK = threading.Lock()
+
+
+def _record_device(results: dict, ip: str, name: str):
+    """Merge a discovered device, preferring a specific name over the generic fallback.
+
+    mDNS and SSDP probes race across threads; SSDP often has no friendly name. Don't
+    let a generic 'Nanoleaf' from whichever replied first mask a real name like
+    'Canvas 47A0'. Guarded by a lock since probe threads share `results`.
+    """
+    with _DISCOVERY_LOCK:
+        existing = results.get(ip)
+        if existing is None or (existing == "Nanoleaf" and name and name != "Nanoleaf"):
+            results[ip] = name or "Nanoleaf"
+
+
+def _local_ipv4_addresses() -> list:
+    """Return routable local IPv4 addresses (excludes loopback / link-local)."""
+    addrs = []
+    try:
+        import psutil
+        for _name, entries in psutil.net_if_addrs().items():
+            for a in entries:
+                if a.family == socket.AF_INET:
+                    ip = a.address
+                    if not ip.startswith(("127.", "169.254.")):
+                        addrs.append(ip)
+    except Exception:
+        try:
+            for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+                ip = info[4][0]
+                if not ip.startswith(("127.", "169.254.")):
+                    addrs.append(ip)
+        except Exception:
+            pass
+    if not addrs:
+        addrs = ["0.0.0.0"]
+    # Preserve order, drop duplicates.
+    seen, out = set(), []
+    for ip in addrs:
+        if ip not in seen:
+            seen.add(ip)
+            out.append(ip)
+    return out
+
+
+def _ssdp_discover(local_ip: str, timeout: float, results: dict):
+    """Send an SSDP M-SEARCH from one interface and collect Nanoleaf replies."""
+    msg = (
+        "M-SEARCH * HTTP/1.1\r\n"
+        f"HOST: {_SSDP_ADDR}:{_SSDP_PORT}\r\n"
+        'MAN: "ssdp:discover"\r\n'
+        "MX: 2\r\n"
+        "ST: ssdp:all\r\n"
+        "\r\n"
+    ).encode("ascii")
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        if local_ip != "0.0.0.0":
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF,
+                            socket.inet_aton(local_ip))
+            sock.bind((local_ip, 0))
+        sock.settimeout(timeout)
+        sock.sendto(msg, (_SSDP_ADDR, _SSDP_PORT))
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                sock.settimeout(max(0.1, deadline - time.monotonic()))
+                data, addr = sock.recvfrom(2048)
+            except socket.timeout:
+                break
+            except OSError:
+                break
+            text = data.decode("utf-8", "ignore")
+            low = text.lower()
+            if "nanoleaf" not in low:
+                continue
+            ip = addr[0]
+            name = None
+            for line in text.split("\r\n"):
+                key, _, val = line.partition(":")
+                k = key.strip().lower()
+                if k in ("nl-devicename", "s") and val.strip():
+                    name = val.strip()
+                    break
+            _record_device(results, ip, name or "Nanoleaf")
+    except Exception as exc:
+        print(f"[NANOLEAF] SSDP probe on {local_ip} failed: {exc}", flush=True)
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+
+def _build_mdns_query(service: str) -> bytes:
+    """Build an mDNS PTR query for `service`, with the unicast-response (QU) bit set."""
+    header = struct.pack(">HHHHHH", 0, 0, 1, 0, 0, 0)  # id=0, flags=0, qd=1
+    qname = b"".join(
+        struct.pack("B", len(label)) + label.encode("ascii")
+        for label in service.rstrip(".").split(".")
+    ) + b"\x00"
+    # QTYPE=12 (PTR), QCLASS=0x8001 (IN + QU unicast-response bit)
+    return header + qname + struct.pack(">HH", 12, 0x8001)
+
+
+def _mdns_discover(local_ip: str, timeout: float, results: dict):
+    """Send an mDNS PTR query from one interface; device IP = reply source address."""
+    query = _build_mdns_query(_NL_SERVICE)
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        if local_ip != "0.0.0.0":
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF,
+                            socket.inet_aton(local_ip))
+            sock.bind((local_ip, 0))
+        sock.settimeout(timeout)
+        sock.sendto(query, (_MDNS_ADDR, _MDNS_PORT))
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                sock.settimeout(max(0.1, deadline - time.monotonic()))
+                data, addr = sock.recvfrom(4096)
+            except socket.timeout:
+                break
+            except OSError:
+                break
+            # A reply to our service query means addr[0] is a Nanoleaf. Use the
+            # source IP directly (avoids brittle DNS name-compression parsing).
+            name = _parse_mdns_instance_name(data) or "Nanoleaf"
+            _record_device(results, addr[0], name)
+    except Exception as exc:
+        print(f"[NANOLEAF] mDNS probe on {local_ip} failed: {exc}", flush=True)
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+
+def _parse_mdns_instance_name(data: bytes) -> str | None:
+    """Best-effort: pull the human instance label from a PTR answer, e.g. 'Canvas 47A0'.
+
+    The PTR target ('<instance>._nanoleafapi._tcp.local') stores the instance as a
+    length-prefixed label immediately followed by a compression pointer (0xC0…) back
+    to the service suffix. We scan for that pattern and return the first label that
+    isn't a service/protocol token. Cosmetic only — the IP comes from the reply's
+    source address, so None here is harmless (caller falls back to 'Nanoleaf').
+    """
+    try:
+        skip = {"_tcp", "_nanoleafapi", "_nanoleaf", "local"}
+        # Check every offset (don't label-walk — the header/question bytes would
+        # misalign us past the PTR RDATA). A match is: length byte, printable label,
+        # then a 0xC0 compression pointer back to the service suffix.
+        for i in range(len(data) - 2):
+            ln = data[i]
+            if not (1 <= ln <= 63) or i + 1 + ln >= len(data):
+                continue
+            chunk = data[i + 1:i + 1 + ln]
+            if data[i + 1 + ln] != 0xC0:
+                continue
+            if not all(32 <= b <= 126 for b in chunk):
+                continue
+            label = chunk.decode("ascii", "ignore")
+            if not label.startswith("_") and label.lower() not in skip:
+                return label
+        return None
+    except Exception:
+        return None
+
 
 def discover_nanoleaf(timeout: int = 5) -> list:
     """
-    Discover Nanoleaf devices via SSDP. Returns [{name, ip}, ...].
-    Requires nanoleafapi to be installed.
+    Discover Nanoleaf devices on the LAN via mDNS + SSDP across all interfaces.
+    Returns [{name, ip}, ...], deduplicated by IP. Pure stdlib; falls back to
+    nanoleafapi.discover_devices() only if the active scan finds nothing.
     """
-    if not _NANOLEAF_AVAILABLE or _discover_devices is None:
-        return []
-    try:
-        raw = _discover_devices(timeout)
-        if isinstance(raw, dict):
-            return [{"name": name, "ip": ip} for name, ip in raw.items()]
-        return []
-    except Exception as exc:
-        print(f"[NANOLEAF] Discovery error: {exc}", flush=True)
-        return []
+    results: dict = {}
+    per_iface_timeout = max(1.5, min(float(timeout), 6.0))
+    interfaces = _local_ipv4_addresses()
+
+    threads = []
+    for ip in interfaces:
+        for fn in (_mdns_discover, _ssdp_discover):
+            t = threading.Thread(target=fn, args=(ip, per_iface_timeout, results),
+                                 daemon=True)
+            t.start()
+            threads.append(t)
+    for t in threads:
+        t.join(per_iface_timeout + 1.0)
+
+    if results:
+        devices = [{"name": name, "ip": ip} for ip, name in results.items()]
+        print(f"[NANOLEAF] Discovery found {len(devices)} device(s): "
+              f"{', '.join(d['ip'] for d in devices)}", flush=True)
+        return devices
+
+    # Fallback: library SSDP (older behaviour) in case the manual scan missed.
+    if _NANOLEAF_AVAILABLE and _discover_devices is not None:
+        try:
+            raw = _discover_devices(int(per_iface_timeout))
+            if isinstance(raw, dict):
+                return [{"name": name, "ip": ip} for name, ip in raw.items()]
+        except Exception as exc:
+            print(f"[NANOLEAF] Library discovery error: {exc}", flush=True)
+
+    print("[NANOLEAF] Discovery found no devices.", flush=True)
+    return []
 
 
 # ── Controller ───────────────────────────────────────────────────────────────
