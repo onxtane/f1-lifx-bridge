@@ -481,7 +481,14 @@ class BridgeRunner:
                 save_nanoleaf_settings(cfg)
 
     def get_nanoleaf_settings(self) -> dict:
-        return dict(self._nanoleaf_settings)
+        """Settings for the UI, with the auth token stripped (mirrors Hue).
+
+        The token never leaves the backend; the UI gets a `paired` boolean instead.
+        """
+        safe = dict(self._nanoleaf_settings)
+        safe.pop("auth_token", None)
+        safe["paired"] = bool(self._nanoleaf_settings.get("auth_token"))
+        return safe
 
     def get_nanoleaf_layout(self) -> dict | None:
         """Return panel layout for the UI.
@@ -538,14 +545,21 @@ class BridgeRunner:
         return {}
 
     def save_nanoleaf_settings_data(self, data: dict):
-        self._nanoleaf_settings = data
-        save_nanoleaf_settings(data)
+        # Merge (don't replace) so a partial save from the UI — e.g. just the
+        # enabled toggle — can't wipe backend-owned fields like custom_layout,
+        # device_layout, or the auth token. Mirrors save_hue_settings_data.
+        incoming = dict(data or {})
+        if not incoming.get("auth_token"):
+            incoming.pop("auth_token", None)   # never clear the token by omission
+        self._nanoleaf_settings.update(incoming)
+        save_nanoleaf_settings(self._nanoleaf_settings)
 
     def pair_nanoleaf(self, ip: str) -> dict:
         """
         Request a new auth token from the Nanoleaf at ip.
         The user must hold the power button for 5-7 s first.
-        Returns {ok, token} or {ok, error}.
+        Returns {ok, device_info} or {ok: False, error}. The token is kept
+        backend-side and never returned to the UI.
         """
         if not _NANOLEAF_AVAILABLE:
             return {"ok": False, "error": "nanoleafapi is not installed."}
@@ -563,7 +577,7 @@ class BridgeRunner:
                     save_nanoleaf_settings(cfg)
             # Re-push lights so the Nanoleaf entry appears immediately in the UI.
             self.on_lights_discovered(self.get_discovered_lights())
-            return {"ok": True, "token": token, "device_info": cfg.get("device_info", {})}
+            return {"ok": True, "device_info": cfg.get("device_info", {})}
         return {"ok": False, "error": "Pairing failed. Hold the power button for 5-7 s and try again."}
 
     def discover_nanoleaf_devices(self, timeout: int = 5) -> list:

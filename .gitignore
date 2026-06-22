@@ -25,6 +25,9 @@ webview_storage/
 build/
 dist/
 dist.zip
+# Alternate build/dist dirs (e.g. dist_071 used for an isolated release build)
+build_*/
+dist_*/
 
 # Original/legacy code archive
 Original/

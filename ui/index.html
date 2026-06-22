@@ -3787,8 +3787,6 @@
       badge.style.color         = ok ? '#3ddc84' : ok === false ? '#ff7070' : 'var(--text-muted)';
     }
 
-    let _nanoleafToken = '';
-
     function applyDeviceInfo(info) {
       if (!info || !info.model) return;
       const label = info.name
@@ -3806,11 +3804,11 @@
       callApi('get_nanoleaf_settings').then(cfg => {
         if (!cfg) return;
         if (cfg.ip)          ipInput.value         = cfg.ip;
-        if (cfg.auth_token) { _nanoleafToken = cfg.auth_token; }
         if (cfg.enabled != null) enabledToggle.checked = !!cfg.enabled;
-        if (cfg.auth_token && cfg.device_info && cfg.device_info.model) {
+        // The auth token stays backend-side; we only learn whether we're paired.
+        if (cfg.paired && cfg.device_info && cfg.device_info.model) {
           applyDeviceInfo(cfg.device_info);
-        } else if (cfg.auth_token) {
+        } else if (cfg.paired) {
           setBadge('Paired', true);
         }
       }).catch(() => {});
@@ -3825,7 +3823,6 @@
       callApi('set_nanoleaf_enabled', enabled);
       callApi('save_nanoleaf_settings', {
         ip: ipInput.value.trim(),
-        auth_token: _nanoleafToken || '',
         enabled,
       });
     });
@@ -3833,7 +3830,6 @@
     ipInput.addEventListener('change', function () {
       callApi('save_nanoleaf_settings', {
         ip: this.value.trim(),
-        auth_token: _nanoleafToken || '',
         enabled: enabledToggle.checked,
       });
     });
@@ -3850,7 +3846,6 @@
           discoverHint.textContent = `Found: ${names} — IP filled in. Click Pair to connect.`;
           callApi('save_nanoleaf_settings', {
             ip: devices[0].ip,
-            auth_token: _nanoleafToken || '',
             enabled: enabledToggle.checked,
           });
         } else {
@@ -3876,7 +3871,7 @@
       try {
         const res = await callApi('pair_nanoleaf', ip);
         if (res && res.ok) {
-          _nanoleafToken = res.token || '';
+          // Token is saved backend-side by pair_nanoleaf; the UI never holds it.
           if (res.device_info && res.device_info.model) {
             applyDeviceInfo(res.device_info);
           } else {

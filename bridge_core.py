@@ -251,6 +251,8 @@ class LocalLifxController:
         # A red flag overrides the reservation: while set, set_color_all paints the
         # strip again so the whole strip can flash red, then sectors resume.
         self.sector_strip_override = False
+        # One-shot guard so the "no multizone strip" notice isn't logged repeatedly.
+        self._sector_warned_no_strip = False
 
         if self.dry_run:
             print("[LIFX] DRY_RUN is enabled. Bulbs will NOT change.")
@@ -861,8 +863,6 @@ class LocalLifxController:
         self._current_effect_key = 'sector_status'
 
         flags = (list(sector_flags or []) + [FIA_FLAG_NONE] * 3)[:3]
-        colors = [self._sector_flag_hsbk(f) for f in flags]
-        dominant = max(flags, key=lambda f: _MARSHAL_FLAG_PRIORITY.get(f, 0))
 
         if self.dry_run:
             print(f"[SECTOR] flags={flags}")
@@ -870,10 +870,15 @@ class LocalLifxController:
 
         strips = [l for l in self.lights if isinstance(l, MultiZoneLight)]
         if not strips:
-            if self.log_callback:
+            if self.log_callback and not self._sector_warned_no_strip:
                 self.log_callback("[SECTOR] No multizone strip in the active lights "
                                   "— sector status needs a multizone strip to display.")
+                self._sector_warned_no_strip = True
             return
+        self._sector_warned_no_strip = False
+
+        colors = [self._sector_flag_hsbk(f) for f in flags]
+        dominant = max(flags, key=lambda f: _MARSHAL_FLAG_PRIORITY.get(f, 0))
 
         for light in strips:
             try:
