@@ -1,18 +1,56 @@
 ---
-const version = "0.6.0";
+const version = "0.7.0";
 const downloadUrl = `https://github.com/onxtane/f1-lifx-bridge/releases/download/v${version}/F1LifxBridge-v${version}.zip`;
 const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
 
+// Used for the hero light strip only
 const events = [
-  { name: "Start Lights",    color: "#ef4444", desc: "Zones sweep red, light by light",      delay: "0s",   id: "start-lights"   },
-  { name: "Lights Out",      color: "#22c55e", desc: "Full green flash at race start",        delay: "0.3s", id: "lights-out"     },
-  { name: "Yellow Flag",     color: "#f59e0b", desc: "Safety car — steady amber pulse",       delay: "0.6s", id: "yellow-flag"    },
-  { name: "Blue Flag",       color: "#60a5fa", desc: "Lapped traffic warning",                delay: "0.9s", id: "blue-flag"      },
-  { name: "Red Flag",        color: "#ef4444", desc: "Session suspended",                     delay: "1.2s", id: "red-flag"       },
-  { name: "Fastest Lap",     color: "#c084fc", desc: "Purple flash on personal best",         delay: "1.5s", id: "fastest-lap"    },
-  { name: "Chequered Flag",  color: "#f8fafc", desc: "Race end",                             delay: "1.8s", id: "chequered-flag" },
-  { name: "White Warning",   color: "#cbd5e1", desc: "Slow vehicle on track",                 delay: "2.1s", id: "white-warning"  },
-  { name: "Neutral",         color: "#fbbf24", desc: "Returns to your idle colour",           delay: "2.4s", id: "neutral"        },
+  { color: "#ef4444", delay: "0s"   },
+  { color: "#22c55e", delay: "0.3s" },
+  { color: "#f59e0b", delay: "0.6s" },
+  { color: "#60a5fa", delay: "0.9s" },
+  { color: "#ef4444", delay: "1.2s" },
+  { color: "#c084fc", delay: "1.5s" },
+  { color: "#f8fafc", delay: "1.8s" },
+  { color: "#cbd5e1", delay: "2.1s" },
+  { color: "#fbbf24", delay: "2.4s" },
+];
+
+const gamePages = [
+  {
+    id: "f1",
+    name: "F1 25–21",
+    accentColor: "#8b7cf6",
+    eyebrow: "9 RACE EVENTS",
+    headline: "Every moment on track.",
+    sub: "Nine distinct effects fire the instant F1 25 through F1 21 broadcasts the event — each mapped to a colour, a pulse, a sweep across your room.",
+    events: [
+      { name: "Start Lights",   color: "#ef4444", desc: "Zones sweep red, light by light",       delay: "0s",   id: "start-lights"   },
+      { name: "Lights Out",     color: "#22c55e", desc: "Full green flash at race start",         delay: "0.1s", id: "lights-out"     },
+      { name: "Yellow Flag",    color: "#f59e0b", desc: "Safety car — steady amber pulse",        delay: "0.2s", id: "yellow-flag"    },
+      { name: "Blue Flag",      color: "#60a5fa", desc: "Lapped traffic warning",                 delay: "0.3s", id: "blue-flag"      },
+      { name: "Red Flag",       color: "#ef4444", desc: "Session suspended",                      delay: "0.4s", id: "red-flag"       },
+      { name: "Fastest Lap",    color: "#c084fc", desc: "Purple flash on personal best",          delay: "0.5s", id: "fastest-lap"    },
+      { name: "Chequered Flag", color: "#f8fafc", desc: "Race end",                              delay: "0.6s", id: "chequered-flag" },
+      { name: "White Warning",  color: "#cbd5e1", desc: "Slow vehicle on track",                  delay: "0.7s", id: "white-warning"  },
+      { name: "Neutral",        color: "#fbbf24", desc: "Returns to your idle colour",            delay: "0.8s", id: "neutral"        },
+    ],
+  },
+  {
+    id: "dr2",
+    name: "DiRT Rally 2.0",
+    accentColor: "#22c55e",
+    eyebrow: "5 STAGE EVENTS",
+    headline: "From stage start to service park.",
+    sub: "Five effects fire the moment DiRT Rally 2.0 broadcasts a packet — each split, each finish, each crash, each return to service park reflected in your room.",
+    events: [
+      { name: "Stage Start",      color: "#22c55e", desc: "Green flash when the stage begins",      delay: "0s",   id: "lights-out"     },
+      { name: "Split Checkpoint", color: "#c084fc", desc: "Purple flash at each split checkpoint",  delay: "0.15s",id: "fastest-lap"    },
+      { name: "Stage Finish",     color: "#f8fafc", desc: "Celebration flash at stage end",         delay: "0.3s", id: "chequered-flag" },
+      { name: "Service Park",     color: "#fbbf24", desc: "Warm white on return to service park",   delay: "0.45s",id: "neutral"        },
+      { name: "Crash",            color: "#f97316", desc: "Sharp white impact flash on collision",  delay: "0.6s", id: "crash"          },
+    ],
+  },
 ];
 
 const features = [
@@ -31,7 +69,7 @@ const features = [
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GridGlow — Feel the race in your room</title>
-  <meta name="description" content="Sync your LIFX and Nanoleaf lights to live F1 25 race events. Start lights, yellow flags, fastest laps — every moment on track, reflected in your room. No cloud. Sub-second latency." />
+  <meta name="description" content="Sync your LIFX and Nanoleaf lights to live F1 25–21 race events. Start lights, yellow flags, fastest laps — every moment on track, reflected in your room. No cloud. Sub-second latency." />
   <meta property="og:title" content="GridGlow" />
   <meta property="og:description" content="Feel the race in your room. Nine race events. Your LIFX and Nanoleaf lights. Sub-second, over LAN." />
   <meta property="og:type" content="website" />
@@ -61,12 +99,12 @@ const features = [
     <div class="hero-glow glow-teal"></div>
 
     <div class="hero-inner">
-      <div class="hero-badge rise" style="--d:.05s">F1 25 / 24 &nbsp;·&nbsp; LIFX &nbsp;·&nbsp; Nanoleaf</div>
+      <div class="hero-badge rise" style="--d:.05s">F1 25–21 &nbsp;·&nbsp; DiRT Rally 2.0 &nbsp;·&nbsp; LIFX &nbsp;·&nbsp; Nanoleaf &nbsp;·&nbsp; Hue</div>
 
       <h1 class="rise" style="--d:.14s">From lights out<br/><em>to chequered flag.</em></h1>
 
       <p class="hero-sub rise" style="--d:.24s">
-        Every flag, every start light, every fastest lap — reflected instantly in your LIFX bulbs and Nanoleaf panels.
+        Every flag, every start light, every fastest lap — reflected instantly in your LIFX, Nanoleaf, and Philips Hue lights.
         No cloud. No delay. Pure LAN.
       </p>
 
@@ -120,23 +158,53 @@ const features = [
     </div>
   </section>
 
-  <!-- ═══ EVENTS ═══ -->
+  <!-- ═══ EVENTS CAROUSEL ═══ -->
   <section class="section events-section">
     <div class="container">
-      <p class="eyebrow">9 RACE EVENTS</p>
-      <h2>Every moment on track.</h2>
-      <p class="section-sub">Nine distinct effects fire the instant F1 25 or F1 24 broadcasts the event — each mapped to a colour, a pulse, a sweep across your room.</p>
 
-      <div class="events-grid">
-        {events.map(e => (
-          <div class="event-card" data-effect={e.id} style={`--c: ${e.color}; --delay: ${e.delay}`}>
-            <div class="effect-canvas"></div>
-            <div class="event-bar"></div>
-            <div class="event-name">{e.name}</div>
-            <div class="event-desc">{e.desc}</div>
+      <!-- nav row -->
+      <div class="ev-nav">
+        <button class="ev-arrow" id="evPrev" aria-label="Previous game">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="ev-nav-center">
+          <p class="eyebrow ev-eyebrow" id="evEyebrow">{gamePages[0].eyebrow}</p>
+          <div class="ev-game-name" id="evGameName">{gamePages[0].name}</div>
+          <div class="ev-dots" id="evDots">
+            {gamePages.map((_, i) => (
+              <button class={`ev-dot${i === 0 ? ' active' : ''}`} data-index={i} aria-label={`Go to ${gamePages[i].name}`}></button>
+            ))}
+          </div>
+        </div>
+        <button class="ev-arrow" id="evNext" aria-label="Next game">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <!-- per-game headline + sub -->
+      <div class="ev-header" id="evHeader">
+        <h2 id="evHeadline">{gamePages[0].headline}</h2>
+        <p class="section-sub" id="evSub">{gamePages[0].sub}</p>
+      </div>
+
+      <!-- pages -->
+      <div class="ev-viewport" id="evViewport">
+        {gamePages.map((game, gi) => (
+          <div class={`ev-page${gi === 0 ? ' active' : ''}`} data-game={game.id}>
+            <div class="events-grid">
+              {game.events.map(e => (
+                <div class="event-card" data-effect={e.id} style={`--c: ${e.color}; --delay: ${e.delay}`}>
+                  <div class="effect-canvas"></div>
+                  <div class="event-bar"></div>
+                  <div class="event-name">{e.name}</div>
+                  <div class="event-desc">{e.desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
+
     </div>
   </section>
 
@@ -157,7 +225,7 @@ const features = [
         <div class="step">
           <div class="step-num">02</div>
           <div class="step-body">
-            <h3>Enable UDP telemetry in F1 25 or F1 24</h3>
+            <h3>Enable UDP telemetry in your F1 title</h3>
             <p>Settings → Telemetry Settings. Set UDP to On, point it at your PC's local IP, your chosen port (20777 by default).</p>
           </div>
         </div>
@@ -176,7 +244,7 @@ const features = [
   <section class="section platforms-section">
     <div class="container">
       <p class="eyebrow">SUPPORTED DEVICES</p>
-      <h2>LIFX. Nanoleaf. More coming.</h2>
+      <h2>LIFX. Nanoleaf. Philips Hue.</h2>
 
       <div class="platforms-grid">
         <div class="platform-card lifx-card">
@@ -222,22 +290,19 @@ const features = [
         <div class="platform-card hue-card">
           <div class="platform-accent"></div>
           <div class="platform-icon">
-            <!-- Tabler bulb off / hue shape -->
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3"/>
               <path d="M9.7 17l4.6 0"/>
               <path d="M3 12h1m8-9v1m8 8h1m-15.4-6.4l.7.7m12.1-.7l-.7.7"/>
             </svg>
           </div>
-          <div class="hue-header">
-            <h3>Philips Hue</h3>
-            <span class="coming-soon-badge">In development</span>
-          </div>
-          <p>Gradient Lightstrip Plus segment control and full bulb support via the local CLIP v2 API — no cloud, no Hue Bridge dependency on your network path. Same sub-second latency.</p>
+          <h3>Philips Hue</h3>
+          <p>Bulbs and Gradient Lightstrip Plus, all running over your home network — no internet required. The Gradient Lightstrip fills up segment by segment during the start lights sequence, matching the on-screen countdown light by light.</p>
           <ul>
-            <li>CLIP v2 — local API only</li>
-            <li>Gradient Lightstrip per-segment addressing</li>
-            <li>Full bulb &amp; colour support</li>
+            <li>Bulbs &amp; colour strips</li>
+            <li>Gradient Lightstrip — segment sweep</li>
+            <li>Hue Bridge on your network</li>
+            <li>No cloud, no subscription</li>
           </ul>
         </div>
       </div>
@@ -271,9 +336,11 @@ const features = [
         Download GridGlow
         <span class="btn-chip">v{version} · Windows</span>
       </a>
-      <p class="cta-meta">Requires F1 25 or F1 24 with UDP telemetry enabled &amp; LIFX or Nanoleaf on the same network</p>
+      <p class="cta-meta">Supports F1 25–21 &amp; DiRT Rally 2.0 · Requires UDP telemetry enabled &amp; LIFX, Nanoleaf, or Philips Hue on the same network</p>
     </div>
   </section>
+
+  <script id="gameData" type="application/json" set:html={JSON.stringify(gamePages.map(g => ({ name: g.name, eyebrow: g.eyebrow, headline: g.headline, sub: g.sub })))}></script>
 
   <!-- ═══ FOOTER ═══ -->
   <footer>
@@ -621,8 +688,86 @@ const features = [
     .screenshot-main  { grid-column: 1; }
   }
 
-  /* ── EVENTS ── */
+  /* ── EVENTS CAROUSEL ── */
   .events-section { background: rgba(255,255,255,0.015); border-top: 1px solid var(--border-s); border-bottom: 1px solid var(--border-s); }
+
+  .ev-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 36px;
+  }
+  .ev-nav-center {
+    text-align: center;
+    flex: 1;
+  }
+  .ev-eyebrow { margin-bottom: 6px; }
+  .ev-game-name {
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+  .ev-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .ev-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--border);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s, transform 0.2s, width 0.25s;
+  }
+  .ev-dot.active {
+    background: var(--purple-l);
+    width: 20px;
+    border-radius: 4px;
+  }
+  .ev-arrow {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s, border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .ev-arrow:hover {
+    color: var(--text);
+    border-color: rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.07);
+    transform: scale(1.08);
+  }
+  .ev-arrow:active { transform: scale(0.95); }
+  .ev-arrow:disabled { opacity: 0.25; pointer-events: none; }
+
+  .ev-header {
+    transition: opacity 0.2s ease;
+  }
+  .ev-header.fading { opacity: 0; }
+
+  .ev-viewport { position: relative; }
+  .ev-page {
+    display: none;
+  }
+  .ev-page.active { display: block; }
+  .ev-page.fade-in  { animation: evFadeIn 0.3s ease both; }
+  @keyframes evFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   .events-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -712,7 +857,7 @@ const features = [
   }
 
   /* ── PLATFORMS ── */
-  .platforms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
+  .platforms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 16px; }
   .platform-card {
     position: relative;
     background: var(--card);
@@ -774,7 +919,7 @@ const features = [
   .lifx-card li::before     { background: var(--red);  box-shadow: 0 0 6px var(--red); }
   .nanoleaf-card li::before { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
 
-  .hue-card { grid-column: 1 / -1; opacity: 0.72; border-top-color: rgba(255,105,0,0.25); }
+  .hue-card { border-top-color: rgba(255,105,0,0.3); }
   .hue-card .platform-accent  { background: linear-gradient(90deg, transparent, #ff6900, transparent); }
   .hue-card .platform-icon    { color: #ff6900; background: rgba(255,105,0,0.1); }
   .hue-card li::before        { background: #ff6900; box-shadow: 0 0 6px #ff6900; }
@@ -895,9 +1040,11 @@ const features = [
 
   /* ── RESPONSIVE ── */
   @media (max-width: 768px) {
+    .ev-game-name { font-size: 20px; }
     .events-grid    { grid-template-columns: repeat(2, 1fr); }
     .features-grid  { grid-template-columns: repeat(2, 1fr); }
-    .platforms-grid { grid-template-columns: 1fr; }
+    .platforms-grid { grid-template-columns: 1fr 1fr; }
+    .hue-card       { grid-column: 1 / -1; }
     .hero-inner h1  { letter-spacing: -1.5px; }
     .step { flex-direction: column; gap: 8px; }
     .step-num { font-size: 40px; width: auto; text-align: left; }
@@ -914,6 +1061,53 @@ const features = [
 </style>
 
 <script>
+// ── game carousel ─────────────────────────────────────────
+(function () {
+  const GAMES = JSON.parse(document.getElementById('gameData').textContent);
+  let current = 0;
+
+  const eyebrow  = document.getElementById('evEyebrow');
+  const gameName = document.getElementById('evGameName');
+  const headline = document.getElementById('evHeadline');
+  const sub      = document.getElementById('evSub');
+  const header   = document.getElementById('evHeader');
+  const dots     = document.querySelectorAll('.ev-dot');
+  const pages    = document.querySelectorAll('.ev-page');
+  const prev     = document.getElementById('evPrev');
+  const next     = document.getElementById('evNext');
+
+  function goTo(idx) {
+    if (idx === current) return;
+    const g = GAMES[idx];
+
+    // Fade header text
+    header.classList.add('fading');
+    setTimeout(() => {
+      eyebrow.textContent  = g.eyebrow;
+      gameName.textContent = g.name;
+      headline.textContent = g.headline;
+      sub.textContent      = g.sub;
+      header.classList.remove('fading');
+    }, 200);
+
+    // Swap page
+    pages[current].classList.remove('active');
+    pages[idx].classList.remove('fade-in');
+    void pages[idx].offsetWidth; // reflow to restart animation
+    pages[idx].classList.add('active', 'fade-in');
+
+    // Dots
+    dots[current].classList.remove('active');
+    dots[idx].classList.add('active');
+
+    current = idx;
+  }
+
+  prev.addEventListener('click', () => goTo((current - 1 + GAMES.length) % GAMES.length));
+  next.addEventListener('click', () => goTo((current + 1) % GAMES.length));
+  dots.forEach(d => d.addEventListener('click', () => goTo(+d.dataset.index)));
+}());
+
 // ── helpers ──────────────────────────────────────────────
 function rgb(hex) {
   const r = parseInt(hex.slice(1,3),16);
@@ -1075,12 +1269,13 @@ const handlers = {
   'chequered-flag': chequeredEffect,
   'white-warning':  makeBlink('#cbd5e1', 3,  200, 240, 1400),
   'neutral':        makePulse('#fbbf24', 2000),
+  'crash':          makeBlink('#ffffff', 1,  120, 0,   1800),
 };
 
-// ── wire up cards ─────────────────────────────────────────
+// ── wire up cards (all game pages) ───────────────────────
 const cleanups = new WeakMap();
 
-document.querySelectorAll('.event-card[data-effect]').forEach(card => {
+document.querySelectorAll('.ev-page .event-card[data-effect]').forEach(card => {
   const canvas = card.querySelector('.effect-canvas');
   const id = card.dataset.effect;
   const handler = handlers[id];

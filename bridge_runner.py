@@ -88,6 +88,7 @@ class BridgeRunner:
         "Chequered Flag": lambda lifx: lifx.chequered_flag(),
         "White Warning":  lambda lifx: lifx.white_warning(),
         "Black Flag":     lambda lifx: lifx.black_flag(),
+        "Crash":          lambda lifx: lifx.crash(),
     }
 
     def __init__(self,

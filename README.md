@@ -2,13 +2,13 @@
 
 Sync your LIFX, Nanoleaf, and Philips Hue lights to live sim racing events. Start lights sweep red zone by zone, yellow flags pulse amber, fastest laps go purple — every moment on track reflected in your room.
 
-Supports **F1 25** and **F1 24** via EA Sports UDP telemetry. More titles coming.
+Supports **F1 25, F1 24, F1 2023, F1 2022, F1 2021**, and **DiRT Rally 2.0** via UDP telemetry. More titles coming.
 
 ---
 
 ## How it works
 
-F1 25/24 broadcasts telemetry over UDP on your local network. GridGlow listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX, Nanoleaf, and Hue devices over LAN — no cloud, no API keys, sub-second latency.
+F1 25/24/23/22/21 and DiRT Rally 2.0 broadcast telemetry over UDP on your local network. GridGlow listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX, Nanoleaf, and Hue devices over LAN — no cloud, no API keys, sub-second latency.
 
 ![Data flow diagram](docs/data_flow.png)
 
@@ -16,7 +16,7 @@ F1 25/24 broadcasts telemetry over UDP on your local network. GridGlow listens f
 
 ## Features
 
-**Race Events**
+**F1 Race Events**
 - Start lights sequence — zones fill red one by one on multizone strips and Nanoleaf panels
 - Lights out — green flash
 - Yellow flag / Safety car — amber pulse
@@ -26,6 +26,13 @@ F1 25/24 broadcasts telemetry over UDP on your local network. GridGlow listens f
 - Chequered flag
 - White warning / penalty
 - Track clear / neutral return
+
+**DiRT Rally 2.0 Stage Events**
+- Stage start — green flash when the stage begins
+- Split checkpoint — purple flash at each split
+- Stage finish — celebration flash at the end of the stage
+- Crash — sharp white impact flash on collision (G-force + speed-drop detection)
+- Service park — warm return to idle on exit from stage
 
 **Supported Lights**
 - **LIFX** — bulbs, colour strips, multizone strips (zone-by-zone sweep)
@@ -42,7 +49,7 @@ F1 25/24 broadcasts telemetry over UDP on your local network. GridGlow listens f
 - Idle mode — custom colour with optional slow pulse
 
 **App**
-- Game selector — choose your title on launch; "Remember my choice" skips the screen next time
+- Game selector — switch between F1 25–21 and DiRT Rally 2.0; "Remember my choice" skips the screen next time
 - Mini mode — compact 380×100 always-on-top window
 - Profiles — save and switch complete configurations
 - UDP forwarding — relay packets to a second destination (sim dashboard, second PC)
@@ -57,9 +64,10 @@ F1 25/24 broadcasts telemetry over UDP on your local network. GridGlow listens f
 |------|--------|
 | F1® 25 | ✅ Supported |
 | F1® 24 | ✅ Supported |
-| F1® 2021–2023 | 🔜 Planned — [#46](https://github.com/onxtane/f1-lifx-bridge/issues/46) |
+| F1® 2021–2023 | ✅ Supported |
 | Forza Horizon 5 / Motorsport | 🔜 Planned — [#47](https://github.com/onxtane/f1-lifx-bridge/issues/47) |
-| DiRT Rally 2.0 / EA WRC | 🔜 Planned — [#48](https://github.com/onxtane/f1-lifx-bridge/issues/48) |
+| DiRT Rally 2.0 | ✅ Supported |
+| EA WRC | 🔜 Planned — [#56](https://github.com/onxtane/f1-lifx-bridge/issues/56) |
 | Assetto Corsa | 🔜 Planned — [#49](https://github.com/onxtane/f1-lifx-bridge/issues/49) |
 | Project CARS 2 | 🔜 Planned — [#50](https://github.com/onxtane/f1-lifx-bridge/issues/50) |
 
@@ -70,7 +78,7 @@ See the full roadmap at [gridglow.pages.dev/roadmap](https://gridglow.pages.dev/
 ## Requirements
 
 - Windows 10/11 *(macOS support in development — [#45](https://github.com/onxtane/f1-lifx-bridge/issues/45))*
-- F1 25 or F1 24 on PC with UDP telemetry enabled
+- F1 25/24/23/22/21 or DiRT Rally 2.0 on PC with UDP telemetry enabled
 - LIFX, Nanoleaf, or Philips Hue device on the same LAN
 
 ### Running from source
@@ -84,9 +92,9 @@ python main.py
 
 ## Setup
 
-**1. Enable UDP telemetry in F1 25 or F1 24**
+**1. Enable UDP telemetry in your game**
 
-In-game: Settings → Telemetry Settings
+**F1 25 / F1 24 / F1 2023 / F1 2022 / F1 2021** — Settings → Telemetry Settings
 
 | Setting | Value |
 |---|---|
@@ -96,6 +104,15 @@ In-game: Settings → Telemetry Settings
 | UDP Port | `20777` (default) |
 | UDP Send Rate | 60 Hz recommended |
 | Your Telemetry | Public |
+
+**DiRT Rally 2.0** — Options → Accessibility → UDP Telemetry
+
+| Setting | Value |
+|---|---|
+| UDP Telemetry | Enabled |
+| IP Address | `127.0.0.1` (or your PC's LAN IP) |
+| Port | `20777` (default) |
+| extradata | `3` |
 
 **2. Run the app**
 
@@ -116,8 +133,9 @@ The game selector appears on launch. Pick your title, click **Launch**, then **S
 ```
 f1_lifx_app/
 ├── main.py                  # pywebview window + JS API layer
-├── bridge_runner.py         # threading wrapper, settings dispatch
-├── bridge_core.py           # UDP listener, packet parsing, LIFX effects
+├── bridge_runner.py         # threading wrapper, settings dispatch, game switching
+├── bridge_core.py           # F1 UDP listener, packet parsing, all lighting effects
+├── dr2_bridge.py            # DiRT Rally 2.0 UDP listener (extends bridge_core)
 ├── nanoleaf_controller.py   # Nanoleaf local REST API
 ├── hue_controller.py        # Philips Hue CLIP v2 local API
 └── ui/
@@ -144,7 +162,7 @@ Created automatically on first run. Not tracked in git.
 | # | Issue |
 |---|---|
 | [#1](https://github.com/onxtane/f1-lifx-bridge/issues/1) | Tailscale / VPN connections can break LIFX discovery |
-| [#3](https://github.com/onxtane/f1-lifx-bridge/issues/3) | App flickers when F1 comes into focus |
+| [#3](https://github.com/onxtane/f1-lifx-bridge/issues/3) | App flickers when a game gains focus — **workaround:** right-click the game `.exe` → Properties → Compatibility → enable **"Disable fullscreen optimizations"** |
 | [#22](https://github.com/onxtane/f1-lifx-bridge/issues/22) | Panel Layout UI: first panel renders as hexagon on Canvas (NL29) |
 | [#23](https://github.com/onxtane/f1-lifx-bridge/issues/23) | Nanoleaf auto-discovery not working — manual IP required |
 | [#44](https://github.com/onxtane/f1-lifx-bridge/issues/44) | Hue Gradient Lightstrip detection needs hardware validation |

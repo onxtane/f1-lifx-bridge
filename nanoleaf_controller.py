@@ -157,9 +157,20 @@ class NanoleafController:
         self.brightness_min = 0
         self.brightness_max = 65535
 
-        # Per-effect light assignment placeholder — mirrors LIFX interface.
+        # Label used as the key in light_assignments — matches what get_discovered_lights()
+        # returns so the UI and backend stay in sync.  Set properly after device info fetch.
+        self.label: str = ip
+
+        # Per-effect light assignment — same semantics as LocalLifxController.
+        # {label: None | [effect_keys]}  None = all effects; list = only those keys.
         self.light_assignments: dict = {}
         self._current_effect_key: str | None = None
+
+        # Intensity curves: {label: {points: [[t,v],...], duration_ms: int}}
+        self.curves: dict = {}
+        self._curve_pts: list | None = None
+        self._curve_start: float | None = None
+        self._curve_dur: float = 2.0
 
         self._effect_lock = threading.Lock()
         self._active_effect: str | None = None
@@ -216,8 +227,17 @@ class NanoleafController:
             layout = data.get("panelLayout", {}).get("layout", {})
             num_panels = layout.get("numPanels", 0)
             position_data = layout.get("positionData", [])
-            # shapeType 12 = Rhythm module (not a light panel — exclude it).
-            light_panels = [p for p in position_data if p.get("shapeType", 0) != 12]
+            # Exclude non-light panels:
+            #   shapeType  1 = Rhythm module (Light Panels)
+            #   shapeType 12 = Rhythm module (Shapes / Canvas, modern firmware)
+            #   shapeType  3 on NL29 = Canvas controller square in older firmware
+            #   (shapeType 3 is a valid hexagon on Shapes devices — only exclude for Canvas)
+            is_canvas = model_code.startswith('NL29')
+            light_panels = [
+                p for p in position_data
+                if p.get("shapeType", 0) not in {1, 12}
+                and not (is_canvas and p.get("shapeType", 0) == 3)
+            ]
             self._side_length = layout.get("sideLength", 150)
             self._panel_ids = [p["panelId"] for p in light_panels]
             self._sweep_panel_ids = [p["panelId"] for p in sorted(light_panels, key=lambda p: (p["y"], p["x"]))]
@@ -232,13 +252,17 @@ class NanoleafController:
                 for p in light_panels
             ]
 
+            name       = data.get("name", "Nanoleaf")
+            model_name = NANOLEAF_MODELS.get(model_code, f"Nanoleaf ({model_code})")
             self.device_info = {
-                "name":        data.get("name", "Nanoleaf"),
+                "name":        name,
                 "model":       model_code,
-                "model_name":  NANOLEAF_MODELS.get(model_code, f"Nanoleaf ({model_code})"),
+                "model_name":  model_name,
                 "firmware":    data.get("firmwareVersion", ""),
                 "num_panels":  num_panels,
             }
+            # Keep label in sync with get_discovered_lights() computation.
+            self.label = f"{name} ({model_name})" if model_name and model_name.lower() not in name.lower() else name
             self._log(f"[NANOLEAF] Panel IDs ({len(self._panel_ids)}): {self._panel_ids}")
         except Exception as exc:
             self._log(f"[NANOLEAF] Device info fetch failed: {exc}")
@@ -315,6 +339,49 @@ class NanoleafController:
         with self._effect_lock:
             self._active_effect = None
 
+    def set_current_effect_key(self, key: str):
+        """Called by the bridge before bridge-level effect loops to keep _current_effect_key current."""
+        self._current_effect_key = key
+        self._activate_curve(key)
+
+    def _is_assigned(self, effect_key: str) -> bool:
+        """Return True if this Nanoleaf device should fire for effect_key."""
+        if not self.light_assignments or not self.label:
+            return True
+        assignment = self.light_assignments.get(self.label)
+        return assignment is None or effect_key in assignment
+
+    @staticmethod
+    def _eval_curve(pts: list, t: float) -> float:
+        if not pts or len(pts) < 2:
+            return 1.0
+        if t <= pts[0][0]:
+            return pts[0][1]
+        if t >= pts[-1][0]:
+            return pts[-1][1]
+        for i in range(1, len(pts)):
+            if t <= pts[i][0]:
+                t0, v0 = pts[i - 1]
+                t1, v1 = pts[i]
+                return v0 + (v1 - v0) * ((t - t0) / (t1 - t0))
+        return 1.0
+
+    def _activate_curve(self, effect_key: str):
+        from bridge_core import _EFFECT_CURVE_LABEL
+        label = _EFFECT_CURVE_LABEL.get(effect_key)
+        curve = self.curves.get(label) if label else None
+        if curve and len(curve.get('points', [])) >= 2:
+            self._curve_pts   = curve['points']
+            self._curve_dur   = max(0.001, curve.get('duration_ms', 2000) / 1000.0)
+            self._curve_start = time.monotonic()
+        else:
+            self._curve_pts   = None
+            self._curve_start = None
+
+    def _deactivate_curve(self):
+        self._curve_pts   = None
+        self._curve_start = None
+
     def is_effect_active(self, effect_name: str) -> bool:
         with self._effect_lock:
             return self._active_effect == effect_name
@@ -342,7 +409,12 @@ class NanoleafController:
         """
         if self._nl is None or _requests is None:
             return
+        if self._current_effect_key and not self._is_assigned(self._current_effect_key):
+            return
         h, s, b, k = hsbk
+        if self._curve_pts is not None and self._curve_start is not None and b > 500:
+            t = min(1.0, (time.monotonic() - self._curve_start) / self._curve_dur)
+            b = max(1, min(65535, int(b * self._eval_curve(self._curve_pts, t))))
         b_scaled = self._scale_brightness(b)
         try:
             if self._panel_ids:
@@ -395,12 +467,19 @@ class NanoleafController:
     # ── Effects ──────────────────────────────────────────────────────────────
 
     def neutral(self):
+        if not self._is_assigned("neutral"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "neutral"
+        self._activate_curve("neutral")
         self.set_color_all([0, 0, 50000, 4500], duration_ms=800)
+        self._deactivate_curve()
 
     def yellow_flag(self):
+        if not self._is_assigned("yellow_flag"):
+            return
         self._current_effect_key = "yellow_flag"
+        self._activate_curve("yellow_flag")
         if self.is_effect_active("yellow_flash"):
             return
         self.set_active_effect("yellow_flash")
@@ -418,8 +497,11 @@ class NanoleafController:
             time.sleep(0.45)
 
     def blue_flag(self):
+        if not self._is_assigned("blue_flag"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "blue_flag"
+        self._activate_curve("blue_flag")
         self.set_active_effect("blue_pulse")
         threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
 
@@ -439,8 +521,11 @@ class NanoleafController:
                 time.sleep(0.1)
 
     def red_flag(self):
+        if not self._is_assigned("red_flag"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "red_flag"
+        self._activate_curve("red_flag")
         self.set_active_effect("red_pulse")
         threading.Thread(target=self._red_pulse_loop, daemon=True).start()
 
@@ -460,39 +545,57 @@ class NanoleafController:
                 time.sleep(0.1)
 
     def black_flag(self):
+        if not self._is_assigned("black_flag"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "black_flag"
+        self._activate_curve("black_flag")
         dark      = [0, 0, 1, 3500]
         white_dim = [0, 0, 12000, 4500]
         self.flash_colors([dark, white_dim], loops=3, hold_ms=400)
         self.set_color_all(dark, duration_ms=500, stagger=False)
 
     def white_warning(self):
+        if not self._is_assigned("white_warning"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "white_warning"
+        self._activate_curve("white_warning")
         white = [0, 0, 65535, 4500]
         dark  = [0, 0, 1, 3500]
         self.flash_colors([white, dark], loops=3, hold_ms=250)
+        self._deactivate_curve()
         self.neutral()
 
     def fastest_lap(self):
+        if not self._is_assigned("fastest_lap"):
+            return
         self._current_effect_key = "fastest_lap"
+        self._activate_curve("fastest_lap")
         purple = [54613, 65535, 65535, 3500]
         dark   = [0, 0, 1, 3500]
         self.flash_colors([purple, dark], loops=3, hold_ms=200)
+        self._deactivate_curve()
         self.neutral()
 
     def chequered_flag(self):
+        if not self._is_assigned("chequered_flag"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "chequered_flag"
+        self._activate_curve("chequered_flag")
         white = [0, 0, 65535, 4500]
         green = [21845, 65535, 65535, 3500]
         self.flash_colors([white, green], loops=5, hold_ms=300)
+        self._deactivate_curve()
         self.neutral()
 
     def lights_out(self):
+        if not self._is_assigned("lights_out"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "lights_out"
+        self._activate_curve("lights_out")
         green = [21845, 65535, 65535, 3500]
         dark  = [0, 0, 1, 3500]
         white = [0, 0, 50000, 4500]
@@ -500,6 +603,7 @@ class NanoleafController:
         self._snap_and_wait(dark,  150)
         self._snap_and_wait(green, 350)
         self.set_color_all(white)
+        self._deactivate_curve()
 
     def multizone_color_test(self):
         """Green-to-red sequential panel fill, matching the LIFX multizone test."""
@@ -531,8 +635,11 @@ class NanoleafController:
 
     def start_lights(self, num_lights: int):
         """Sweep red panels L→R (or R→L) as start lights appear, dark otherwise."""
+        if not self._is_assigned("start_lights"):
+            return
         self.clear_active_effect()
         self._current_effect_key = "start_lights"
+        self._activate_curve("start_lights")
         num_lights = max(0, min(5, num_lights))
 
         brightness_by_count = {0: 8000, 1: 16000, 2: 26000, 3: 38000, 4: 50000, 5: 65535}

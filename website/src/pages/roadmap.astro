@@ -12,9 +12,23 @@ const titles = [
   },
   {
     name: "F1 2021 – 2023",
+    status: "done",
+    color: "#22c55e",
+    desc: "Same Codemasters UDP protocol, different header layout (24–28 bytes vs 29). Version-aware packet parsing shipped — select your title in the game selector.",
+    eta: "Done",
+  },
+  {
+    name: "DiRT Rally 2.0",
+    status: "done",
+    color: "#22c55e",
+    desc: "UDP via hardware_settings_config.xml with extradata=3. OutSim protocol — stage start, split checkpoints, stage finish, and service park return all shipped.",
+    eta: "Done",
+  },
+  {
+    name: "Forza Horizon 6",
     status: "next",
-    color: "#ef4444",
-    desc: "Same Codemasters UDP protocol, but a different header layout (24–28 bytes vs 29). Requires version-aware packet parsing. STLG/LGOT events present in all three titles.",
+    color: "#3b82f6",
+    desc: "Next up. UDP Data Out via HUD & Gameplay settings. GridGlow will map race events to your lights the moment a session starts.",
     eta: "Up next",
   },
   {
@@ -36,13 +50,6 @@ const titles = [
     status: "planned",
     color: "#f59e0b",
     desc: "UDP JSON telemetry configured in Documents\\My Games\\WRC\\telemetry\\. Rich stage and rally event data.",
-    eta: "Planned",
-  },
-  {
-    name: "DiRT Rally 2.0",
-    status: "planned",
-    color: "#f97316",
-    desc: "UDP via hardware_settings_config.xml with extradata=3. Established OutSim protocol.",
     eta: "Planned",
   },
   {
@@ -133,7 +140,7 @@ const statusOrder = ["next", "planned", "considering"];
       <div class="hero-badge rise" style="--d:.05s">Coming soon</div>
       <h1 class="rise" style="--d:.14s">More sims.<br/><em>Same immersion.</em></h1>
       <p class="hero-sub rise" style="--d:.24s">
-        GridGlow started with F1 25. It won't stop there.<br/>
+        GridGlow started with F1. It won't stop there.<br/>
         Support for more sim racing titles is in active development — here's what's coming.
       </p>
       <a href={issueUrl} class="btn-ghost rise" style="--d:.34s" target="_blank" rel="noopener">
@@ -147,7 +154,7 @@ const statusOrder = ["next", "planned", "considering"];
     <div class="container">
       <p class="eyebrow">TITLE SUPPORT</p>
       <h2>The plan.</h2>
-      <p class="section-sub">Every title on this list broadcasts UDP telemetry — the same mechanism F1 25 uses. The core bridge is already built; what changes is the packet parser and event mapping for each game.</p>
+      <p class="section-sub">GridGlow started with F1 25 and F1 24. Every title below sends live race data while you play — we're bringing the same lighting reactions to each one. Start sequences, flags, fastest laps: the moments that matter, in your room.</p>
 
       <div class="roadmap-grid">
         {titles.map(t => (

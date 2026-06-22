@@ -56,34 +56,36 @@ GROUPS_FILE = "lifx_groups.json"
 USE_SAVED_LIGHT_GROUPS = True
 
 # ============================================================
-# PACKET CONSTANTS (F1 24 / F1 25)
+# PACKET CONSTANTS (F1 21 – F1 25)
 # ============================================================
 
-# PacketHeader — identical layout for F1 24 and F1 25:
-# uint16 m_packetFormat
-# uint8  m_gameYear
-# uint8  m_gameMajorVersion
-# uint8  m_gameMinorVersion
-# uint8  m_packetVersion
-# uint8  m_packetId
-# uint64 m_sessionUID
-# float  m_sessionTime
-# uint32 m_frameIdentifier
-# uint32 m_overallFrameIdentifier
-# uint8  m_playerCarIndex
-# uint8  m_secondaryPlayerCarIndex
-#
-# Little endian, packed.
-HEADER_FORMAT = "<HBBBBBQfIIBB"
-HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+# Header structs differ between game years.
+# F1 24/25: uint16 format, uint8 gameYear, uint8 majorVer, uint8 minorVer,
+#           uint8 packetVer, uint8 packetId, uint64 sessionUID, float sessionTime,
+#           uint32 frameId, uint32 overallFrameId, uint8 playerIdx, uint8 secPlayerIdx
+# F1 23:    same but no gameYear field (28 bytes)
+# F1 21/22: same as F1 23 but also no overallFrameId (24 bytes)
+_HEADER_FORMAT_2425 = "<HBBBBBQfIIBB"   # 29 bytes
+_HEADER_FORMAT_23   = "<HBBBBQfIIBB"    # 28 bytes
+_HEADER_FORMAT_2122 = "<HBBBBQfIBB"     # 24 bytes
 
+HEADER_SIZE = struct.calcsize(_HEADER_FORMAT_2425)   # 29 — reference for F1 24/25
+
+PACKET_FORMAT_F1_21 = 2021
+PACKET_FORMAT_F1_22 = 2022
+PACKET_FORMAT_F1_23 = 2023
 PACKET_FORMAT_F1_24 = 2024
 PACKET_FORMAT_F1_25 = 2025
-SUPPORTED_PACKET_FORMATS = {PACKET_FORMAT_F1_24, PACKET_FORMAT_F1_25}
+SUPPORTED_PACKET_FORMATS = {
+    PACKET_FORMAT_F1_21, PACKET_FORMAT_F1_22, PACKET_FORMAT_F1_23,
+    PACKET_FORMAT_F1_24, PACKET_FORMAT_F1_25,
+}
 PACKET_ID_EVENT = 3
 PACKET_ID_CAR_STATUS = 7
 PACKET_ID_SESSION = 1
 
+# Session packet offsets are relative to header_size (passed dynamically).
+# These constants are kept for F1 24/25 reference only.
 SESSION_NUM_MARSHAL_ZONES_OFFSET = HEADER_SIZE + 18
 SESSION_MARSHAL_ZONES_OFFSET = HEADER_SIZE + 19
 MARSHAL_ZONE_SIZE = 5
@@ -144,8 +146,7 @@ BLACK_FLAG_INFRINGEMENTS = {
     46,  # Unserved drive through penalty
 }
 
-EVENT_CODE_OFFSET = HEADER_SIZE
-EVENT_DETAILS_OFFSET = HEADER_SIZE + 4
+# Event offsets are header_size + N and are computed dynamically per packet.
 
 EVENT_START_LIGHTS = "STLG"
 EVENT_LIGHTS_OUT = "LGOT"
@@ -169,11 +170,26 @@ class PacketHeader:
     overall_frame_identifier: int
     player_car_index: int
     secondary_player_car_index: int
+    header_size: int = 29
 
 
 # ============================================================
 # LIFX LOCAL LAN CONTROL
 # ============================================================
+
+# Maps effect keys to the curve labels used in localStorage / bridge settings.
+_EFFECT_CURVE_LABEL = {
+    'start_lights':   'Start Lights',
+    'lights_out':     'Lights Out',
+    'yellow_flag':    'Yellow Flag',
+    'blue_flag':      'Blue Flag',
+    'red_flag':       'Red Flag',
+    'fastest_lap':    'Fastest Lap',
+    'chequered_flag': 'Chequered',
+    'white_warning':  'White Warning',
+    'neutral':        'Neutral',
+}
+
 
 class LocalLifxController:
     def __init__(
@@ -220,6 +236,13 @@ class LocalLifxController:
         # None = assigned to all effects; list = only those effects; absent = all
         self.light_assignments = {}
         self._current_effect_key = None
+
+        # Intensity curves: {label: {points: [[t,v],...], duration_ms: int}}
+        # Applied as a brightness multiplier in set_color_all during effects.
+        self.curves: dict = {}
+        self._curve_pts: list | None = None
+        self._curve_start: float | None = None
+        self._curve_dur: float = 2.0  # seconds
 
         if self.dry_run:
             print("[LIFX] DRY_RUN is enabled. Bulbs will NOT change.")
@@ -568,6 +591,38 @@ class LocalLifxController:
         scaled = self.brightness_min + (self.brightness_max - self.brightness_min) * ratio
         return max(1, min(65535, int(scaled)))
 
+    @staticmethod
+    def _eval_curve(pts: list, t: float) -> float:
+        """Piecewise-linear interpolation on curve points [[t,v],...]. Returns 1.0 if no curve."""
+        if not pts or len(pts) < 2:
+            return 1.0
+        if t <= pts[0][0]:
+            return pts[0][1]
+        if t >= pts[-1][0]:
+            return pts[-1][1]
+        for i in range(1, len(pts)):
+            if t <= pts[i][0]:
+                t0, v0 = pts[i - 1]
+                t1, v1 = pts[i]
+                return v0 + (v1 - v0) * ((t - t0) / (t1 - t0))
+        return 1.0
+
+    def _activate_curve(self, effect_key: str):
+        """Arm the intensity curve for effect_key, resetting the start clock."""
+        label = _EFFECT_CURVE_LABEL.get(effect_key)
+        curve = self.curves.get(label) if label else None
+        if curve and len(curve.get('points', [])) >= 2:
+            self._curve_pts  = curve['points']
+            self._curve_dur  = max(0.001, curve.get('duration_ms', 2000) / 1000.0)
+            self._curve_start = time.monotonic()
+        else:
+            self._curve_pts  = None
+            self._curve_start = None
+
+    def _deactivate_curve(self):
+        self._curve_pts  = None
+        self._curve_start = None
+
     def _effect_lights(self):
         """Return the subset of self.lights that should receive the current effect."""
         if not self.light_assignments or self._current_effect_key is None:
@@ -601,7 +656,11 @@ class LocalLifxController:
           normal white range is usually 2500-9000
         """
         scaled = list(hsbk)
-        scaled[2] = self._scale_brightness(hsbk[2])
+        b = hsbk[2]
+        if self._curve_pts is not None and self._curve_start is not None and b > 500:
+            t = min(1.0, (time.monotonic() - self._curve_start) / self._curve_dur)
+            b = max(1, min(65535, int(b * self._eval_curve(self._curve_pts, t))))
+        scaled[2] = self._scale_brightness(b)
 
         if self.dry_run:
             print(f"[DRY RUN] Set LIFX color: hsbk={scaled}, duration_ms={duration_ms}")
@@ -644,6 +703,10 @@ class LocalLifxController:
         with self._effect_lock:
             self._active_effect = None
 
+    def set_current_effect_key(self, key: str):
+        self._current_effect_key = key
+        self._activate_curve(key)
+
     def is_effect_active(self, effect_name):
         with self._effect_lock:
             return self._active_effect == effect_name
@@ -678,6 +741,7 @@ class LocalLifxController:
     def start_lights(self, num_lights):
         self.clear_active_effect()
         self._current_effect_key = 'start_lights'
+        self._activate_curve('start_lights')
         num_lights = max(0, min(5, num_lights))
 
         brightness_by_count = {0: 8000, 1: 16000, 2: 26000, 3: 38000, 4: 50000, 5: 65535}
@@ -731,28 +795,32 @@ class LocalLifxController:
     def lights_out(self):
         self.clear_active_effect()
         self._current_effect_key = 'lights_out'
+        self._activate_curve('lights_out')
         print("[LIGHTS OUT]")
 
         green = [21845, 65535, 65535, 3500]
         dark = [0, 0, 1, 3500]
         white = [0, 0, 50000, 4500]
 
-        self.set_color_all(green, duration_ms=40, stagger=False)
+        self.set_color_all(green, duration_ms=40)
         time.sleep(0.20)
 
-        self.set_color_all(dark, duration_ms=40, stagger=False)
+        self.set_color_all(dark, duration_ms=40)
         time.sleep(0.15)
 
-        self.set_color_all(green, duration_ms=40, stagger=False)
+        self.set_color_all(green, duration_ms=40)
         time.sleep(0.35)
 
         self.set_color_all(white, duration_ms=800, stagger=False)
+        self._deactivate_curve()
 
     def neutral(self):
         self.clear_active_effect()
         self._current_effect_key = 'neutral'
+        self._activate_curve('neutral')
         print("[LIFX] Idle state")
         self.set_color_all(self.idle_hsbk, duration_ms=800, stagger=False)
+        self._deactivate_curve()
         if self.idle_pulse:
             self.set_active_effect("idle_pulse")
             threading.Thread(target=self._idle_pulse_loop, daemon=True).start()
@@ -779,11 +847,13 @@ class LocalLifxController:
 
     def yellow_flag(self):
         self._current_effect_key = 'yellow_flag'
+        self._activate_curve('yellow_flag')
         self.start_yellow_flash_effect()
 
     def blue_flag(self):
         self.clear_active_effect()
         self._current_effect_key = 'blue_flag'
+        self._activate_curve('blue_flag')
         print("[FLAG] Blue")
         self.set_active_effect("blue_pulse")
         threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
@@ -806,6 +876,7 @@ class LocalLifxController:
     def red_flag(self):
         self.clear_active_effect()
         self._current_effect_key = 'red_flag'
+        self._activate_curve('red_flag')
         print("[FLAG] Red")
         self.set_active_effect("red_pulse")
         threading.Thread(target=self._red_pulse_loop, daemon=True).start()
@@ -828,24 +899,38 @@ class LocalLifxController:
     def black_flag(self):
         self.clear_active_effect()
         self._current_effect_key = 'black_flag'
+        self._activate_curve('black_flag')
         print("[FLAG] Black")
-        # Bulbs cannot show true black, so we do a dark/off-style pulse.
         dark = [0, 0, 1, 3500]
         white_dim = [0, 0, 12000, 4500]
         self.flash_colors([dark, white_dim], loops=3, hold_ms=400)
         self.set_color_all(dark, duration_ms=500, stagger=False)
+        self._deactivate_curve()
 
     def white_warning(self):
         self.clear_active_effect()
         self._current_effect_key = 'white_warning'
+        self._activate_curve('white_warning')
         print("[WARNING] White flashing")
         white = [0, 0, 65535, 4500]
         dark = [0, 0, 1, 3500]
         self.flash_colors([white, dark], loops=3, hold_ms=250)
+        self._deactivate_curve()
+        self.neutral()
+
+    def crash(self):
+        self.clear_active_effect()
+        self._current_effect_key = 'crash'
+        print("[EVENT] Crash impact flash")
+        # Single sharp white burst — distinct from white_warning's 3-pulse pattern
+        white = [0, 0, 65535, 5500]
+        dark  = [0, 0, 0, 3500]
+        self.flash_colors([white, dark], loops=1, hold_ms=120)
         self.neutral()
 
     def fastest_lap(self):
         self._current_effect_key = 'fastest_lap'
+        self._activate_curve('fastest_lap')
         print("[EVENT] Fastest lap - purple flash")
         _dbg = self.debug_timing
         t0 = time.perf_counter() if _dbg else None
@@ -854,11 +939,13 @@ class LocalLifxController:
         self.flash_colors([purple, dark], loops=3, hold_ms=200)
         if _dbg:
             print(f"[DBG] fastest_lap flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)
+        self._deactivate_curve()
         self.neutral()
 
     def chequered_flag(self):
         self.clear_active_effect()
         self._current_effect_key = 'chequered_flag'
+        self._activate_curve('chequered_flag')
         print("[FLAG] Chequered")
         _dbg = self.debug_timing
         t0 = time.perf_counter() if _dbg else None
@@ -867,6 +954,7 @@ class LocalLifxController:
         self.flash_colors([white, green], loops=5, hold_ms=300)
         if _dbg:
             print(f"[DBG] chequered_flag flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)
+        self._deactivate_curve()
         self.neutral()
 
     def apply_fia_flag(self, flag):
@@ -888,7 +976,7 @@ class LocalLifxController:
         for loop_i in range(loops):
             for color in colors:
                 tc = time.perf_counter() if _dbg else None
-                self.set_color_all(color, duration_ms=50, stagger=False)
+                self.set_color_all(color, duration_ms=50)
                 if _dbg:
                     print(f"[DBG] flash_colors loop={loop_i} set_color_all: {(time.perf_counter()-tc)*1000:.1f}ms", flush=True)
                 time.sleep(hold_ms / 1000)
@@ -899,24 +987,25 @@ class LocalLifxController:
 # ============================================================
 # F1 PACKET PARSING
 # ============================================================
-def parse_fastest_lap_details(data):
+def parse_fastest_lap_details(data, header_size):
     """
     FTLP event details:
       uint8 vehicleIdx
       float lapTime
     """
-    if len(data) < EVENT_DETAILS_OFFSET + 5:
+    event_details_offset = header_size + 4
+    if len(data) < event_details_offset + 5:
         return None
 
-    vehicle_idx = data[EVENT_DETAILS_OFFSET]
-    lap_time = struct.unpack_from("<f", data, EVENT_DETAILS_OFFSET + 1)[0]
+    vehicle_idx = data[event_details_offset]
+    lap_time = struct.unpack_from("<f", data, event_details_offset + 1)[0]
 
     return {
         "vehicle_idx": vehicle_idx,
         "lap_time": lap_time,
     }
 
-def parse_session_highest_marshal_flag(data):
+def parse_session_highest_marshal_flag(data, header_size):
     """
     Reads marshal zone flags from Session packet.
 
@@ -931,17 +1020,20 @@ def parse_session_highest_marshal_flag(data):
        2 = blue
        3 = yellow
     """
-    if len(data) <= SESSION_NUM_MARSHAL_ZONES_OFFSET:
+    num_marshal_zones_offset = header_size + 18
+    marshal_zones_offset = header_size + 19
+
+    if len(data) <= num_marshal_zones_offset:
         return None
 
-    num_zones = data[SESSION_NUM_MARSHAL_ZONES_OFFSET]
+    num_zones = data[num_marshal_zones_offset]
     num_zones = max(0, min(21, num_zones))
 
     flags_seen = set()
 
     for i in range(num_zones):
         flag_offset = (
-            SESSION_MARSHAL_ZONES_OFFSET
+            marshal_zones_offset
             + (i * MARSHAL_ZONE_SIZE)
             + MARSHAL_ZONE_FLAG_OFFSET
         )
@@ -970,18 +1062,59 @@ def parse_session_highest_marshal_flag(data):
     return None
 
 def parse_header(data):
-    if len(data) < HEADER_SIZE:
+    if len(data) < 2:
         return None
 
-    values = struct.unpack_from(HEADER_FORMAT, data, 0)
-    return PacketHeader(*values)
+    packet_format = struct.unpack_from("<H", data, 0)[0]
+
+    if packet_format in {2024, 2025}:
+        sz = struct.calcsize(_HEADER_FORMAT_2425)
+        if len(data) < sz:
+            return None
+        v = struct.unpack_from(_HEADER_FORMAT_2425, data, 0)
+        return PacketHeader(
+            packet_format=v[0], game_year=v[1], game_major_version=v[2],
+            game_minor_version=v[3], packet_version=v[4], packet_id=v[5],
+            session_uid=v[6], session_time=v[7], frame_identifier=v[8],
+            overall_frame_identifier=v[9], player_car_index=v[10],
+            secondary_player_car_index=v[11], header_size=sz,
+        )
+
+    if packet_format == 2023:
+        sz = struct.calcsize(_HEADER_FORMAT_23)
+        if len(data) < sz:
+            return None
+        v = struct.unpack_from(_HEADER_FORMAT_23, data, 0)
+        return PacketHeader(
+            packet_format=v[0], game_year=0, game_major_version=v[1],
+            game_minor_version=v[2], packet_version=v[3], packet_id=v[4],
+            session_uid=v[5], session_time=v[6], frame_identifier=v[7],
+            overall_frame_identifier=v[8], player_car_index=v[9],
+            secondary_player_car_index=v[10], header_size=sz,
+        )
+
+    if packet_format in {2021, 2022}:
+        sz = struct.calcsize(_HEADER_FORMAT_2122)
+        if len(data) < sz:
+            return None
+        v = struct.unpack_from(_HEADER_FORMAT_2122, data, 0)
+        return PacketHeader(
+            packet_format=v[0], game_year=0, game_major_version=v[1],
+            game_minor_version=v[2], packet_version=v[3], packet_id=v[4],
+            session_uid=v[5], session_time=v[6], frame_identifier=v[7],
+            overall_frame_identifier=0, player_car_index=v[8],
+            secondary_player_car_index=v[9], header_size=sz,
+        )
+
+    return None
 
 
-def parse_event_code(data):
-    if len(data) < EVENT_DETAILS_OFFSET:
+def parse_event_code(data, header_size):
+    event_details_offset = header_size + 4
+    if len(data) < event_details_offset:
         return None
 
-    raw_code = data[EVENT_CODE_OFFSET:EVENT_CODE_OFFSET + 4]
+    raw_code = data[header_size:header_size + 4]
 
     try:
         return raw_code.decode("ascii")
@@ -989,13 +1122,13 @@ def parse_event_code(data):
         return None
 
 
-def parse_start_lights_count(data):
-    # STLG event detail is uint8 numLights.
-    # It starts immediately after the 4-byte event code.
-    if len(data) <= EVENT_DETAILS_OFFSET:
+def parse_start_lights_count(data, header_size):
+    # STLG event detail is uint8 numLights, immediately after the 4-byte event code.
+    event_details_offset = header_size + 4
+    if len(data) <= event_details_offset:
         return 0
 
-    return data[EVENT_DETAILS_OFFSET]
+    return data[event_details_offset]
 
 def parse_player_fia_flag(data, header):
     """
@@ -1011,7 +1144,7 @@ def parse_player_fia_flag(data, header):
     if player_index < 0 or player_index >= 22:
         return None
 
-    offset = HEADER_SIZE + (player_index * CAR_STATUS_DATA_SIZE) + VEHICLE_FIA_FLAG_OFFSET_IN_CAR_STATUS
+    offset = header.header_size + (player_index * CAR_STATUS_DATA_SIZE) + VEHICLE_FIA_FLAG_OFFSET_IN_CAR_STATUS
 
     if len(data) <= offset:
         return None
@@ -1019,7 +1152,7 @@ def parse_player_fia_flag(data, header):
     return struct.unpack_from("<b", data, offset)[0]
 
 
-def parse_penalty_details(data):
+def parse_penalty_details(data, header_size):
     """
     PENA event details:
       uint8 penaltyType
@@ -1030,21 +1163,22 @@ def parse_penalty_details(data):
       uint8 lapNum
       uint8 placesGained
     """
-    if len(data) < EVENT_DETAILS_OFFSET + 7:
+    event_details_offset = header_size + 4
+    if len(data) < event_details_offset + 7:
         return None
 
     return {
-        "penalty_type": data[EVENT_DETAILS_OFFSET],
-        "infringement_type": data[EVENT_DETAILS_OFFSET + 1],
-        "vehicle_idx": data[EVENT_DETAILS_OFFSET + 2],
-        "other_vehicle_idx": data[EVENT_DETAILS_OFFSET + 3],
-        "time": data[EVENT_DETAILS_OFFSET + 4],
-        "lap_num": data[EVENT_DETAILS_OFFSET + 5],
-        "places_gained": data[EVENT_DETAILS_OFFSET + 6],
+        "penalty_type": data[event_details_offset],
+        "infringement_type": data[event_details_offset + 1],
+        "vehicle_idx": data[event_details_offset + 2],
+        "other_vehicle_idx": data[event_details_offset + 3],
+        "time": data[event_details_offset + 4],
+        "lap_num": data[event_details_offset + 5],
+        "places_gained": data[event_details_offset + 6],
     }
 
 
-def parse_retirement_details(data):
+def parse_retirement_details(data, header_size):
     """
     RTMT event details:
       uint8 vehicleIdx
@@ -1053,12 +1187,13 @@ def parse_retirement_details(data):
     reason 6 = black flagged
     reason 7 = red flagged
     """
-    if len(data) < EVENT_DETAILS_OFFSET + 2:
+    event_details_offset = header_size + 4
+    if len(data) < event_details_offset + 2:
         return None
 
     return {
-        "vehicle_idx": data[EVENT_DETAILS_OFFSET],
-        "reason": data[EVENT_DETAILS_OFFSET + 1],
+        "vehicle_idx": data[event_details_offset],
+        "reason": data[event_details_offset + 1],
     }
 
 # IP ranges that belong to VPNs / overlay networks, not the local LAN.
@@ -1198,6 +1333,7 @@ class F1LifxBridgeCore:
     def yellow_flag_bridge(self):
         self._clear_bridge_effect()
         self._fire("clear_active_effect")
+        self._fire("set_current_effect_key", "yellow_flag")
         self._set_bridge_effect("yellow_flash")
         threading.Thread(target=self._yellow_flash_bridge_loop, daemon=True).start()
 
@@ -1218,6 +1354,7 @@ class F1LifxBridgeCore:
     def blue_flag_bridge(self):
         self._clear_bridge_effect()
         self._fire("clear_active_effect")
+        self._fire("set_current_effect_key", "blue_flag")
         self._set_bridge_effect("blue_pulse")
         threading.Thread(target=self._blue_pulse_bridge_loop, daemon=True).start()
 
@@ -1239,6 +1376,7 @@ class F1LifxBridgeCore:
     def red_flag_bridge(self):
         self._clear_bridge_effect()
         self._fire("clear_active_effect")
+        self._fire("set_current_effect_key", "red_flag")
         self._set_bridge_effect("red_pulse")
         threading.Thread(target=self._red_pulse_bridge_loop, daemon=True).start()
 
@@ -1368,7 +1506,7 @@ class F1LifxBridgeCore:
             )
 
         if header.packet_id == PACKET_ID_SESSION:
-            self.handle_session_packet(data)
+            self.handle_session_packet(data, header)
             return
 
         if header.packet_id == PACKET_ID_CAR_STATUS:
@@ -1379,8 +1517,8 @@ class F1LifxBridgeCore:
             self.handle_event_packet(data, header)
             return
 
-    def handle_session_packet(self, data):
-        marshal_flag = parse_session_highest_marshal_flag(data)
+    def handle_session_packet(self, data, header):
+        marshal_flag = parse_session_highest_marshal_flag(data, header.header_size)
 
         if (
             self.race_started
@@ -1424,7 +1562,7 @@ class F1LifxBridgeCore:
     def handle_event_packet(self, data, header):
         self.event_packets += 1
 
-        event_code = parse_event_code(data)
+        event_code = parse_event_code(data, header.header_size)
         if event_code is None:
             return
 
@@ -1448,7 +1586,7 @@ class F1LifxBridgeCore:
             )
 
         if event_code == EVENT_START_LIGHTS:
-            num_lights = parse_start_lights_count(data)
+            num_lights = parse_start_lights_count(data, header.header_size)
 
             if num_lights != self.last_start_light_count:
                 if self.is_event_enabled("start_lights"):
@@ -1497,7 +1635,7 @@ class F1LifxBridgeCore:
                 self._fire("chequered_flag")
 
         elif event_code == EVENT_FASTEST_LAP:
-            fastest_lap = parse_fastest_lap_details(data)
+            fastest_lap = parse_fastest_lap_details(data, header.header_size)
 
             if fastest_lap is not None:
                 vehicle_idx = fastest_lap["vehicle_idx"]
@@ -1518,7 +1656,7 @@ class F1LifxBridgeCore:
                     self.log("[FASTEST LAP] Ignored - not player")
 
         elif event_code == EVENT_PENALTY:
-            penalty = parse_penalty_details(data)
+            penalty = parse_penalty_details(data, header.header_size)
 
             if penalty is not None:
                 infringement = penalty["infringement_type"]
@@ -1541,7 +1679,7 @@ class F1LifxBridgeCore:
                         self._fire("white_warning")
 
         elif event_code == EVENT_RETIREMENT:
-            retirement = parse_retirement_details(data)
+            retirement = parse_retirement_details(data, header.header_size)
 
             if retirement is not None:
                 reason = retirement["reason"]

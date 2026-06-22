@@ -1789,6 +1789,11 @@
                 <div class="name">Neutral</div>
                 <div class="desc">Warm white — reset to idle</div>
               </div>
+              <div class="effect-card" data-effect="Crash" data-effect-key="crash">
+                <div class="icon" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8l10-12h-9l1-8z"/></svg></div>
+                <div class="name">Crash</div>
+                <div class="desc">Sharp white impact flash</div>
+              </div>
             </div>
             </div><!-- /collapsible-body -->
           </div><!-- /effects-section -->
@@ -1913,6 +1918,17 @@
                 </div>
                 <label class="toggle-switch">
                   <input type="checkbox" class="event-toggle" data-event="neutral" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="ar-row" data-event="crash">
+                <div class="ar-icon" style="color:#f97316"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8l10-12h-9l1-8z"/></svg></div>
+                <div class="ar-info">
+                  <div class="ar-name">Crash</div>
+                  <div class="ar-desc">Sharp white impact flash on collision</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="crash" checked>
                   <span class="toggle-track"></span>
                 </label>
               </div>
@@ -3056,7 +3072,7 @@
       rcSub: 'Stage events and rally lighting triggers',
       rcWaiting: 'Waiting for DiRT Rally 2.0 UDP packets...',
       arSub: 'Which rally events trigger your lights',
-      events: ['lights_out','fastest_lap','chequered_flag','neutral'],
+      events: ['lights_out','fastest_lap','chequered_flag','neutral','crash'],
       names: {
         lights_out:     'Stage Start',
         fastest_lap:    'Split Checkpoint',
@@ -3068,25 +3084,29 @@
         fastest_lap:    'Purple flash at each split checkpoint',
         chequered_flag: 'White/green flash when the stage ends',
         neutral:        'Warm white on return to service park',
+        crash:          'Sharp white impact flash on collision',
       },
       qeEffects: [
         { trigger: 'Lights Out',     label: 'Stage Start',      cls: 'green'  },
         { trigger: 'Fastest Lap',    label: 'Split Checkpoint', cls: 'purple' },
         { trigger: 'Chequered Flag', label: 'Stage Finish',     cls: 'coral'  },
         { trigger: 'Neutral',        label: 'Service Park',     cls: 'amber'  },
+        { trigger: 'Crash',          label: 'Crash',            cls: 'white'  },
       ],
       laEffects: [
         { key: 'lights_out',     label: 'Stage Start',      icon: '🟢' },
         { key: 'fastest_lap',    label: 'Split Checkpoint', icon: '💜' },
         { key: 'chequered_flag', label: 'Stage Finish',     icon: '🏁' },
         { key: 'neutral',        label: 'Service Park',     icon: '💡' },
+        { key: 'crash',          label: 'Crash',            icon: '⚡' },
       ],
       lpPills: [
-        { label: 'Idle',             animKey: 'Idle'         },
-        { label: 'Stage Start',      animKey: 'Lights Out'   },
-        { label: 'Split Checkpoint', animKey: 'Fastest Lap'  },
-        { label: 'Stage Finish',     animKey: 'Chequered'    },
-        { label: 'Service Park',     animKey: 'Neutral'      },
+        { label: 'Idle',             animKey: 'Idle'          },
+        { label: 'Stage Start',      animKey: 'Lights Out'    },
+        { label: 'Split Checkpoint', animKey: 'Fastest Lap'   },
+        { label: 'Stage Finish',     animKey: 'Chequered'     },
+        { label: 'Service Park',     animKey: 'Neutral'       },
+        { label: 'Crash',           animKey: 'White Warning'  },
       ],
     },
   };

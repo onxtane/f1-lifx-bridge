@@ -1,3 +1,4 @@
+import math
 import socket
 import struct
 import time
@@ -11,10 +12,18 @@ _DR2_SIZE   = struct.calcsize(_DR2_FORMAT)  # 264
 # Field indices (byte offset = index × 4)
 _F_RUN_TIME      = 0   # wall-clock time since loading screen (s)
 _F_LAP_TIME      = 1   # stage timer; > 0 while stage running (s)
+_F_SPEED         = 7   # forward speed (m/s)
+_F_G_LAT         = 34  # lateral G-force
+_F_G_LON         = 35  # longitudinal G-force
 _F_SECTOR        = 48  # current split index (0, 1, 2) as float
 _F_LAST_LAP_TIME = 62  # populates when stage finishes; 0 otherwise (s)
 _F_RPM           = 37  # engine RPM ÷ 10
 _F_MAX_RPM       = 63  # max RPM ÷ 10
+
+# Crash detection thresholds
+_CRASH_G_THRESHOLD = 3.5   # combined lateral+longitudinal G-force
+_CRASH_SPEED_DROP  = 4.0   # m/s lost in a single packet (~14 km/h)
+_CRASH_COOLDOWN_S  = 3.0   # minimum seconds between consecutive crash flashes
 
 
 class DR2BridgeCore(F1LifxBridgeCore):
@@ -36,6 +45,8 @@ class DR2BridgeCore(F1LifxBridgeCore):
         self._dr2_in_stage       = False
         self._dr2_last_sector    = -1
         self._dr2_last_lap_time  = 0.0
+        self._dr2_last_speed     = 0.0
+        self._dr2_crash_cooldown = 0.0
 
     def listener_loop(self):
         self.log("===================================================")
@@ -94,6 +105,7 @@ class DR2BridgeCore(F1LifxBridgeCore):
         lap_time      = f[_F_LAP_TIME]
         sector        = int(f[_F_SECTOR])
         last_lap_time = f[_F_LAST_LAP_TIME]
+        speed         = f[_F_SPEED]
 
         # lap_time > 0 means the stage timer is running.
         in_stage = lap_time > 0.05
@@ -125,6 +137,24 @@ class DR2BridgeCore(F1LifxBridgeCore):
                 if self.is_event_enabled("fastest_lap"):
                     self._clear_bridge_effect()
                     self._fire("fastest_lap")
+
+            # ── Crash detection ───────────────────────────────────────────────
+            # Combined G-force spike + significant speed drop in a single packet.
+            g_combined = math.sqrt(f[_F_G_LAT] ** 2 + f[_F_G_LON] ** 2)
+            now = time.time()
+            if (g_combined > _CRASH_G_THRESHOLD
+                    and speed < self._dr2_last_speed - _CRASH_SPEED_DROP
+                    and now - self._dr2_crash_cooldown > _CRASH_COOLDOWN_S):
+                self.log(
+                    f"[DR2] Crash — G={g_combined:.1f}, "
+                    f"Δspeed={self._dr2_last_speed - speed:.1f} m/s"
+                )
+                self._dr2_crash_cooldown = now
+                if self.is_event_enabled("crash"):
+                    self._clear_bridge_effect()
+                    self._fire("crash")
+
+        self._dr2_last_speed = speed
 
         # ── Service park / menus ─────────────────────────────────────────────
         if not in_stage and self._dr2_in_stage:

@@ -4,10 +4,28 @@ All notable changes are documented here.
 
 ---
 
+## [0.7.0] — 2026-06-22
+
+### Added
+- **F1 2021–2023 support** — version-aware header parsing dispatches on packet format: F1 24/25 use the 29-byte header (with `m_gameYear`), F1 23 uses 28 bytes (no `m_gameYear`), F1 21/22 use 24 bytes (no `m_gameYear`, no `m_overallFrameIdentifier`). All offset-dependent functions (marshal zones, event code, start lights, FIA flags, fastest lap, penalty, retirement) now receive `header_size` dynamically. Game selector card updated to "F1® 25 · 24 · 23 · 22 · 21" (#46)
+- **DiRT Rally 2.0 support** — new `dr2_bridge.py` listens on the 264-byte Codemasters telemetry format (`extradata=3`). Fires effects on stage start (green), split checkpoint (purple), stage finish (celebration), and return to service park (neutral). All UI sections (Manual Triggers, Auto-Response, Quick Effects, Light Assignment, Light Preview) are now game-aware and switch with the selected title; packet counter reflects the active game (#48)
+- **Crash flash** — DiRT Rally 2.0 collision detection via combined G-force spike + single-packet speed drop (3 s cooldown); fires a sharp white impact flash (#48)
+- **Intensity curves** — per-effect brightness curves (piecewise-linear, configurable duration) now drive both LIFX and Nanoleaf output during effect playback
+- **Nanoleaf per-effect light assignment** — Nanoleaf devices honour the same Light Assignment semantics as LIFX, firing only for their assigned effects
+
+### Fixed
+- **Nanoleaf NL29 Canvas panel layout** — exclude controller/Rhythm modules by `shapeType` (1, 12, and `shapeType 3` on Canvas) so the first panel no longer renders as a stray hexagon (#22)
+- **Concurrent settings corruption** — `save_gui_settings` now serialises read-modify-write under a lock, fixing JSON "Extra data" parse errors when switching games
+
+### Changed
+- **Website** — race-event simulation section is now a per-game carousel (F1 25–21 and DiRT Rally 2.0) with left/right navigation; EA WRC split into its own roadmap issue (#56)
+
+---
+
 ## [0.6.0] — 2026-06-21
 
 ### Added
-- **F1 24 support** — identical 29-byte UDP header to F1 25; both formats now accepted by the packet filter (`bridge_core.py`). Game selector card updated to "F1® 25 / 24" (#46)
+- **F1 24 support** — identical 29-byte UDP header to F1 25; both formats now accepted by the packet filter (`bridge_core.py`). Game selector card updated to "F1® 25 / 24"
 - **Multi-title game selector** — Forza Horizon 5 / Motorsport, DiRT Rally 2.0 / EA WRC, Assetto Corsa, Project CARS 2, and F1® Manager shown as a coming-soon horizontal scroll strip below the active card
 
 ---
