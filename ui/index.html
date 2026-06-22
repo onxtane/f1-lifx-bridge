@@ -2389,6 +2389,24 @@
             </div>
           </div>
 
+          <!-- Developer tools — hidden unless dev mode (running from source or GRIDGLOW_DEV=1) -->
+          <div class="settings-section" id="devToolsSection" style="display:none;">
+            <h3>Developer</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Self-tests</div>
+                <div class="setting-hint">Replay-based packet → effect dispatch tests (F1 + DiRT Rally 2.0)</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="runSelfTestsBtn">Run tests</button>
+            </div>
+            <div class="setting-row" id="selfTestResultRow" style="display:none;">
+              <div style="width:100%;">
+                <div id="selfTestBadge" style="font-size:13px;font-weight:600;margin-bottom:6px;"></div>
+                <pre id="selfTestOutput" style="max-height:220px;overflow:auto;margin:0;padding:10px;border-radius:8px;background:rgba(0,0,0,0.35);font-size:11px;line-height:1.45;white-space:pre-wrap;color:var(--text-muted);"></pre>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-section">
             <h3>Setup</h3>
             <div class="setting-row">
@@ -5877,6 +5895,63 @@
       showSetupDiscover();
     }
   });
+
+  // ---- developer self-tests (hidden unless dev mode) ----
+  (function () {
+    const section = document.getElementById('devToolsSection');
+    const btn     = document.getElementById('runSelfTestsBtn');
+    const row     = document.getElementById('selfTestResultRow');
+    const badge   = document.getElementById('selfTestBadge');
+    const output  = document.getElementById('selfTestOutput');
+    if (!section || !btn) return;
+
+    // Reveal the section only when the backend reports dev mode. The pywebview
+    // API is injected asynchronously, so defer until it's ready (or call now if
+    // it already is) — calling too early returns null and leaves it hidden.
+    function revealIfDev() {
+      Promise.resolve(callApi('is_dev_mode')).then((dev) => {
+        if (dev) section.style.display = '';
+      });
+    }
+    if (window.pywebview && window.pywebview.api) {
+      revealIfDev();
+    } else {
+      window.addEventListener('pywebviewready', revealIfDev);
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Running…';
+      row.style.display = '';
+      badge.textContent = 'Running self-tests…';
+      badge.style.color = 'var(--text-muted)';
+      output.textContent = '';
+      try {
+        const r = await callApi('run_self_tests');
+        if (!r) {
+          badge.textContent = 'No result — run via main.py (dev mode).';
+          badge.style.color = 'var(--text-muted)';
+        } else {
+          const pass = r.ok;
+          badge.textContent = pass
+            ? `✓ PASSED — ${r.total} tests`
+            : `✗ FAILED — ${r.failures} failed, ${r.errors} errored of ${r.total}`;
+          badge.style.color = pass ? 'var(--green, #3ddc84)' : 'var(--red, #ff5c5c)';
+          output.textContent = r.output || '';
+          window.showToast && window.showToast(
+            pass ? 'Self-tests passed' : 'Self-tests failed',
+            pass ? 'success' : 'error');
+        }
+      } catch (e) {
+        badge.textContent = 'Error running tests — check logs.';
+        badge.style.color = 'var(--red, #ff5c5c)';
+        output.textContent = String(e);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run tests';
+      }
+    });
+  })();
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════

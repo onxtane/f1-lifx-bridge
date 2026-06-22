@@ -279,6 +279,47 @@ class Api:
         self.runner.set_game_mode(mode)
         return {"ok": True}
 
+    # ---- developer / self-test (hidden unless dev mode) ----
+
+    def is_dev_mode(self) -> bool:
+        """Dev mode is on when running from source, or when GRIDGLOW_DEV=1.
+
+        Gates the in-app 'Run self-tests' button so end users of the frozen .exe
+        never see it (and the tests/ folder is never bundled into the build).
+        """
+        return (not getattr(sys, "frozen", False)
+                or os.environ.get("GRIDGLOW_DEV") == "1")
+
+    def run_self_tests(self) -> dict:
+        """Run the tests/ unittest suite in-process and return a result summary."""
+        import io
+        import contextlib
+        import unittest
+
+        tests_dir = _BUNDLE_DIR / "tests"
+        if not tests_dir.is_dir():
+            return {"ok": False, "total": 0, "failures": 0, "errors": 0,
+                    "output": "tests/ directory not found — this is a dev-only "
+                              "feature and tests are not bundled into the build."}
+
+        buf = io.StringIO()
+        try:
+            suite = unittest.TestLoader().discover(
+                str(tests_dir), top_level_dir=str(_BUNDLE_DIR))
+            runner = unittest.TextTestRunner(stream=buf, verbosity=2)
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                result = runner.run(suite)
+            return {
+                "ok": result.wasSuccessful(),
+                "total": result.testsRun,
+                "failures": len(result.failures),
+                "errors": len(result.errors),
+                "output": buf.getvalue(),
+            }
+        except Exception as exc:
+            return {"ok": False, "total": 0, "failures": 0, "errors": 0,
+                    "output": f"{buf.getvalue()}\n\nRunner error: {exc}"}
+
     def set_light_assignments(self, data: dict):
         self.runner.set_light_assignments(data)
         return {"ok": True}

@@ -88,6 +88,19 @@ pip install pywebview PySide6 lifxlan nanoleafapi requests psutil
 python main.py
 ```
 
+### Running the tests
+
+Replay-based integration tests feed crafted packet bytes through the parse/dispatch
+pipeline — no hardware or network required:
+
+```
+python -m unittest discover -s tests
+```
+
+When running from source (or with `GRIDGLOW_DEV=1` set), a **Settings → Developer → Run tests**
+button runs the same suite from inside the app. The `tests/` folder is never bundled into
+release builds.
+
 ---
 
 ## Setup
