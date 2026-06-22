@@ -695,10 +695,18 @@ class LocalLifxController:
             return
 
         lights = self._effect_lights()
-        if self.sector_mode and not self.sector_strip_override:
-            # Multizone strips are reserved for the live sector display — unless a
-            # red flag has overridden the reservation to flash the whole strip.
-            lights = [l for l in lights if not isinstance(l, MultiZoneLight)]
+        if self.sector_mode:
+            if self.sector_strip_override:
+                # A red flag has overridden the reservation: flash multizone strips
+                # too, even if the current effect key (red_flag) isn't in their
+                # per-effect assignment — they were reserved for sector status,
+                # which bypasses assignment as well, so the override must too.
+                seen = {id(l) for l in lights}
+                lights = lights + [l for l in self.lights
+                                   if isinstance(l, MultiZoneLight) and id(l) not in seen]
+            else:
+                # Multizone strips are reserved for the live sector display.
+                lights = [l for l in lights if not isinstance(l, MultiZoneLight)]
         _dbg = self.debug_timing
 
         def _send(light):
