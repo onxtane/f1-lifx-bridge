@@ -131,6 +131,8 @@ release builds.
 
 Launch the `.exe` from the release.
 
+> ⚠️ **Not code-signed yet.** GridGlow isn't signed with a code-signing certificate, so Windows SmartScreen may show a *"Windows protected your PC"* warning (and some antivirus may flag the PyInstaller bundle). It's safe to run — click **More info → Run anyway**. Code signing is tracked in [#60](https://github.com/onxtane/f1-lifx-bridge/issues/60).
+
 **3. Set up your lights**
 
 On first launch the brand picker will guide you through pairing your lights. You can also reach it later via Settings.
