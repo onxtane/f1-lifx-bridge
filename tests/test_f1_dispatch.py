@@ -88,6 +88,41 @@ class F1DispatchTests(unittest.TestCase):
         # race_started defaults False → marshal flags suppressed
         self.assertEqual(self.feed(fx.f1_session_marshal(3)), [])
 
+    # ── Live sector status (opt-in; #12) ─────────────────────────────────────
+    def test_sector_status_fires_when_enabled(self):
+        self.bridge.enabled_events = frozenset({"sector_status"})
+        pkt = fx.f1_session_zones([(0.5, 3)])   # yellow in sector 2
+        self.assertEqual(self.feed(pkt), [("sector_status", ([0, 3, 0],))])
+
+    def test_sector_status_repaints_only_on_change(self):
+        self.bridge.enabled_events = frozenset({"sector_status"})
+        pkt = fx.f1_session_zones([(0.5, 3)])
+        self.feed(pkt)                       # first paint
+        self.bridge.dispatches.clear()
+        self.feed(pkt)                       # identical packet → no repaint
+        self.assertEqual(self.bridge.dispatches, [])
+
+    def test_sector_status_off_by_default_keeps_flash(self):
+        # enabled_events None → sector status inactive, marshal flash unchanged
+        self.bridge.race_started = True
+        self.assertEqual(self.feed(fx.f1_session_marshal(3)), [("yellow_flag", ())])
+
+    def test_car_status_flash_runs_alongside_sector_status(self):
+        # The player-flag flash keeps firing for non-multizone lights while sector
+        # status is active — the strip is protected at the controller level, not by
+        # suppressing dispatch.
+        self.bridge.enabled_events = frozenset({"sector_status", "yellow_flag"})
+        self.assertEqual(self.feed(fx.f1_car_status_fia(3)), [("yellow_flag", ())])
+
+    def test_sector_status_and_flash_both_fire_during_race(self):
+        # During a race, a marshal change paints the sectors AND flashes the
+        # non-multizone lights — sector_status first, then the flag flash.
+        self.bridge.enabled_events = frozenset({"sector_status", "yellow_flag"})
+        self.bridge.race_started = True
+        self.assertEqual(
+            self.feed(fx.f1_session_zones([(0.5, 3)])),
+            [("sector_status", ([0, 3, 0],)), ("yellow_flag", ())])
+
     # ── Cross-cutting behaviour ──────────────────────────────────────────────
     def test_unsupported_packet_format_ignored(self):
         pkt = fx.f1_start_lights(5)

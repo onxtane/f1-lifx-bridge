@@ -244,6 +244,11 @@ class LocalLifxController:
         self._curve_start: float | None = None
         self._curve_dur: float = 2.0  # seconds
 
+        # When live sector status is active, multizone strips are reserved for the
+        # sector display: whole-light solid effects (set_color_all, neutral, flag
+        # flashes) skip them, so only sector_status / start_lights paint the strip.
+        self.sector_mode = False
+
         if self.dry_run:
             print("[LIFX] DRY_RUN is enabled. Bulbs will NOT change.")
             return
@@ -685,6 +690,9 @@ class LocalLifxController:
             return
 
         lights = self._effect_lights()
+        if self.sector_mode:
+            # Multizone strips are reserved for the live sector display.
+            lights = [l for l in lights if not isinstance(l, MultiZoneLight)]
         _dbg = self.debug_timing
 
         def _send(light):
@@ -809,6 +817,51 @@ class LocalLifxController:
                     self.log_callback(msg)
             if self.stagger_ms > 0 and i < len(lights) - 1:
                 time.sleep(self.stagger_ms / 1000.0)
+
+    def _sector_flag_hsbk(self, flag):
+        """HSBK colour for a sector's flag — clear/green = green, caution = yellow."""
+        b = self._scale_brightness(60000)
+        if flag == FIA_FLAG_YELLOW:
+            return [10922, 65535, b, 3500]   # amber
+        if flag == FIA_FLAG_BLUE:
+            return [43690, 65535, b, 3500]   # blue
+        return [21845, 65535, b, 3500]       # none / green → all-clear green
+
+    def sector_status(self, sector_flags):
+        """Paint the three track sectors across multizone strips by flag colour.
+
+        sector_flags = [s1, s2, s3] (FIA_FLAG_* values from
+        parse_session_sector_flags). Only multizone strips with 3+ zones are
+        painted — non-multizone lights keep the normal flag flash, so this method
+        deliberately ignores them.
+        """
+        self.clear_active_effect()
+        self._current_effect_key = 'sector_status'
+
+        flags = (list(sector_flags or []) + [FIA_FLAG_NONE] * 3)[:3]
+        colors = [self._sector_flag_hsbk(f) for f in flags]
+
+        if self.dry_run:
+            print(f"[SECTOR] flags={flags}")
+            return
+
+        for light in self._effect_lights():
+            if not isinstance(light, MultiZoneLight):
+                continue   # bulbs / non-strips are handled by the flag flash
+            try:
+                zc = self.get_zone_count(light)
+                if zc < 3:
+                    continue
+                b1 = zc // 3
+                b2 = (2 * zc) // 3
+                light.set_zone_color(0,  b1 - 1, colors[0], 150, rapid=True)
+                light.set_zone_color(b1, b2 - 1, colors[1], 150, rapid=True)
+                light.set_zone_color(b2, zc - 1, colors[2], 150, rapid=True)
+            except Exception as exc:
+                msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
+                print(msg)
+                if self.log_callback:
+                    self.log_callback(msg)
 
     def lights_out(self):
         self.clear_active_effect()
@@ -1079,6 +1132,58 @@ def parse_session_highest_marshal_flag(data, header_size):
 
     return None
 
+
+# Marshal-flag priority for resolving the dominant flag in a track region.
+_MARSHAL_FLAG_PRIORITY = {
+    FIA_FLAG_NONE: 0,
+    FIA_FLAG_GREEN: 1,
+    FIA_FLAG_BLUE: 2,
+    FIA_FLAG_YELLOW: 3,
+}
+
+
+def parse_session_sector_flags(data, header_size):
+    """Map the Session packet's marshal-zone flags onto the three track sectors.
+
+    Each MarshalZone is `float m_zoneStart (0.0–1.0 lap fraction)` + `int8 m_zoneFlag`.
+    Zones are grouped into equal thirds by `m_zoneStart`; each sector takes the
+    highest-priority flag among its zones. Returns ``[s1, s2, s3]`` (each a
+    ``FIA_FLAG_*`` value), or ``None`` when the packet carries no usable zone data.
+
+    Note: F1 telemetry exposes no true sector-boundary positions, so equal thirds of
+    the lap fraction are used as the sector mapping — a deliberate approximation.
+    """
+    num_marshal_zones_offset = header_size + 18
+    marshal_zones_offset = header_size + 19
+
+    if len(data) <= num_marshal_zones_offset:
+        return None
+
+    num_zones = max(0, min(21, data[num_marshal_zones_offset]))
+    if num_zones == 0:
+        return None
+
+    sectors = [FIA_FLAG_NONE, FIA_FLAG_NONE, FIA_FLAG_NONE]
+    saw_zone = False
+
+    for i in range(num_zones):
+        base = marshal_zones_offset + (i * MARSHAL_ZONE_SIZE)
+        if len(data) < base + MARSHAL_ZONE_SIZE:
+            break
+
+        zone_start = struct.unpack_from("<f", data, base)[0]
+        flag = struct.unpack_from("<b", data, base + MARSHAL_ZONE_FLAG_OFFSET)[0]
+        saw_zone = True
+        if flag < 0:
+            continue
+
+        zs = min(max(zone_start, 0.0), 0.999999)
+        idx = 0 if zs < (1 / 3) else (1 if zs < (2 / 3) else 2)
+        if _MARSHAL_FLAG_PRIORITY.get(flag, 0) > _MARSHAL_FLAG_PRIORITY.get(sectors[idx], 0):
+            sectors[idx] = flag
+
+    return sectors if saw_zone else None
+
 def parse_header(data):
     if len(data) < 2:
         return None
@@ -1338,6 +1443,9 @@ class F1LifxBridgeCore:
         self.total_packets = 0
         self.event_packets = 0
 
+        # Last [s1,s2,s3] sector flags painted, so we only re-paint on change.
+        self._last_sector_flags = None
+
         # None = all events enabled. Set to a frozenset of string keys to restrict.
         self.enabled_events = None
 
@@ -1349,6 +1457,15 @@ class F1LifxBridgeCore:
 
     def is_event_enabled(self, name: str) -> bool:
         return self.enabled_events is None or name in self.enabled_events
+
+    def _sector_status_active(self) -> bool:
+        """Live sector status is opt-in: only active when explicitly enabled.
+
+        Unlike other events (on by default when enabled_events is None), this one
+        must be deliberately switched on, because it replaces the yellow/blue-flag
+        flash on multizone strips rather than adding to it.
+        """
+        return self.enabled_events is not None and "sector_status" in self.enabled_events
 
     def log(self, message):
         print(message)
@@ -1594,6 +1711,21 @@ class F1LifxBridgeCore:
             return
 
     def handle_session_packet(self, data, header):
+        # Live sector status (opt-in): paint the three sectors from the Session
+        # packet's per-zone flags, re-painting only when they change. Multizone
+        # strips are reserved for this (LocalLifxController.sector_mode); the
+        # normal flag flash below still drives every non-multizone light.
+        active = self._sector_status_active()
+        if self.lifx is not None:
+            self.lifx.sector_mode = active   # keep the strip reservation in sync
+
+        if active:
+            flags = parse_session_sector_flags(data, header.header_size)
+            if flags is not None and flags != self._last_sector_flags:
+                self.log(f"[SECTOR STATUS] {flags}")
+                self._last_sector_flags = flags
+                self._fire("sector_status", flags)
+
         marshal_flag = parse_session_highest_marshal_flag(data, header.header_size)
 
         if (
@@ -1618,6 +1750,8 @@ class F1LifxBridgeCore:
             self.last_marshal_flag = marshal_flag
 
     def handle_car_status_packet(self, data, header):
+        # The player-flag flash keeps running for non-multizone lights even while
+        # sector status is active — multizone strips are protected by sector_mode.
         fia_flag = parse_player_fia_flag(data, header)
 
         if fia_flag is not None and fia_flag != self.last_fia_flag:
@@ -1686,6 +1820,7 @@ class F1LifxBridgeCore:
             self.last_start_light_count = None
             self.last_marshal_flag = None
             self.last_fia_flag = None
+            self._last_sector_flags = None
             self.race_started = False
             if self.is_event_enabled("neutral"):
                 self.neutral_bridge()
@@ -1694,6 +1829,7 @@ class F1LifxBridgeCore:
             self.last_start_light_count = None
             self.last_marshal_flag = None
             self.last_fia_flag = None
+            self._last_sector_flags = None
             self.race_started = False
             if self.is_event_enabled("neutral"):
                 self.neutral_bridge()

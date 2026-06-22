@@ -423,6 +423,14 @@ class HueController:
         self._current_effect_key = "neutral"
         self.set_idle()
 
+    def sector_status(self, sector_flags):
+        """No-op for now: the 3-segment sector display is multizone-strip only.
+
+        Plain Hue bulbs keep the normal flag flash. Per-segment sectors on the Hue
+        Gradient Lightstrip are a possible follow-up.
+        """
+        return
+
     def yellow_flag(self):
         self._current_effect_key = "yellow_flag"
         if self.is_effect_active("yellow_flash"):

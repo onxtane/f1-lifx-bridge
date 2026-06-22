@@ -95,6 +95,23 @@ def f1_session_marshal(flag, num_zones=1):
     return f1_header(PACKET_ID_SESSION) + bytes(body)
 
 
+def f1_session_zones(zones):
+    """Session packet with explicit marshal zones.
+
+    `zones` is a list of (zone_start_fraction, flag) tuples. Each MarshalZone is a
+    float zoneStart followed by an int8 zoneFlag (5 bytes), starting at header+19;
+    the zone count lives at header+18.
+    """
+    n = len(zones)
+    body = bytearray(19 + n * 5)
+    body[18] = n
+    for i, (start, flag) in enumerate(zones):
+        base = 19 + i * 5
+        struct.pack_into("<f", body, base, float(start))
+        struct.pack_into("<b", body, base + 4, flag)
+    return f1_header(PACKET_ID_SESSION) + bytes(body)
+
+
 # ── DiRT Rally 2.0 (extradata=3, 264 bytes, 66 × f32) ────────────────────────
 _DR2_FMT = "<66f"
 

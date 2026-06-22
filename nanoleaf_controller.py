@@ -698,6 +698,14 @@ class NanoleafController:
         self.set_color_all([0, 0, 50000, 4500], duration_ms=800)
         self._deactivate_curve()
 
+    def sector_status(self, sector_flags):
+        """No-op for now: the 3-segment sector display is multizone-strip only.
+
+        Nanoleaf panels aren't a linear strip, so they keep the normal flag flash.
+        Spatial (panel-position) sector rendering is a possible follow-up.
+        """
+        return
+
     def yellow_flag(self):
         if not self._is_assigned("yellow_flag"):
             return
