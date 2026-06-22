@@ -1,6 +1,6 @@
-<svg viewBox="0 0 860 410" xmlns="http://www.w3.org/2000/svg" role="img" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
-  <title>F1 LIFX Bridge — Data Flow</title>
-  <desc>F1 25 sends UDP telemetry to F1 LIFX Bridge, which fans out to LIFX lights via LAN protocol and to Nanoleaf panels via REST API.</desc>
+<svg viewBox="0 0 860 450" xmlns="http://www.w3.org/2000/svg" role="img" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <title>GridGlow — Data Flow</title>
+  <desc>F1 25–21 and DiRT Rally 2.0 send UDP telemetry to GridGlow, which fans out lighting effects to LIFX over LAN, Nanoleaf over REST, and Philips Hue over the CLIP v2 local API.</desc>
 
   <defs>
     <marker id="a-gray" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
@@ -12,105 +12,101 @@
     <marker id="a-teal" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
       <path d="M0,0 L0,6 L8,3z" fill="#06b6d4"/>
     </marker>
+    <marker id="a-amber" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3z" fill="#f59e0b"/>
+    </marker>
   </defs>
 
   <!-- Background -->
-  <rect width="860" height="410" fill="#0b1020" rx="0"/>
+  <rect width="860" height="450" fill="#0b1020"/>
 
   <!-- Title -->
-  <text x="430" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#f3f5f9" letter-spacing="0.2">F1 LIFX Bridge — Data Flow</text>
-  <text x="430" y="54" text-anchor="middle" font-size="10" fill="#aab2c5">Race event → light effect pipeline</text>
+  <text x="430" y="34" text-anchor="middle" font-size="15" font-weight="700" fill="#f3f5f9" letter-spacing="0.2">GridGlow — Data Flow</text>
+  <text x="430" y="52" text-anchor="middle" font-size="10" fill="#aab2c5">Race &amp; rally event → light effect pipeline</text>
 
-  <!-- F1 25 -->
-  <rect x="18" y="152" width="138" height="106" rx="12" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/>
-  <g transform="translate(76,170) scale(0.917)" stroke="#f3f5f9" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 5h3.5a5 5 0 0 1 0 10h-5.5l-4.015 4.227a2.3 2.3 0 0 1-3.923-2.035l1.634-8.173a5 5 0 0 1 4.904-4.019h3.4"/>
-    <path d="M14 15l4.07 4.284a2.3 2.3 0 0 0 3.925-2.023l-1.6-8.232"/>
-    <path d="M8 9v2"/><path d="M7 10h2"/><path d="M14 10h2"/>
+  <!-- Games source -->
+  <rect x="22" y="150" width="158" height="156" rx="12" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/>
+  <g transform="translate(88,166) scale(0.8)" stroke="#f3f5f9" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/>
+    <line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/>
+    <path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.544-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.152A4 4 0 0 0 17.32 5z"/>
   </g>
-  <text x="87" y="209" text-anchor="middle" font-size="13" font-weight="600" fill="#f3f5f9">F1 25</text>
-  <text x="87" y="226" text-anchor="middle" font-size="10" fill="#aab2c5">UDP · port 20777</text>
+  <text x="101" y="214" text-anchor="middle" font-size="13" font-weight="600" fill="#f3f5f9">Games</text>
+  <text x="101" y="236" text-anchor="middle" font-size="10" fill="#aab2c5">F1 25 · 24 · 23 · 22 · 21</text>
+  <text x="101" y="252" text-anchor="middle" font-size="10" fill="#aab2c5">DiRT Rally 2.0</text>
+  <text x="101" y="284" text-anchor="middle" font-size="10" fill="#6b7280" font-weight="500">UDP · port 20777</text>
 
   <!-- UDP arrow -->
-  <line x1="157" y1="205" x2="224" y2="200" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#a-gray)"/>
-  <text x="190" y="194" text-anchor="middle" font-size="9" fill="#6b7280" font-weight="500">UDP telemetry</text>
+  <line x1="181" y1="222" x2="246" y2="222" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#a-gray)"/>
+  <text x="213" y="214" text-anchor="middle" font-size="9" fill="#6b7280" font-weight="500">UDP telemetry</text>
 
   <!-- Bridge -->
-  <rect x="228" y="78" width="168" height="244" rx="12" fill="rgba(139,124,246,0.09)" stroke="#8b7cf6" stroke-width="1.5"/>
-  <text x="312" y="103" text-anchor="middle" font-size="10" font-weight="700" fill="#a78bfa" letter-spacing="1.5">F1 LIFX BRIDGE</text>
-  <line x1="248" y1="113" x2="376" y2="113" stroke="rgba(255,255,255,0.09)" stroke-width="1"/>
-  <text x="262" y="140" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Packet parser</text>
-  <text x="262" y="163" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Event dispatcher</text>
-  <text x="262" y="186" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Effect engine</text>
-  <text x="262" y="209" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Profile manager</text>
-  <circle cx="396" cy="148" r="3.5" fill="#8b7cf6"/>
-  <circle cx="396" cy="252" r="3.5" fill="#8b7cf6"/>
+  <rect x="250" y="104" width="178" height="252" rx="12" fill="rgba(139,124,246,0.09)" stroke="#8b7cf6" stroke-width="1.5"/>
+  <text x="339" y="130" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa" letter-spacing="2">GRIDGLOW</text>
+  <line x1="270" y1="140" x2="408" y2="140" stroke="rgba(255,255,255,0.09)" stroke-width="1"/>
+  <text x="284" y="170" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Packet parser</text>
+  <text x="284" y="198" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Event dispatcher</text>
+  <text x="284" y="226" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Effect engine</text>
+  <text x="284" y="254" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Game switcher</text>
+  <text x="284" y="282" font-size="11" fill="#aab2c5"><tspan fill="#8b7cf6">▸</tspan>  Profile manager</text>
+  <circle cx="428" cy="150" r="3.5" fill="#8b7cf6"/>
+  <circle cx="428" cy="238" r="3.5" fill="#8b7cf6"/>
+  <circle cx="428" cy="326" r="3.5" fill="#8b7cf6"/>
 
-  <!-- Fan-out to LIFX -->
-  <path d="M396,148 H446 V132 H488" fill="none" stroke="#ef4444" stroke-width="1.5" marker-end="url(#a-red)"/>
-  <text x="467" y="122" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="500">LIFX LAN protocol</text>
-
-  <!-- Fan-out to Nanoleaf -->
-  <path d="M396,252 H446 V268 H488" fill="none" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#a-teal)"/>
-  <text x="467" y="286" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="500">Nanoleaf REST API</text>
+  <!-- Fan-out: LIFX -->
+  <path d="M428,150 H520 V134 H598" fill="none" stroke="#ef4444" stroke-width="1.5" marker-end="url(#a-red)"/>
+  <text x="528" y="124" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="500">LIFX LAN</text>
+  <!-- Fan-out: Nanoleaf -->
+  <path d="M428,238 H598" fill="none" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#a-teal)"/>
+  <text x="512" y="231" text-anchor="middle" font-size="9" fill="#06b6d4" font-weight="500">Nanoleaf REST</text>
+  <!-- Fan-out: Hue -->
+  <path d="M428,326 H520 V342 H598" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#a-amber)"/>
+  <text x="528" y="362" text-anchor="middle" font-size="9" fill="#f59e0b" font-weight="500">Hue CLIP v2</text>
 
   <!-- LIFX -->
-  <rect x="490" y="82" width="158" height="100" rx="12" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.5"/>
-  <g transform="translate(558,101) scale(0.917)" stroke="#ef4444" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="600" y="92" width="240" height="86" rx="12" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="1.5"/>
+  <g transform="translate(620,114) scale(0.95)" stroke="#ef4444" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 12h1m8-9v1m8 8h1m-15.4-6.4l.7.7m12.1-.7l-.7.7"/>
     <path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3"/>
     <path d="M9.7 17l4.6 0"/>
   </g>
-  <text x="569" y="139" text-anchor="middle" font-size="13" font-weight="600" fill="#f3f5f9">LIFX</text>
-  <text x="569" y="154" text-anchor="middle" font-size="10" fill="#aab2c5">Bulbs · Strips · Multizone</text>
-  <text x="569" y="169" text-anchor="middle" font-size="10" fill="#aab2c5">LAN · no cloud</text>
+  <text x="664" y="122" font-size="13" font-weight="600" fill="#f3f5f9">LIFX</text>
+  <text x="664" y="140" font-size="9.5" fill="#aab2c5">Bulbs · Strips · Multizone</text>
+  <text x="664" y="156" font-size="9.5" fill="#aab2c5">LAN · no cloud</text>
 
   <!-- Nanoleaf -->
-  <rect x="490" y="218" width="158" height="100" rx="12" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.5"/>
-  <g transform="translate(558,237) scale(0.917)" stroke="#06b6d4" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="600" y="196" width="240" height="86" rx="12" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.5"/>
+  <g transform="translate(620,218) scale(0.95)" stroke="#06b6d4" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 18v-5l4-2l4 2v5l-4 2l-4-2"/>
     <path d="M8 11v-5l4-2l4 2v5"/>
     <path d="M12 13l4-2l4 2v5l-4 2l-4-2"/>
   </g>
-  <text x="569" y="275" text-anchor="middle" font-size="13" font-weight="600" fill="#f3f5f9">Nanoleaf</text>
-  <text x="569" y="290" text-anchor="middle" font-size="10" fill="#aab2c5">Canvas · Shapes · Lines</text>
-  <text x="569" y="305" text-anchor="middle" font-size="10" fill="#aab2c5">REST · no cloud</text>
+  <text x="664" y="226" font-size="13" font-weight="600" fill="#f3f5f9">Nanoleaf</text>
+  <text x="664" y="244" font-size="9.5" fill="#aab2c5">Canvas · Shapes · Lines · Elements</text>
+  <text x="664" y="260" font-size="9.5" fill="#aab2c5">REST · no cloud</text>
 
-  <!-- LIFX → your lights -->
-  <line x1="649" y1="132" x2="681" y2="132" stroke="#ef4444" stroke-width="1.4" stroke-dasharray="4,3" marker-end="url(#a-red)"/>
-
-  <!-- Nanoleaf → your panels -->
-  <line x1="649" y1="268" x2="681" y2="268" stroke="#06b6d4" stroke-width="1.4" stroke-dasharray="4,3" marker-end="url(#a-teal)"/>
-
-  <!-- Your lights -->
-  <rect x="684" y="92" width="152" height="80" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(239,68,68,0.32)" stroke-width="1.2"/>
-  <g transform="translate(751,103) scale(0.75)" stroke="#ef4444" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Philips Hue -->
+  <rect x="600" y="300" width="240" height="86" rx="12" fill="rgba(245,158,11,0.07)" stroke="#f59e0b" stroke-width="1.5"/>
+  <g transform="translate(620,322) scale(0.95)" stroke="#f59e0b" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 12h1m8-9v1m8 8h1m-15.4-6.4l.7.7m12.1-.7l-.7.7"/>
     <path d="M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3"/>
     <path d="M9.7 17l4.6 0"/>
   </g>
-  <text x="760" y="132" text-anchor="middle" font-size="12" font-weight="600" fill="#f3f5f9">your lights</text>
-  <text x="760" y="148" text-anchor="middle" font-size="10" fill="#aab2c5">Bulbs · Strips · Multizone</text>
-
-  <!-- Your panels -->
-  <rect x="684" y="228" width="152" height="80" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(6,182,212,0.32)" stroke-width="1.2"/>
-  <g transform="translate(751,239) scale(0.75)" stroke="#06b6d4" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M4 18v-5l4-2l4 2v5l-4 2l-4-2"/>
-    <path d="M8 11v-5l4-2l4 2v5"/>
-    <path d="M12 13l4-2l4 2v5l-4 2l-4-2"/>
-  </g>
-  <text x="760" y="268" text-anchor="middle" font-size="12" font-weight="600" fill="#f3f5f9">your panels</text>
-  <text x="760" y="284" text-anchor="middle" font-size="10" fill="#aab2c5">Canvas · Shapes · Lines</text>
+  <text x="664" y="330" font-size="13" font-weight="600" fill="#f3f5f9">Philips Hue</text>
+  <text x="664" y="348" font-size="9.5" fill="#aab2c5">Bulbs · Gradient Lightstrip</text>
+  <text x="664" y="364" font-size="9.5" fill="#aab2c5">CLIP v2 · LAN</text>
 
   <!-- Legend -->
-  <g transform="translate(218,358)">
-    <line x1="0" y1="0" x2="22" y2="0" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5,3"/>
-    <text x="28" y="4" font-size="10" fill="#aab2c5">UDP telemetry</text>
-    <line x1="128" y1="0" x2="150" y2="0" stroke="#ef4444" stroke-width="1.4"/>
-    <text x="156" y="4" font-size="10" fill="#aab2c5">LIFX LAN protocol</text>
-    <line x1="278" y1="0" x2="300" y2="0" stroke="#06b6d4" stroke-width="1.4"/>
-    <text x="306" y="4" font-size="10" fill="#aab2c5">Nanoleaf REST API</text>
+  <g transform="translate(96,414)">
+    <line x1="0" y1="0" x2="20" y2="0" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5,3"/>
+    <text x="26" y="4" font-size="10" fill="#aab2c5">UDP telemetry</text>
+    <line x1="150" y1="0" x2="170" y2="0" stroke="#ef4444" stroke-width="1.4"/>
+    <text x="176" y="4" font-size="10" fill="#aab2c5">LIFX LAN</text>
+    <line x1="262" y1="0" x2="282" y2="0" stroke="#06b6d4" stroke-width="1.4"/>
+    <text x="288" y="4" font-size="10" fill="#aab2c5">Nanoleaf REST</text>
+    <line x1="408" y1="0" x2="428" y2="0" stroke="#f59e0b" stroke-width="1.4"/>
+    <text x="434" y="4" font-size="10" fill="#aab2c5">Hue CLIP v2</text>
   </g>
 
-  <text x="430" y="390" text-anchor="middle" font-size="10" fill="rgba(170,178,197,0.45)">No cloud · LAN only · sub-second latency</text>
+  <text x="430" y="438" text-anchor="middle" font-size="10" fill="rgba(170,178,197,0.45)">No cloud · LAN only · sub-second latency</text>
 </svg>
