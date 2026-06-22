@@ -129,7 +129,7 @@ release builds.
 
 **2. Run the app**
 
-Launch the `.exe` from the release, or run `python main.py` from source.
+Launch the `.exe` from the release.
 
 **3. Set up your lights**
 
