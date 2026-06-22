@@ -4,10 +4,16 @@ All notable changes are documented here.
 
 ---
 
-## [Unreleased]
+## [0.8.0] — 2026-06-22
 
 ### Added
 - **Live sector status (F1)** — opt-in Auto-Response effect that maps the Session packet's marshal-zone flags onto the three track sectors and paints them across a multizone strip (green = clear, amber = yellow, blue = blue), splitting the strip to fit any zone count (8 zones → 2/3/3). Multizone-strip only: while active the strip is reserved for the sector display and other lights keep their normal flag flash; a red flag temporarily overrides the strip (whole strip red) then resumes sectors. Default off, F1-only. Test it without the game via `tools/replay_sector_status.py` (#12)
+
+### Changed
+- **Clearer Hue onboarding** — the Connect Hue Bridge screen is now two numbered steps (① find the bridge, ② pair), and the Pair button is locked until an IP is detected or entered, so it can't be clicked before discovery.
+
+### Fixed
+- **Nanoleaf settings no longer lose the panel layout / leak the token** — a partial save from the UI (e.g. the enabled toggle or an IP change) used to replace the whole settings dict, wiping `custom_layout` / `device_layout`. Saves now merge (matching Hue). The Nanoleaf auth token is also kept backend-side — `get_nanoleaf_settings` strips it and returns `paired`, and pairing no longer hands the token to the UI (#59)
 
 ---
 
