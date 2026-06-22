@@ -1932,6 +1932,17 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
+              <div class="ar-row" data-event="sector_status">
+                <div class="ar-icon" style="color:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="5" height="6" rx="1"/><rect x="9.5" y="9" width="5" height="6" rx="1"/><rect x="16.5" y="9" width="5" height="6" rx="1"/></svg></div>
+                <div class="ar-info">
+                  <div class="ar-name">Sector Status</div>
+                  <div class="ar-desc">Live flag status across 3 strip segments — multizone strips only; replaces the flag flash there, other lights still flash</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="sector_status">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
             </div>
             </div><!-- /collapsible-body -->
           </div><!-- /effects-section -->
@@ -3048,7 +3059,8 @@
       rcWaiting: 'Waiting for F1 25 telemetry...',
       arSub: 'Which F1 events trigger your lights',
       events: ['start_lights','lights_out','yellow_flag','blue_flag','red_flag',
-               'fastest_lap','chequered_flag','white_warning','black_flag','neutral'],
+               'fastest_lap','chequered_flag','white_warning','black_flag','neutral',
+               'sector_status'],
       // Display name / desc overrides for shared keys (empty = use HTML defaults)
       names: {},
       descs: {},
@@ -3225,8 +3237,14 @@
   // ---- auto-response toggles ----
   const ALL_EVENTS = [
     'start_lights','lights_out','yellow_flag','blue_flag','red_flag',
-    'fastest_lap','chequered_flag','white_warning','black_flag','neutral'
+    'fastest_lap','chequered_flag','white_warning','black_flag','neutral',
+    'sector_status'
   ];
+
+  // Opt-in events default OFF (not part of the "all on → null" collapse). null
+  // enabled_events means "every normal event on, opt-ins off" — matching the
+  // backend, which only treats sector_status as active when explicitly listed.
+  const OPT_IN_EVENTS = new Set(['sector_status']);
 
   function getEnabledEvents() {
     const def = window._GAME_DEFS[window._currentGame];
@@ -3238,11 +3256,12 @@
   }
 
   function applyEnabledEvents(enabledList) {
-    // null / missing = all on
+    // null / missing = all normal events on, opt-in events off
     const enabled = enabledList ? new Set(enabledList) : null;
     ALL_EVENTS.forEach(key => {
       const cb = document.querySelector(`.event-toggle[data-event="${key}"]`);
-      if (cb) cb.checked = enabled === null ? true : enabled.has(key);
+      if (!cb) return;
+      cb.checked = enabled === null ? !OPT_IN_EVENTS.has(key) : enabled.has(key);
     });
   }
 
@@ -3250,8 +3269,12 @@
     const enabled = getEnabledEvents();
     const def = window._GAME_DEFS[window._currentGame];
     const gameEvents = def ? def.events : ALL_EVENTS;
-    // If all game events are on, store null so new events default to enabled
-    const value = enabled.length === gameEvents.length ? null : enabled;
+    // Collapse to null only when every *normal* event is on and no opt-in is on,
+    // so new normal events default enabled but opt-ins (sector status) stay off.
+    const baseEvents = gameEvents.filter(e => !OPT_IN_EVENTS.has(e));
+    const baseOn = enabled.filter(e => !OPT_IN_EVENTS.has(e)).length;
+    const optInOn = enabled.some(e => OPT_IN_EVENTS.has(e));
+    const value = (!optInOn && baseOn === baseEvents.length) ? null : enabled;
     callApi('save_gui_settings', { enabled_events: value });
     callApi('set_enabled_events', value);
   }

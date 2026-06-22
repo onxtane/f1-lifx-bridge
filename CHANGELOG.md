@@ -4,6 +4,13 @@ All notable changes are documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Live sector status (F1)** — opt-in Auto-Response effect that maps the Session packet's marshal-zone flags onto the three track sectors and paints them across a multizone strip (green = clear, amber = yellow, blue = blue), splitting the strip to fit any zone count (8 zones → 2/3/3). Multizone-strip only: while active the strip is reserved for the sector display and other lights keep their normal flag flash; a red flag temporarily overrides the strip (whole strip red) then resumes sectors. Default off, F1-only. Test it without the game via `tools/replay_sector_status.py` (#12)
+
+---
+
 ## [0.7.1] — 2026-06-22
 
 ### Added

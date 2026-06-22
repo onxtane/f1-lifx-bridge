@@ -248,6 +248,9 @@ class LocalLifxController:
         # sector display: whole-light solid effects (set_color_all, neutral, flag
         # flashes) skip them, so only sector_status / start_lights paint the strip.
         self.sector_mode = False
+        # A red flag overrides the reservation: while set, set_color_all paints the
+        # strip again so the whole strip can flash red, then sectors resume.
+        self.sector_strip_override = False
 
         if self.dry_run:
             print("[LIFX] DRY_RUN is enabled. Bulbs will NOT change.")
@@ -690,8 +693,9 @@ class LocalLifxController:
             return
 
         lights = self._effect_lights()
-        if self.sector_mode:
-            # Multizone strips are reserved for the live sector display.
+        if self.sector_mode and not self.sector_strip_override:
+            # Multizone strips are reserved for the live sector display — unless a
+            # red flag has overridden the reservation to flash the whole strip.
             lights = [l for l in lights if not isinstance(l, MultiZoneLight)]
         _dbg = self.debug_timing
 
@@ -827,30 +831,57 @@ class LocalLifxController:
             return [43690, 65535, b, 3500]   # blue
         return [21845, 65535, b, 3500]       # none / green → all-clear green
 
+    def _live_zone_count(self, light) -> int:
+        """Cached zone count, falling back to a live query if it wasn't cached."""
+        zc = self.get_zone_count(light)
+        if zc >= 1:
+            return zc
+        try:
+            zones = light.get_color_zones(0, 255)
+            zc = len(zones) if zones else 0
+            if zc:
+                self._zone_counts[light.mac_addr] = zc
+        except Exception:
+            zc = 0
+        return zc
+
     def sector_status(self, sector_flags):
         """Paint the three track sectors across multizone strips by flag colour.
 
         sector_flags = [s1, s2, s3] (FIA_FLAG_* values from
-        parse_session_sector_flags). Only multizone strips with 3+ zones are
-        painted — non-multizone lights keep the normal flag flash, so this method
-        deliberately ignores them.
+        parse_session_sector_flags). Splits each strip into three contiguous
+        segments sized to its zone count (e.g. 8 zones → 2/3/3); strips with fewer
+        than 3 zones show the dominant flag as a solid fill.
+
+        This is a mode, not a per-effect flash, so it paints every selected
+        multizone strip directly — it is NOT gated by per-effect light assignment
+        (sector_status would otherwise be excluded by older assignment lists).
         """
         self.clear_active_effect()
         self._current_effect_key = 'sector_status'
 
         flags = (list(sector_flags or []) + [FIA_FLAG_NONE] * 3)[:3]
         colors = [self._sector_flag_hsbk(f) for f in flags]
+        dominant = max(flags, key=lambda f: _MARSHAL_FLAG_PRIORITY.get(f, 0))
 
         if self.dry_run:
             print(f"[SECTOR] flags={flags}")
             return
 
-        for light in self._effect_lights():
-            if not isinstance(light, MultiZoneLight):
-                continue   # bulbs / non-strips are handled by the flag flash
+        strips = [l for l in self.lights if isinstance(l, MultiZoneLight)]
+        if not strips:
+            if self.log_callback:
+                self.log_callback("[SECTOR] No multizone strip in the active lights "
+                                  "— sector status needs a multizone strip to display.")
+            return
+
+        for light in strips:
             try:
-                zc = self.get_zone_count(light)
+                zc = self._live_zone_count(light)
                 if zc < 3:
+                    # Too few zones to split into thirds — solid dominant flag.
+                    light.set_zone_color(0, 255, self._sector_flag_hsbk(dominant),
+                                         150, rapid=True)
                     continue
                 b1 = zc // 3
                 b2 = (2 * zc) // 3
@@ -1518,6 +1549,12 @@ class F1LifxBridgeCore:
     def _clear_bridge_effect(self):
         with self._bridge_effect_lock:
             self._bridge_effect = None
+        # Any effect taking over the strip (red flag, start lights, …) invalidates
+        # the painted sector state so live sector status repaints on the next
+        # Session packet, and releases the red-flag strip override.
+        self._last_sector_flags = None
+        if self.lifx is not None:
+            self.lifx.sector_strip_override = False
 
     def _is_bridge_effect(self, name: str) -> bool:
         with self._bridge_effect_lock:
@@ -1568,6 +1605,10 @@ class F1LifxBridgeCore:
 
     def red_flag_bridge(self):
         self._clear_bridge_effect()
+        # Override the sector-status strip reservation so the red flag flashes the
+        # whole strip; _clear_bridge_effect() releases it again when the red flag ends.
+        if self.lifx is not None:
+            self.lifx.sector_strip_override = True
         self._fire("clear_active_effect")
         self._fire("set_current_effect_key", "red_flag")
         self._set_bridge_effect("red_pulse")
@@ -1716,10 +1757,13 @@ class F1LifxBridgeCore:
         # strips are reserved for this (LocalLifxController.sector_mode); the
         # normal flag flash below still drives every non-multizone light.
         active = self._sector_status_active()
+        override = self.lifx is not None and self.lifx.sector_strip_override
         if self.lifx is not None:
             self.lifx.sector_mode = active   # keep the strip reservation in sync
 
-        if active:
+        # Don't repaint sectors while a red flag owns the strip; it resumes once the
+        # red flag clears (_clear_bridge_effect resets _last_sector_flags).
+        if active and not override:
             flags = parse_session_sector_flags(data, header.header_size)
             if flags is not None and flags != self._last_sector_flags:
                 self.log(f"[SECTOR STATUS] {flags}")
