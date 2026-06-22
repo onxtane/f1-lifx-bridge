@@ -4,7 +4,7 @@ All notable changes are documented here.
 
 ---
 
-## [Unreleased]
+## [0.7.1] — 2026-06-22
 
 ### Added
 - **Replay-based dispatch tests** — a `tests/` suite (stdlib `unittest`, no new dependencies, not bundled into the build) that feeds crafted UDP packet bytes through the real parse/dispatch pipeline and asserts the correct effect fires, with no LIFX/Nanoleaf/Hue hardware. Covers all F1 events and the five DiRT Rally 2.0 stage events. Runnable via `python -m unittest discover -s tests` or a hidden Settings → Developer → "Run tests" button (shown only in dev mode: running from source, or `GRIDGLOW_DEV=1`) (#36)
