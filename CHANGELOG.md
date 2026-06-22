@@ -8,6 +8,7 @@ All notable changes are documented here.
 
 ### Fixed
 - **Nanoleaf auto-discovery** — replaced the single-socket SSDP probe (unreliable on multi-homed Windows hosts with VPN / Hyper-V / WSL virtual adapters) with a dependency-free scan that sends both mDNS (`_nanoleafapi._tcp.local.`) and SSDP probes from every LAN interface, using each reply's source address as the device IP and resolving the friendly device name from the mDNS instance label. Falls back to the previous library discovery only if the scan finds nothing (#23)
+- **LIFX discovery over Tailscale / VPN** — the previous `source_ip=` mitigation was dead code (the bundled lifxlan constructor ignores it), so discovery still bound to `INADDR_ANY` and let the OS broadcast out a tunnel/virtual adapter — finding no bulbs, or on Windows aborting outright with `WinError 10054`. Discovery now binds its UDP socket to each real LAN interface (via a `LifxLAN` subclass), tries physical NICs first, skips the Tailscale `100.64.0.0/10` range, and keeps the interface that finds the most bulbs (#1)
 
 ---
 

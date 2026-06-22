@@ -325,28 +325,46 @@ class LocalLifxController:
     def discover_lights(self):
         print(f"[LIFX] Discovering up to {self.bulb_count} bulb(s) on your LAN...")
 
-        source_ips = _lan_source_ips() or [None]  # None → lifxlan default behaviour
-        discovered_lights = []
+        # Bind discovery to each candidate LAN interface and keep the result that
+        # finds the most bulbs. On multi-homed hosts an unbound socket lets the OS
+        # broadcast out a VPN/virtual adapter, finding nothing — or aborting with a
+        # connection reset (issue #1). Binding the source IP routes via the LAN NIC.
+        candidates = _lan_source_ips()
+        best_lifx, discovered_lights = None, []
 
-        for src_ip in source_ips:
-            label = src_ip or "default"
-            print(f"[LIFX] Trying discovery via interface {label}...", flush=True)
+        for src_ip in candidates:
+            print(f"[LIFX] Trying discovery via {src_ip}...", flush=True)
             try:
-                try:
-                    lifx = LifxLAN(self.bulb_count, source_ip=src_ip)
-                except TypeError:
-                    # Older lifxlan builds don't have source_ip; fall back.
-                    lifx = LifxLAN(self.bulb_count)
-                lights = lifx.get_lights()
-                if lights:
-                    discovered_lights = lights
-                    print(f"[LIFX] Discovery succeeded via {label}: {len(lights)} bulb(s)", flush=True)
-                    break
+                lifx = _BoundLifxLAN(self.bulb_count, source_ip=src_ip)
+                lights = lifx.get_lights() or []
             except Exception as exc:
-                print(f"[LIFX] Discovery via {label} failed: {exc}", flush=True)
+                print(f"[LIFX] Discovery via {src_ip} failed: {exc}", flush=True)
+                continue
+            print(f"[LIFX] {src_ip}: {len(lights)} bulb(s)", flush=True)
+            if len(lights) > len(discovered_lights):
+                best_lifx, discovered_lights = lifx, lights
+                # If we already found everything we were asked to look for, stop.
+                if self.bulb_count and len(discovered_lights) >= self.bulb_count:
+                    break
+
+        # Last resort: lifxlan's default INADDR_ANY behaviour (single-homed hosts).
+        if not discovered_lights:
+            print("[LIFX] No interface-bound discovery succeeded; trying default.", flush=True)
+            try:
+                lifx = LifxLAN(self.bulb_count)
+                discovered_lights = lifx.get_lights() or []
+                best_lifx = lifx
+            except Exception as exc:
+                print(f"[LIFX] Default discovery failed: {exc}", flush=True)
 
         if not discovered_lights:
             raise RuntimeError("No LIFX bulbs found on LAN.")
+
+        # Reuse the winning bound instance for the multizone passes below so they
+        # broadcast on the same (correct) interface.
+        lifx = best_lifx
+        print(f"[LIFX] Using {len(discovered_lights)} bulb(s) from the best interface.",
+              flush=True)
 
         # Upgrade multizone-capable lights to MultiZoneLight objects.
         # Strategy 1: broadcast-based get_multizone_lights() with one retry.
@@ -1202,30 +1220,88 @@ _VPN_RANGES = [
     ipaddress.ip_network('100.64.0.0/10'),   # Tailscale
 ]
 
-def _lan_source_ips():
-    """Return local IPv4 addresses suitable for LIFX LAN broadcast.
+# Adapter-name fragments that indicate a virtual / non-LAN interface. Used only
+# to *deprioritise* (try last), never to exclude — some users do run LIFX over
+# bridged virtual adapters.
+_VIRTUAL_ADAPTER_HINTS = (
+    "hyper-v", "virtual", "vethernet", "vmware", "loopback", "wsl",
+    "tailscale", "wireguard", "zerotier", "tun", "tap",
+)
 
-    Filters out loopback and known VPN/overlay ranges so lifxlan sends the
-    discovery broadcast on the real LAN interface rather than a VPN tunnel.
+
+def _lan_source_ips():
+    """Local IPv4 source addresses for LIFX discovery, physical-NIC first.
+
+    Excludes loopback, APIPA (169.254/16), and known VPN/overlay ranges so the
+    discovery broadcast egresses a real LAN NIC rather than a tunnel. Virtual
+    adapters are sorted last so a physical NIC is tried first. Uses ifaddr (a
+    lifxlan dependency, always present) with a hostname-resolution fallback.
     """
-    seen, result = set(), []
+    candidates = []  # [(ip, is_virtual)]
     try:
-        infos = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
-        for *_, sockaddr in infos:
-            ip = sockaddr[0]
-            if ip in seen:
-                continue
-            seen.add(ip)
-            addr = ipaddress.ip_address(ip)
-            if addr.is_loopback:
-                continue
-            if any(addr in net for net in _VPN_RANGES):
-                print(f"[LIFX] Skipping VPN/overlay interface: {ip}", flush=True)
-                continue
-            result.append(ip)
-    except Exception as exc:
-        print(f"[LIFX] Interface enumeration error: {exc}", flush=True)
-    return result
+        import ifaddr
+        for adapter in ifaddr.get_adapters():
+            nice = (adapter.nice_name or "").lower()
+            is_virtual = any(hint in nice for hint in _VIRTUAL_ADAPTER_HINTS)
+            for a in adapter.ips:
+                if not a.is_IPv4:
+                    continue
+                ip = a.ip
+                try:
+                    addr = ipaddress.ip_address(ip)
+                except ValueError:
+                    continue
+                if addr.is_loopback or ip.startswith("169.254."):
+                    continue
+                if any(addr in net for net in _VPN_RANGES):
+                    print(f"[LIFX] Skipping VPN/overlay interface: {ip} ({adapter.nice_name})",
+                          flush=True)
+                    continue
+                candidates.append((ip, is_virtual))
+    except Exception:
+        # Fallback: hostname resolution (no adapter names → no virtual detection).
+        try:
+            for *_, sockaddr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+                ip = sockaddr[0]
+                addr = ipaddress.ip_address(ip)
+                if addr.is_loopback or ip.startswith("169.254."):
+                    continue
+                if any(addr in net for net in _VPN_RANGES):
+                    continue
+                candidates.append((ip, False))
+        except Exception as exc:
+            print(f"[LIFX] Interface enumeration error: {exc}", flush=True)
+
+    seen, physical, virtual = set(), [], []
+    for ip, is_virtual in candidates:
+        if ip in seen:
+            continue
+        seen.add(ip)
+        (virtual if is_virtual else physical).append(ip)
+    return physical + virtual
+
+
+class _BoundLifxLAN(LifxLAN):
+    """LifxLAN whose discovery/broadcast socket is bound to a specific source IP.
+
+    Stock lifxlan binds to INADDR_ANY, letting the OS pick the egress interface by
+    route metric. On multi-homed hosts (Tailscale/VPN, Hyper-V, WSL) it can pick a
+    tunnel or virtual adapter, so LIFX broadcasts never reach the LAN — and on
+    Windows a broadcast to a VPN interface can return WinError 10054, aborting
+    discovery entirely (issue #1). Binding the source IP forces the real LAN NIC.
+    """
+
+    def __init__(self, num_lights=None, verbose=False, source_ip=None):
+        super().__init__(num_lights, verbose)
+        self._source_ip = source_ip
+
+    def initialize_socket(self, timeout):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        s.settimeout(timeout)
+        s.bind((self._source_ip or "", 0))
+        self.sock = s
 
 
 class F1LifxBridgeCore:

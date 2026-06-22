@@ -161,7 +161,6 @@ Created automatically on first run. Not tracked in git.
 
 | # | Issue |
 |---|---|
-| [#1](https://github.com/onxtane/f1-lifx-bridge/issues/1) | Tailscale / VPN connections can break LIFX discovery |
 | [#3](https://github.com/onxtane/f1-lifx-bridge/issues/3) | App flickers when a game gains focus — **workaround:** right-click the game `.exe` → Properties → Compatibility → enable **"Disable fullscreen optimizations"** |
 | [#22](https://github.com/onxtane/f1-lifx-bridge/issues/22) | Panel Layout UI: first panel renders as hexagon on Canvas (NL29) |
 | [#44](https://github.com/onxtane/f1-lifx-bridge/issues/44) | Hue Gradient Lightstrip detection needs hardware validation |
