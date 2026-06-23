@@ -2614,13 +2614,22 @@
     return `<div class="log-entry"><span class="log-tag log-tag-info">Info</span><span class="log-msg">${escHtml(raw)}</span></div>`;
   }
 
+  let _logRenderRaf = null;
   function renderLogs() {
-    const html = logLines.length === 0
-      ? '<div class="log-entry muted"><span class="log-msg">No logs yet.</span></div>'
-      : logLines.map(formatLogLine).join('');
-    [logBox, logBoxFull].forEach(box => {
-      box.innerHTML = html;
-      box.scrollTop = box.scrollHeight;
+    // Coalesce to one DOM rebuild per animation frame. A 250 ms update batch can
+    // carry many log lines; without this, each line triggered a full innerHTML
+    // rebuild of both log boxes (+ scroll reflow), thrashing the renderer and
+    // flickering the whole window under a live telemetry stream.
+    if (_logRenderRaf) return;
+    _logRenderRaf = requestAnimationFrame(() => {
+      _logRenderRaf = null;
+      const html = logLines.length === 0
+        ? '<div class="log-entry muted"><span class="log-msg">No logs yet.</span></div>'
+        : logLines.map(formatLogLine).join('');
+      [logBox, logBoxFull].forEach(box => {
+        box.innerHTML = html;
+        box.scrollTop = box.scrollHeight;
+      });
     });
   }
 
