@@ -1,0 +1,53 @@
+name: Build macOS
+
+# Builds the macOS .app on real macOS runners (PyInstaller can't cross-compile
+# from Windows). Produces downloadable artifacts for Intel and Apple Silicon.
+# Trigger manually from the Actions tab, or automatically when a vN.N.N tag is pushed.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: ${{ matrix.arch }} (.app)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13      # Intel (x86_64)
+            arch: intel
+          - runner: macos-14      # Apple Silicon (arm64)
+            arch: apple-silicon
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller pywebview lifxlan nanoleafapi requests psutil
+          # pywebview's native Cocoa/WKWebView backend (installed explicitly to be safe)
+          pip install pyobjc-core pyobjc-framework-Cocoa pyobjc-framework-WebKit pyobjc-framework-Quartz
+
+      - name: Build .app
+        run: pyinstaller f1_lifx_bridge.spec --noconfirm
+
+      - name: Zip the .app (preserve bundle symlinks)
+        run: |
+          cd dist
+          zip -r -y -X "GridGlow-macOS-${{ matrix.arch }}.zip" GridGlow.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GridGlow-macOS-${{ matrix.arch }}
+          path: dist/GridGlow-macOS-${{ matrix.arch }}.zip
+          if-no-files-found: error

@@ -1,12 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 #
-# PyInstaller spec for F1 LIFX Bridge
+# PyInstaller spec for GridGlow (F1 LIFX Bridge)
 # Build:  pyinstaller f1_lifx_bridge.spec
-# Output: dist\F1LifxBridge\F1LifxBridge.exe  (folder mode)
-#         dist\F1LifxBridge.exe                (single-file mode — slower cold start)
+#
+# Windows → dist\F1LifxBridge\F1LifxBridge.exe  (folder mode)
+# macOS   → dist/GridGlow.app                   (.app bundle, Cocoa backend)
 
 import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_all
+
+IS_WIN = sys.platform == "win32"
+IS_MAC = sys.platform == "darwin"
+
+# Keep in sync with the UI/website version on release.
+APP_VERSION = "0.8.0"
 
 block_cipher = None
 
@@ -14,78 +21,55 @@ block_cipher = None
 lifxlan_datas, lifxlan_binaries, lifxlan_hiddenimports = collect_all('lifxlan')
 bitstring_datas, bitstring_binaries, bitstring_hiddenimports = collect_all('bitstring')
 
-# ── Data files ───────────────────────────────────────────────────────────────
-
+# ── Data files (cross-platform) ──────────────────────────────────────────────
 datas = [
-    # The web UI
     ('ui/index.html', 'ui'),
-
-    # pywebview needs its web-engine assets at runtime
-    *collect_data_files('webview'),
-
-    # nanoleafapi ships a JSON colour table that must travel with the package
+    *collect_data_files('webview'),       # picks up the platform's webview assets
     *collect_data_files('nanoleafapi'),
-
-    # lifxlan source files (collect_all picks up .py sources too)
     *lifxlan_datas,
-
-    # bitstring — dynamically loads bitstore_bitarray at runtime
     *bitstring_datas,
 ]
 
-# ── Hidden imports ────────────────────────────────────────────────────────────
-# PyInstaller's static analysis misses dynamically-loaded modules.
-
+# ── Hidden imports (cross-platform core) ─────────────────────────────────────
 hidden_imports = [
-    # pywebview Qt backend (we force PYWEBVIEW_GUI=qt in main.py)
-    'webview.platforms.qt',
-
-    # PySide6 modules pulled in by pywebview at runtime
-    'PySide6.QtCore',
-    'PySide6.QtGui',
-    'PySide6.QtWidgets',
-    'PySide6.QtWebEngineWidgets',
-    'PySide6.QtWebEngineCore',
-    'PySide6.QtWebChannel',
-    'PySide6.QtNetwork',
-    'PySide6.QtPositioning',
-
-    # lifxlan — explicit list of every module (collect_all catches the rest)
-    'lifxlan',
-    'lifxlan.lifxlan',
-    'lifxlan.device',
-    'lifxlan.light',
-    'lifxlan.multizonelight',
-    'lifxlan.group',
-    'lifxlan.message',
-    'lifxlan.msgtypes',
-    'lifxlan.products',
-    'lifxlan.unpack',
-    'lifxlan.utils',
-    'lifxlan.errors',
-    'lifxlan.tilechain',
-    'lifxlan.switch',
+    'lifxlan', 'lifxlan.lifxlan', 'lifxlan.device', 'lifxlan.light',
+    'lifxlan.multizonelight', 'lifxlan.group', 'lifxlan.message',
+    'lifxlan.msgtypes', 'lifxlan.products', 'lifxlan.unpack', 'lifxlan.utils',
+    'lifxlan.errors', 'lifxlan.tilechain', 'lifxlan.switch',
     *lifxlan_hiddenimports,
-
-    # bitstring submodules (dynamically imported)
     *bitstring_hiddenimports,
-    'bitstring',
-    'bitstring.bitstore_bitarray',
-
-    # nanoleafapi
+    'bitstring', 'bitstring.bitstore_bitarray',
     *collect_submodules('nanoleafapi'),
-
-    # requests / urllib3 internals
-    'requests',
-    'urllib3',
-    'charset_normalizer',
-    'certifi',
-    'idna',
-
-    # Standard-library modules sometimes missed on Windows
-    'colorsys',
-    'ipaddress',
+    'requests', 'urllib3', 'charset_normalizer', 'certifi', 'idna',
+    'colorsys', 'ipaddress',
 ]
+
+# ── Platform-specific backend + excludes ─────────────────────────────────────
+common_excludes = ['tkinter', 'matplotlib', 'numpy', 'pandas', 'scipy',
+                   'webview.platforms.cef']
+
+if IS_WIN:
+    hidden_imports += [
+        'webview.platforms.qt',
+        'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
+        'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineCore',
+        'PySide6.QtWebChannel', 'PySide6.QtNetwork', 'PySide6.QtPositioning',
+    ]
+    excludes = common_excludes + ['webview.platforms.winforms',
+                                  'webview.platforms.gtk', 'webview.platforms.cocoa']
+elif IS_MAC:
+    # Native Cocoa / WKWebView backend (pyobjc) — no Qt on macOS.
+    hidden_imports += [
+        'webview.platforms.cocoa',
+        'objc', 'Foundation', 'AppKit', 'WebKit', 'Quartz',
+    ]
+    excludes = common_excludes + ['webview.platforms.winforms',
+                                  'webview.platforms.gtk', 'webview.platforms.qt',
+                                  'PySide6', 'PyQt5', 'PyQt6']
+else:
+    hidden_imports += ['webview.platforms.gtk']
+    excludes = common_excludes + ['webview.platforms.winforms',
+                                  'webview.platforms.cocoa', 'webview.platforms.qt']
 
 # ── Analysis ──────────────────────────────────────────────────────────────────
 
@@ -98,18 +82,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        # Remove unused GUI backends to cut size
-        'webview.platforms.winforms',
-        'webview.platforms.cef',
-        'webview.platforms.gtk',
-        'webview.platforms.cocoa',
-        'tkinter',
-        'matplotlib',
-        'numpy',
-        'pandas',
-        'scipy',
-    ],
+    excludes=excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -118,6 +91,9 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Windows keeps the historical name/artifacts; macOS uses the product name.
+exe_name = 'GridGlow' if IS_MAC else 'F1LifxBridge'
+
 # ── EXE (folder mode — faster startup, easier debugging) ─────────────────────
 
 exe = EXE(
@@ -125,18 +101,18 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,      # folder mode: binaries go into COLLECT below
-    name='F1LifxBridge',
+    name=exe_name,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,                   # compress where possible
-    console=False,              # no CMD window — change to True to see logs
+    upx=not IS_MAC,             # UPX can corrupt dylibs / break codesigning on macOS
+    console=False,              # no terminal window
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,                  # add an .ico path here once you have one
+    icon=None,                  # add an .ico (win) / .icns (mac) once available
 )
 
 coll = COLLECT(
@@ -145,7 +121,29 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=not IS_MAC,
     upx_exclude=[],
-    name='F1LifxBridge',
+    name=exe_name,
 )
+
+if IS_MAC:
+    app = BUNDLE(
+        coll,
+        name='GridGlow.app',
+        icon=None,
+        bundle_identifier='dev.gridglow.app',
+        version=APP_VERSION,
+        info_plist={
+            'CFBundleName': 'GridGlow',
+            'CFBundleDisplayName': 'GridGlow',
+            'CFBundleShortVersionString': APP_VERSION,
+            'CFBundleVersion': APP_VERSION,
+            'NSHighResolutionCapable': True,
+            'LSMinimumSystemVersion': '11.0',
+            'NSPrincipalClass': 'NSApplication',
+            # macOS 14+ blocks LAN/UDP/mDNS without this — required for light discovery.
+            'NSLocalNetworkUsageDescription':
+                'GridGlow finds and controls your LIFX, Nanoleaf, and Hue lights '
+                'over your local network.',
+        },
+    )
