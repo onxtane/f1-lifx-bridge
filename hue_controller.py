@@ -31,12 +31,9 @@ try:
 except ImportError:
     _ZEROCONF_AVAILABLE = False
 
-if getattr(sys, 'frozen', False):
-    _BASE_DIR = Path(sys.executable).parent
-else:
-    _BASE_DIR = Path(__file__).resolve().parent
+from app_paths import USER_DATA_DIR
 
-HUE_SETTINGS_FILE = str(_BASE_DIR / "hue_settings.json")
+HUE_SETTINGS_FILE = str(USER_DATA_DIR / "hue_settings.json")
 
 # CLIP v2 base path
 _CLIP = "/clip/v2/resource"

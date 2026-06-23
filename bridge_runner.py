@@ -7,13 +7,10 @@ import time
 import traceback
 from pathlib import Path
 
-if getattr(sys, 'frozen', False):
-    # Settings/groups files live next to the EXE, not inside the bundle.
-    _BASE_DIR = Path(sys.executable).parent
-else:
-    _BASE_DIR = Path(__file__).resolve().parent
-GROUPS_FILE = str(_BASE_DIR / "lifx_groups.json")
-GUI_SETTINGS_FILE = str(_BASE_DIR / "f1lifx_gui_settings.json")
+from app_paths import USER_DATA_DIR
+
+GROUPS_FILE = str(USER_DATA_DIR / "lifx_groups.json")
+GUI_SETTINGS_FILE = str(USER_DATA_DIR / "f1lifx_gui_settings.json")
 
 try:
     from nanoleaf_controller import (

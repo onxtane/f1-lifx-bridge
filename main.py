@@ -4,33 +4,24 @@ import sys
 import threading
 from pathlib import Path
 
-# Force the Qt (PySide6) backend to avoid WebView2 threading issues on Windows.
-os.environ.setdefault("PYWEBVIEW_GUI", "qt")
-
-# When a fullscreen game occludes this window, Chromium's GPU compositor normally
-# pauses to save resources. On resume it outputs a brief blank frame before the
-# first real paint — the visible "flicker". These flags keep the compositor running
-# at full rate regardless of occlusion/focus state, eliminating the blank frame.
-os.environ.setdefault(
-    "QTWEBENGINE_CHROMIUM_FLAGS",
-    "--disable-backgrounding-occluded-windows --disable-renderer-backgrounding",
-)
+# On Windows, force the Qt (PySide6) backend — it avoids WebView2 threading
+# issues, and the Chromium flags keep the GPU compositor running while a fullscreen
+# game occludes the window (otherwise it flickers a blank frame on resume).
+# macOS uses pywebview's native Cocoa/WKWebView backend; Linux keeps its default.
+if sys.platform == "win32":
+    os.environ.setdefault("PYWEBVIEW_GUI", "qt")
+    os.environ.setdefault(
+        "QTWEBENGINE_CHROMIUM_FLAGS",
+        "--disable-backgrounding-occluded-windows --disable-renderer-backgrounding",
+    )
 
 import webview
 
 from bridge_runner import BridgeRunner
 
-if getattr(sys, 'frozen', False):
-    # Running as a PyInstaller bundle.
-    # Bundled data files (ui/, etc.) are in sys._MEIPASS.
-    # User-writable files (settings, storage) go next to the EXE.
-    _BUNDLE_DIR = Path(sys._MEIPASS)
-    _APP_DIR    = Path(sys.executable).parent
-else:
-    _BUNDLE_DIR = Path(__file__).resolve().parent
-    _APP_DIR    = _BUNDLE_DIR
+from app_paths import BUNDLE_DIR, USER_DATA_DIR
 
-UI_FILE = _BUNDLE_DIR / "ui" / "index.html"
+UI_FILE = BUNDLE_DIR / "ui" / "index.html"
 
 
 class Api:
@@ -296,7 +287,7 @@ class Api:
         import contextlib
         import unittest
 
-        tests_dir = _BUNDLE_DIR / "tests"
+        tests_dir = BUNDLE_DIR / "tests"
         if not tests_dir.is_dir():
             return {"ok": False, "total": 0, "failures": 0, "errors": 0,
                     "output": "tests/ directory not found — this is a dev-only "
@@ -305,7 +296,7 @@ class Api:
         buf = io.StringIO()
         try:
             suite = unittest.TestLoader().discover(
-                str(tests_dir), top_level_dir=str(_BUNDLE_DIR))
+                str(tests_dir), top_level_dir=str(BUNDLE_DIR))
             runner = unittest.TextTestRunner(stream=buf, verbosity=2)
             with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
                 result = runner.run(suite)
@@ -394,7 +385,7 @@ def main():
     api.set_window(window)
     window.events.loaded += lambda: _disable_dwm_transitions(window)
 
-    storage = _APP_DIR / "webview_storage"
+    storage = USER_DATA_DIR / "webview_storage"
     webview.start(private_mode=False, storage_path=str(storage))
 
 

@@ -35,11 +35,9 @@ except ImportError:
     _discover_devices = None
     _NANOLEAF_AVAILABLE = False
 
-if getattr(sys, 'frozen', False):
-    _BASE_DIR = Path(sys.executable).parent
-else:
-    _BASE_DIR = Path(__file__).resolve().parent
-NANOLEAF_SETTINGS_FILE = str(_BASE_DIR / "nanoleaf_settings.json")
+from app_paths import USER_DATA_DIR
+
+NANOLEAF_SETTINGS_FILE = str(USER_DATA_DIR / "nanoleaf_settings.json")
 
 # Map firmware model codes → human-readable product names.
 NANOLEAF_MODELS: dict[str, str] = {
