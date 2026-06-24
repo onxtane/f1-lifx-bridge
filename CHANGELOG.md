@@ -4,6 +4,23 @@ All notable changes are documented here.
 
 ---
 
+## [0.9.0] — 2026-06-23
+
+### Changed
+- **Windows app is ~15 MB instead of ~210 MB** — the Windows build now renders with the **WebView2 (edgechromium)** backend instead of bundling a full Qt/Chromium engine. Rendering uses the system's auto-updating WebView2 runtime (preinstalled on Windows 10/11), so there's no Chromium to ship. Same UI, dramatically smaller download. (#61)
+
+### Added
+- **macOS support foundation** — platform-aware build that produces a native `GridGlow.app` (Cocoa/WKWebView) with the required local-network usage description, plus a CI workflow that builds it on Intel and Apple Silicon runners. Settings now live in `~/Library/Application Support/GridGlow` on macOS. Not yet shipped as a release — runtime validation in progress. (#45)
+- **MIT License.**
+
+### Fixed
+- **Log rendering performance** — the live log now coalesces to one DOM update per frame instead of rebuilding on every line, removing UI thrash under a fast packet stream.
+
+### Notes
+- The app is not code-signed yet; Windows SmartScreen may warn on first launch (More info → Run anyway). Tracked in #60.
+
+---
+
 ## [0.8.0] — 2026-06-22
 
 ### Added
