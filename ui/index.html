@@ -1447,26 +1447,28 @@
         <div class="game-card-sub">Codemasters · Port 20777</div>
       </div>
 
+      <!-- Forza Horizon 6 -->
+      <div class="game-card" id="gameForza" data-game="forza">
+        <div class="game-card-icon-area">
+          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 22 Q7 14 16 13 L40 13 Q48 13 50 18 L51 22 L49 24 L5 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M18 13 Q23 9 28 9 Q33 9 38 13" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="14" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="14" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
+            <circle cx="42" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="42" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
+          </svg>
+        </div>
+        <div class="game-card-name">Forza Horizon 6</div>
+        <div class="game-card-sub">Data Out · Port 5300</div>
+      </div>
+
     </div>
 
     <!-- Coming soon strip -->
     <div class="gs-coming-section">
       <div class="gs-coming-label">Coming soon</div>
       <div class="gs-coming-scroll">
-
-        <!-- Forza Horizon 5 / Motorsport -->
-        <div class="gs-mini-card">
-          <div class="gs-mini-card-icon">
-            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 22 Q7 14 16 13 L40 13 Q48 13 50 18 L51 22 L49 24 L5 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <path d="M18 13 Q23 9 28 9 Q33 9 38 13" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="gs-mini-card-name">Forza</div>
-          <div class="gs-mini-card-sub">Horizon 5 &amp; Motorsport</div>
-        </div>
 
         <!-- Assetto Corsa -->
         <div class="gs-mini-card">
@@ -3155,6 +3157,38 @@
         { label: 'Stage Finish',     animKey: 'Chequered'     },
         { label: 'Service Park',     animKey: 'Neutral'       },
         { label: 'Crash',           animKey: 'White Warning'  },
+      ],
+    },
+    forza: {
+      label: 'Forza Horizon 6',
+      rcSub: 'Driving telemetry and lighting triggers',
+      rcWaiting: 'Waiting for Forza Data Out packets...',
+      arSub: 'Which Forza events trigger your lights',
+      events: ['lights_out','neutral','crash'],
+      names: {
+        lights_out: 'Race Start',
+        neutral:    'Return to Menus',
+      },
+      descs: {
+        lights_out: 'Green flash when the race starts',
+        neutral:    'Warm white when you return to the menus',
+        crash:      'Sharp white flash on a hard impact',
+      },
+      qeEffects: [
+        { trigger: 'Lights Out', label: 'Race Start',       cls: 'green' },
+        { trigger: 'Neutral',    label: 'Return to Menus',  cls: 'amber' },
+        { trigger: 'Crash',      label: 'Crash',            cls: 'white' },
+      ],
+      laEffects: [
+        { key: 'lights_out', label: 'Race Start',      icon: '🟢' },
+        { key: 'neutral',    label: 'Return to Menus', icon: '💡' },
+        { key: 'crash',      label: 'Crash',           icon: '⚡' },
+      ],
+      lpPills: [
+        { label: 'Idle',            animKey: 'Idle'         },
+        { label: 'Race Start',      animKey: 'Lights Out'   },
+        { label: 'Return to Menus', animKey: 'Neutral'      },
+        { label: 'Crash',          animKey: 'White Warning' },
       ],
     },
   };

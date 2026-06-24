@@ -172,6 +172,15 @@ class BridgeRunner:
                     dry_run=self._module.DRY_RUN,
                     log_callback=self.on_log,
                 )
+            elif self._game_mode == 'forza':
+                import forza_bridge as _forza
+                self.bridge = _forza.ForzaBridgeCore(
+                    udp_ip=listen_ip,
+                    udp_port=listen_port,   # ForzaBridgeCore swaps the F1 default to 5300
+                    bulb_count=self._module.LIFX_BULB_COUNT,
+                    dry_run=self._module.DRY_RUN,
+                    log_callback=self.on_log,
+                )
             else:
                 self.bridge = self._module.F1LifxBridgeCore(
                     udp_ip=listen_ip,

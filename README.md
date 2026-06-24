@@ -65,7 +65,8 @@ F1 25/24/23/22/21 and DiRT Rally 2.0 broadcast telemetry over UDP on your local 
 | F1® 25 | ✅ Supported |
 | F1® 24 | ✅ Supported |
 | F1® 2021–2023 | ✅ Supported |
-| Forza Horizon 5 / Motorsport | 🔜 Planned — [#47](https://github.com/onxtane/f1-lifx-bridge/issues/47) |
+| Forza Horizon 6 | ✅ Supported |
+| Forza Horizon 5 / Motorsport | 🔜 Planned — [#52](https://github.com/onxtane/f1-lifx-bridge/issues/52) / [#54](https://github.com/onxtane/f1-lifx-bridge/issues/54) |
 | DiRT Rally 2.0 | ✅ Supported |
 | EA WRC | 🔜 Planned — [#56](https://github.com/onxtane/f1-lifx-bridge/issues/56) |
 | Assetto Corsa | 🔜 Planned — [#49](https://github.com/onxtane/f1-lifx-bridge/issues/49) |

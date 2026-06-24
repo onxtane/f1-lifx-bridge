@@ -4,6 +4,13 @@ All notable changes are documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Forza Horizon 6 support** — new `forza_bridge.py` listens to Forza's "Data Out" UDP telemetry (port 5300). Fires effects on race start (green), return to menus (neutral), and crash impacts (sharp white flash, via FH6's collision-velocity field). The shared Sled section means the race start/end effects also cover Forza Horizon 5 and Forza Motorsport; crash is FH6-only. Game-aware UI + a new game-selector card. (#53)
+
+---
+
 ## [0.9.0] — 2026-06-23
 
 ### Changed

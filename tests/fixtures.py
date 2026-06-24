@@ -126,3 +126,18 @@ def dr2_packet(lap_time=0.0, speed=0.0, g_lat=0.0, g_lon=0.0,
     f[48] = float(sector)   # split index
     f[62] = last_lap_time   # populates at finish
     return struct.pack(_DR2_FMT, *f)
+
+
+# ── Forza "Data Out" (FH5 / FH6 / Forza Motorsport, little-endian) ───────────
+# Sled offsets: IsRaceOn @0 (s32), EngineMaxRpm @8 (f32), CurrentRpm @16 (f32).
+# FH6 adds SmashableVelDiff @236 (f32). FH6 packets are >= 323 bytes; a 232-byte
+# packet is the Sled-only (FH5/FM) format with no crash field.
+def forza_packet(is_race_on=1, current_rpm=4000.0, max_rpm=7000.0,
+                 smash_veldiff=0.0, size=339):
+    buf = bytearray(size)
+    struct.pack_into('<i', buf, 0, int(is_race_on))
+    struct.pack_into('<f', buf, 8, float(max_rpm))
+    struct.pack_into('<f', buf, 16, float(current_rpm))
+    if size >= 323:                                  # FH6 SmashableVelDiff field
+        struct.pack_into('<f', buf, 236, float(smash_veldiff))
+    return bytes(buf)
