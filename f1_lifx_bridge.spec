@@ -48,15 +48,24 @@ hidden_imports = [
 common_excludes = ['tkinter', 'matplotlib', 'numpy', 'pandas', 'scipy',
                    'webview.platforms.cef']
 
+extra_datas = []
+extra_binaries = []
+
 if IS_WIN:
+    # WebView2 (edgechromium) backend: a WinForms host + the OS WebView2 runtime,
+    # bridged via pythonnet/clr. No bundled Chromium — the build is ~15 MB vs the
+    # ~210 MB Qt build, and rendering uses the auto-updating system WebView2 runtime.
+    clr_datas, clr_binaries, clr_hiddenimports = collect_all('clr_loader')
+    pn_datas, pn_binaries, pn_hiddenimports = collect_all('pythonnet')
+    extra_datas += clr_datas + pn_datas
+    extra_binaries += clr_binaries + pn_binaries
     hidden_imports += [
-        'webview.platforms.qt',
-        'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets',
-        'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineCore',
-        'PySide6.QtWebChannel', 'PySide6.QtNetwork', 'PySide6.QtPositioning',
+        'webview.platforms.winforms', 'webview.platforms.edgechromium',
+        'clr', 'clr_loader', *clr_hiddenimports, *pn_hiddenimports,
     ]
-    excludes = common_excludes + ['webview.platforms.winforms',
-                                  'webview.platforms.gtk', 'webview.platforms.cocoa']
+    excludes = common_excludes + ['webview.platforms.gtk', 'webview.platforms.cocoa',
+                                  'webview.platforms.qt',
+                                  'PySide6', 'PyQt5', 'PyQt6', 'shiboken6']
 elif IS_MAC:
     # Native Cocoa / WKWebView backend (pyobjc) — no Qt on macOS.
     hidden_imports += [
@@ -76,8 +85,8 @@ else:
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[*lifxlan_binaries, *bitstring_binaries],
-    datas=datas,
+    binaries=[*lifxlan_binaries, *bitstring_binaries, *extra_binaries],
+    datas=datas + extra_datas,
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},

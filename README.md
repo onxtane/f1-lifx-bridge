@@ -84,7 +84,12 @@ See the full roadmap at [gridglow.pages.dev/roadmap](https://gridglow.pages.dev/
 ### Running from source
 
 ```
-pip install pywebview PySide6 lifxlan nanoleafapi requests psutil
+pip install pywebview lifxlan nanoleafapi requests psutil
+
+# Windows — WebView2 backend (Edge runtime is preinstalled on Win 10/11):
+pip install pythonnet
+# macOS — native WKWebView backend (pyobjc is pulled in by pywebview automatically)
+
 python main.py
 ```
 

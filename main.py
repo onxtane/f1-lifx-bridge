@@ -4,14 +4,16 @@ import sys
 import threading
 from pathlib import Path
 
-# On Windows, force the Qt (PySide6) backend — it avoids WebView2 threading
-# issues, and the Chromium flags keep the GPU compositor running while a fullscreen
-# game occludes the window (otherwise it flickers a blank frame on resume).
+# On Windows, use the WebView2 (edgechromium) backend — it renders via the OS's
+# auto-updating WebView2 runtime, so the build ships no bundled Chromium (~15 MB
+# vs ~210 MB on Qt). WebView2 is Chromium under the hood, so the same flags keep
+# its compositor running while a fullscreen game occludes the window (preventing
+# the blank-frame flicker on resume) — passed via WebView2's argument env var.
 # macOS uses pywebview's native Cocoa/WKWebView backend; Linux keeps its default.
 if sys.platform == "win32":
-    os.environ.setdefault("PYWEBVIEW_GUI", "qt")
+    os.environ.setdefault("PYWEBVIEW_GUI", "edgechromium")
     os.environ.setdefault(
-        "QTWEBENGINE_CHROMIUM_FLAGS",
+        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
         "--disable-backgrounding-occluded-windows --disable-renderer-backgrounding",
     )
 
