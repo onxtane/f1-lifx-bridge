@@ -11,6 +11,13 @@ All notable changes are documented here.
 
 ---
 
+## [0.9.1] — 2026-06-25
+
+### Fixed
+- **WebView2 startup errors** — on the Windows WebView2 backend, pywebview recursively serialized the native window object (which was exposed as a public attribute of the JS API), flooding the log at startup with "maximum recursion depth exceeded" and CoreWebView2 thread-affinity errors. The window reference is now private, and a Qt-only window tweak that also triggered it has been removed. The app launches clean. (#61)
+
+---
+
 ## [0.9.0] — 2026-06-23
 
 ### Changed
