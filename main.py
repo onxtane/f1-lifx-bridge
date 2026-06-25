@@ -37,7 +37,7 @@ class Api:
     """
 
     def __init__(self):
-        self.window: webview.Window | None = None
+        self._window: webview.Window | None = None
         self._queue: list = []
         self._queue_lock = threading.Lock()
 
@@ -52,7 +52,7 @@ class Api:
         )
 
     def set_window(self, window: webview.Window):
-        self.window = window
+        self._window = window
 
     # ---- JS polling endpoint ----
 
@@ -223,12 +223,12 @@ class Api:
         return self.runner.reset_nanoleaf_layout()
 
     def set_mini_mode(self, mini: bool):
-        if self.window is None:
+        if self._window is None:
             return {"ok": False}
         if mini:
-            self.window.resize(380, 100)
+            self._window.resize(380, 100)
         else:
-            self.window.resize(1320, 860)
+            self._window.resize(1320, 860)
         return {"ok": True}
 
     def copy_to_clipboard(self, text: str):
@@ -352,26 +352,6 @@ class Api:
         self._enqueue("setActiveLabels", labels)
 
 
-def _disable_dwm_transitions(win: webview.Window) -> None:
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-        native = win.native
-        if native is None:
-            return
-        DWMWA_TRANSITIONS_FORCEDISABLED = 3
-        value = ctypes.c_int(1)
-        ctypes.windll.dwmapi.DwmSetWindowAttribute(
-            int(native.winId()),
-            DWMWA_TRANSITIONS_FORCEDISABLED,
-            ctypes.byref(value),
-            ctypes.sizeof(value),
-        )
-    except Exception:
-        pass
-
-
 def main():
     api = Api()
 
@@ -385,7 +365,6 @@ def main():
         background_color="#0b1020",
     )
     api.set_window(window)
-    window.events.loaded += lambda: _disable_dwm_transitions(window)
 
     storage = USER_DATA_DIR / "webview_storage"
     webview.start(private_mode=False, storage_path=str(storage))
