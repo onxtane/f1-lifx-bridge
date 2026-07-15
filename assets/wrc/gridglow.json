@@ -1,0 +1,52 @@
+{
+	"versions":
+	{
+		"schema": 1,
+		"data": 3
+	},
+	"id": "gridglow",
+	"header":
+	{
+		"channels": [
+			"packet_4cc"
+		]
+	},
+	"packets": [
+		{
+			"id": "session_update",
+			"channels": [
+				"packet_uid",
+				"game_total_time",
+				"game_delta_time",
+				"game_frame_count",
+				"shiftlights_fraction",
+				"shiftlights_rpm_start",
+				"shiftlights_rpm_end",
+				"shiftlights_rpm_valid",
+				"vehicle_gear_index",
+				"vehicle_gear_index_neutral",
+				"vehicle_gear_index_reverse",
+				"vehicle_gear_maximum",
+				"vehicle_speed",
+				"vehicle_transmission_speed",
+				"vehicle_engine_rpm_max",
+				"vehicle_engine_rpm_idle",
+				"vehicle_engine_rpm_current",
+				"vehicle_throttle",
+				"vehicle_brake",
+				"vehicle_clutch",
+				"vehicle_steering",
+				"vehicle_handbrake",
+				"stage_current_time",
+				"stage_current_distance",
+				"stage_result_time",
+				"stage_result_status",
+				"stage_progress",
+				"stage_length",
+				"location_id",
+				"route_id",
+				"vehicle_class_id"
+			]
+		}
+	]
+}

@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bridge_core import F1LifxBridgeCore   # noqa: E402
 from dr2_bridge import DR2BridgeCore        # noqa: E402
+from wrc_bridge import WRCBridgeCore        # noqa: E402
 from forza_bridge import ForzaBridgeCore    # noqa: E402
 
 
@@ -75,6 +76,28 @@ class RecordingDR2Bridge(DR2BridgeCore):
 
 class RecordingForzaBridge(ForzaBridgeCore):
     """Forza (Data Out) bridge that records dispatches the same way."""
+
+    def __init__(self):
+        super().__init__(dry_run=True)
+        self.dispatches = []
+        self.enabled_events = None
+
+    def reset(self):
+        self.dispatches.clear()
+        return self
+
+    def _fire(self, method, *args):
+        self.dispatches.append((method, args))
+
+    def neutral_bridge(self):
+        self.dispatches.append(("neutral", ()))
+
+    def log(self, message):
+        pass
+
+
+class RecordingWRCBridge(WRCBridgeCore):
+    """EA SPORTS WRC bridge that records dispatches the same way."""
 
     def __init__(self):
         super().__init__(dry_run=True)

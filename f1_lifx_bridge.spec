@@ -24,6 +24,7 @@ bitstring_datas, bitstring_binaries, bitstring_hiddenimports = collect_all('bits
 # ── Data files (cross-platform) ──────────────────────────────────────────────
 datas = [
     ('ui/index.html', 'ui'),
+    ('assets/wrc/gridglow.json', 'assets/wrc'),   # EA WRC telemetry structure (installed in-app)
     *collect_data_files('webview'),       # picks up the platform's webview assets
     *collect_data_files('nanoleafapi'),
     *lifxlan_datas,

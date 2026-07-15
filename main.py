@@ -272,6 +272,9 @@ class Api:
         self.runner.set_game_mode(mode)
         return {"ok": True}
 
+    def install_wrc_config(self, port=None):
+        return self.runner.install_wrc_config(port)
+
     # ---- developer / self-test (hidden unless dev mode) ----
 
     def is_dev_mode(self) -> bool:

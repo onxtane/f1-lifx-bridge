@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import shutil
 import sys
 import threading
 import time
@@ -8,6 +9,43 @@ import traceback
 from pathlib import Path
 
 from app_paths import USER_DATA_DIR
+
+
+def _windows_documents_dir() -> Path:
+    """Resolve the real Documents folder, honouring OneDrive/Known-Folder redirection.
+
+    Games write to whatever the shell reports as Documents, which may not be
+    ~/Documents when OneDrive is redirecting it. Falls back to ~/Documents off
+    Windows or if the shell call fails.
+    """
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class _GUID(ctypes.Structure):
+                _fields_ = [("Data1", wintypes.DWORD),
+                            ("Data2", wintypes.WORD),
+                            ("Data3", wintypes.WORD),
+                            ("Data4", ctypes.c_ubyte * 8)]
+
+            # FOLDERID_Documents = {FDD39AD0-238F-46AF-ADB4-6C85480369C7}
+            folderid = _GUID(0xFDD39AD0, 0x238F, 0x46AF,
+                             (ctypes.c_ubyte * 8)(0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7))
+            ptr = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(
+                    ctypes.byref(folderid), 0, None, ctypes.byref(ptr)) == 0 and ptr.value:
+                path = Path(ptr.value)
+                ctypes.windll.ole32.CoTaskMemFree(ptr)
+                return path
+        except Exception:
+            pass
+    return Path.home() / "Documents"
+
+
+def wrc_telemetry_dir() -> Path:
+    """The EA SPORTS WRC telemetry folder: Documents/My Games/WRC/telemetry."""
+    return _windows_documents_dir() / "My Games" / "WRC" / "telemetry"
 
 GROUPS_FILE = str(USER_DATA_DIR / "lifx_groups.json")
 GUI_SETTINGS_FILE = str(USER_DATA_DIR / "f1lifx_gui_settings.json")
@@ -177,6 +215,15 @@ class BridgeRunner:
                 self.bridge = _forza.ForzaBridgeCore(
                     udp_ip=listen_ip,
                     udp_port=listen_port,   # ForzaBridgeCore swaps the F1 default to 5300
+                    bulb_count=self._module.LIFX_BULB_COUNT,
+                    dry_run=self._module.DRY_RUN,
+                    log_callback=self.on_log,
+                )
+            elif self._game_mode == 'wrc':
+                import wrc_bridge as _wrc
+                self.bridge = _wrc.WRCBridgeCore(
+                    udp_ip=listen_ip,
+                    udp_port=listen_port,
                     bulb_count=self._module.LIFX_BULB_COUNT,
                     dry_run=self._module.DRY_RUN,
                     log_callback=self.on_log,
@@ -599,9 +646,77 @@ class BridgeRunner:
             elif self.bridge.nanoleaf is None:
                 self._connect_nanoleaf_if_configured()
 
+    def install_wrc_config(self, port=None) -> dict:
+        """Install GridGlow's EA WRC telemetry structure and enable it in-game.
+
+        Copies gridglow.json into the WRC telemetry 'udp' folder and adds (or
+        updates) a packet entry in config.json so the game streams the
+        session_update packet to GridGlow's listen port. Existing packet entries
+        are preserved. Returns {ok, path, port} or {ok: False, error}.
+        """
+        from app_paths import BUNDLE_DIR
+
+        try:
+            listen_port = int(port) if port else (
+                self._pending_listen[1] if self._pending_listen else 20777)
+        except (TypeError, ValueError):
+            listen_port = 20777
+
+        src = BUNDLE_DIR / "assets" / "wrc" / "gridglow.json"
+        if not src.is_file():
+            return {"ok": False, "error": "Bundled WRC telemetry config is missing from this build."}
+
+        try:
+            tel_dir = wrc_telemetry_dir()
+            udp_dir = tel_dir / "udp"
+            udp_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, udp_dir / "gridglow.json")
+
+            cfg_path = tel_dir / "config.json"
+            cfg = {"schema": 2, "udp": {"packets": []}}
+            if cfg_path.is_file():
+                try:
+                    loaded = json.loads(cfg_path.read_text(encoding="utf-8"))
+                    if isinstance(loaded, dict):
+                        cfg = loaded
+                except (ValueError, OSError):
+                    # Unreadable config — back it up rather than clobber it silently.
+                    try:
+                        shutil.copyfile(cfg_path, cfg_path.with_suffix(".json.bak"))
+                    except OSError:
+                        pass
+
+            udp = cfg.setdefault("udp", {})
+            packets = udp.setdefault("packets", [])
+            if not isinstance(packets, list):
+                packets = []
+                udp["packets"] = packets
+
+            desired = {
+                "structure": "gridglow",
+                "packet": "session_update",
+                "ip": "127.0.0.1",
+                "port": listen_port,
+                "frequencyHz": 60,
+                "bEnabled": True,
+            }
+            existing = next((p for p in packets
+                             if isinstance(p, dict) and p.get("structure") == "gridglow"), None)
+            if existing is not None:
+                existing.update(desired)
+            else:
+                packets.append(desired)
+
+            cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+            self.on_log(f"[WRC] Telemetry config installed at {tel_dir} (port {listen_port})")
+            return {"ok": True, "path": str(tel_dir), "port": listen_port}
+        except Exception as exc:
+            self.on_log(f"ERROR: WRC config install failed: {exc}")
+            return {"ok": False, "error": str(exc)}
+
     def set_game_mode(self, mode: str):
-        """Switch game mode ('f1_25' or 'dr2').  Restarts the bridge if running."""
-        if mode not in ('f1_25', 'dr2'):
+        """Switch game mode ('f1_25', 'dr2', 'forza', 'wrc').  Restarts the bridge if running."""
+        if mode not in ('f1_25', 'dr2', 'forza', 'wrc'):
             return
         self._game_mode = mode
         if self.is_running():
