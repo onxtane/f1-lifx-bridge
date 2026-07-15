@@ -51,6 +51,33 @@ const gamePages = [
       { name: "Crash",            color: "#f97316", desc: "Sharp white impact flash on collision",  delay: "0.6s", id: "crash"          },
     ],
   },
+  {
+    id: "forza",
+    name: "Forza Horizon 6",
+    accentColor: "#2dd4bf",
+    eyebrow: "3 RACE EVENTS",
+    headline: "Open-world racing, lit up.",
+    sub: "Forza's Data Out telemetry drives your lights — a green flash at the start, a warm return to the menus, and a sharp hit when you pile into something.",
+    events: [
+      { name: "Race Start",      color: "#22c55e", desc: "Green flash when the race begins",       delay: "0s",   id: "lights-out"     },
+      { name: "Return to Menus", color: "#fbbf24", desc: "Warm white back to your idle colour",    delay: "0.15s",id: "neutral"        },
+      { name: "Crash",           color: "#f97316", desc: "Sharp white impact flash on a hard hit", delay: "0.3s", id: "crash"          },
+    ],
+  },
+  {
+    id: "wrc",
+    name: "EA SPORTS WRC",
+    accentColor: "#4f8ef7",
+    eyebrow: "4 STAGE EVENTS",
+    headline: "Every stage, every split.",
+    sub: "EA SPORTS WRC lights your room from the start of the stage to the service park — each split and finish along the way.",
+    events: [
+      { name: "Stage Start",      color: "#22c55e", desc: "Green flash when the stage begins",      delay: "0s",   id: "lights-out"     },
+      { name: "Split Checkpoint", color: "#c084fc", desc: "Purple flash at each split",             delay: "0.15s",id: "fastest-lap"    },
+      { name: "Stage Finish",     color: "#f8fafc", desc: "Celebration flash at stage end",         delay: "0.3s", id: "chequered-flag" },
+      { name: "Service Park",     color: "#fbbf24", desc: "Warm white on return to service park",   delay: "0.45s",id: "neutral"        },
+    ],
+  },
 ];
 
 const features = [
