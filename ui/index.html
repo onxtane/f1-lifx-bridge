@@ -659,6 +659,21 @@
 
   /* ---- lights page ---- */
   .page-content{ flex:1; padding:28px; display:flex; flex-direction:column; gap:20px; min-height:0; overflow-y:auto; }
+  /* ---- settings master-detail (category rail + content pane) ---- */
+  .settings-shell{ display:flex; flex:1; min-height:0; }
+  .settings-rail{ width:196px; flex-shrink:0; padding:14px 10px; border-right:1px solid var(--glass-border); display:flex; flex-direction:column; gap:3px; overflow-y:auto; }
+  .settings-cat{ display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; color:var(--text-muted); font-size:13px; background:none; border:none; cursor:pointer; text-align:left; width:100%; font-family:inherit; transition:background .12s ease, color .12s ease; }
+  .settings-cat:hover{ background:var(--glass-fill); color:var(--text-main); }
+  .settings-cat.active{ background:rgba(139,124,246,0.16); color:var(--text-main); }
+  .settings-cat svg{ width:17px; height:17px; flex-shrink:0; }
+  .settings-rail-spacer{ flex:1; min-height:8px; }
+  .settings-content .settings-section[data-cat]{ display:none; }
+  .settings-content.cat-connection .settings-section[data-cat="connection"],
+  .settings-content.cat-lights     .settings-section[data-cat="lights"],
+  .settings-content.cat-effects    .settings-section[data-cat="effects"],
+  .settings-content.cat-app        .settings-section[data-cat="app"],
+  .settings-content.cat-advanced   .settings-section[data-cat="advanced"],
+  .settings-content.cat-about      .settings-section[data-cat="about"]{ display:block; }
   .section-title{ font-size:18px; font-weight:600; margin:0 0 14px; }
   .lights-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
   .lights-header h2{ margin:0; font-size:18px; font-weight:600; }
@@ -2239,8 +2254,18 @@
 
       <!-- PAGE: Settings -->
       <div class="page" id="page-settings">
-        <div class="page-content" style="overflow-y:auto;">
-          <div class="settings-section">
+        <div class="settings-shell">
+          <div class="settings-rail" id="settingsRail">
+            <button class="settings-cat active" data-cat="connection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12v3a6 6 0 0 1-12 0V8z"/><path d="M9 8V4M15 8V4M12 17v3"/></svg><span>Connection</span></button>
+            <button class="settings-cat" data-cat="lights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M8 14a6 6 0 1 1 8 0c-.8.7-1 1.4-1 2H9c0-.6-.2-1.3-1-2z"/></svg><span>Lights</span></button>
+            <button class="settings-cat" data-cat="effects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/></svg><span>Effects</span></button>
+            <button class="settings-cat" data-cat="app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="7" cy="17" r="2"/></svg><span>App</span></button>
+            <button class="settings-cat" data-cat="advanced" id="settingsCatAdvanced" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg><span>Advanced</span></button>
+            <span class="settings-rail-spacer"></span>
+            <button class="settings-cat" data-cat="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></svg><span>About</span></button>
+          </div>
+          <div class="page-content settings-content cat-connection" style="overflow-y:auto;">
+          <div class="settings-section" data-cat="app">
             <h3>App</h3>
             <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
               <div>
@@ -2256,7 +2281,7 @@
             </div>
           </div>
 
-          <div class="settings-section">
+          <div class="settings-section" data-cat="connection">
             <h3>UDP Connection</h3>
             <div class="setting-row">
               <div>
@@ -2303,7 +2328,7 @@
             </div>
           </div>
 
-          <div class="settings-section">
+          <div class="settings-section" data-cat="connection">
             <h3>UDP Forwarding</h3>
             <div class="setting-row">
               <div>
@@ -2330,7 +2355,7 @@
             </div>
           </div>
 
-          <div class="settings-section">
+          <div class="settings-section" data-cat="lights">
             <h3>Light Discovery</h3>
             <div class="setting-row">
               <div>
@@ -2353,34 +2378,10 @@
                 </label>
               </div>
             </div>
-            <div class="setting-row">
-              <div>
-                <div class="setting-label">Debug Timing</div>
-                <div class="setting-hint">Print per-effect timing to the CMD window for performance diagnosis</div>
-              </div>
-              <div class="setting-control">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="settingDebugTiming">
-                  <span class="toggle-track"></span>
-                </label>
-              </div>
-            </div>
-            <div class="setting-row">
-              <div>
-                <div class="setting-label">Nanoleaf Diagnostics</div>
-                <div class="setting-hint">Emit verbose Nanoleaf API logs to the log view — off by default, enable when investigating Nanoleaf issues</div>
-              </div>
-              <div class="setting-control">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="settingNanoleafDiag">
-                  <span class="toggle-track"></span>
-                </label>
-              </div>
-            </div>
           </div>
 
           <!-- Nanoleaf -->
-          <div class="settings-section">
+          <div class="settings-section" data-cat="lights">
             <h3>Nanoleaf</h3>
             <div class="setting-row">
               <div>
@@ -2426,7 +2427,7 @@
           </div>
 
           <!-- Philips Hue -->
-          <div class="settings-section">
+          <div class="settings-section" data-cat="lights">
             <h3>Philips Hue</h3>
             <div class="setting-row">
               <div>
@@ -2474,7 +2475,7 @@
             </div>
           </div>
 
-          <div class="settings-section">
+          <div class="settings-section" data-cat="effects">
             <h3>Light Effects</h3>
             <div id="staggerSection">
             <div class="setting-row" id="staggerRow">
@@ -2538,7 +2539,7 @@
             </div>
           </div>
 
-          <div class="settings-section">
+          <div class="settings-section" data-cat="effects">
             <h3>Multizone</h3>
             <div class="setting-row">
               <div>
@@ -2571,11 +2572,11 @@
             </div>
           </div>
 
-          <div class="settings-section">
+          <div class="settings-section" data-cat="about">
             <h3>About</h3>
             <div class="setting-row">
               <div class="setting-label">GridGlow</div>
-              <div style="font-size:13px;color:var(--text-muted);">v0.9.1</div>
+              <div style="font-size:13px;color:var(--text-muted);">v0.10.0</div>
             </div>
             <div class="setting-row">
               <div>
@@ -2586,8 +2587,32 @@
           </div>
 
           <!-- Developer tools — hidden unless dev mode (running from source or GRIDGLOW_DEV=1) -->
-          <div class="settings-section" id="devToolsSection" style="display:none;">
+          <div class="settings-section" id="devToolsSection" data-cat="advanced">
             <h3>Developer</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Debug Timing</div>
+                <div class="setting-hint">Print per-effect timing to the CMD window for performance diagnosis</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingDebugTiming">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Nanoleaf Diagnostics</div>
+                <div class="setting-hint">Emit verbose Nanoleaf API logs to the log view — off by default, enable when investigating Nanoleaf issues</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingNanoleafDiag">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
             <div class="setting-row">
               <div>
                 <div class="setting-label">Self-tests</div>
@@ -2603,7 +2628,7 @@
             </div>
           </div>
 
-          <div class="settings-section">
+          <div class="settings-section" data-cat="app">
             <h3>Setup</h3>
             <div class="setting-row">
               <div>
@@ -2612,6 +2637,7 @@
               </div>
               <button class="btn btn-ghost btn-sm" id="runSetupAgainBtn">Run Setup</button>
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -6450,9 +6476,10 @@
         body: 'Set the floor and ceiling of how bright your bulbs get during effects. A good range makes everything punchy without being blinding over a long session.',
       },
       {
-        page: 'settings', target: '.settings-section',
+        page: 'settings', target: '.settings-section[data-cat="connection"]',
         title: 'Match Your UDP Settings',
         body: 'The port and IP here must match what F1 25 is broadcasting to. In-game go to Settings → Telemetry Settings and set the UDP IP Address and UDP Port to the values shown here.',
+        beforeShow() { if (window._settingsSelectCat) window._settingsSelectCat('connection'); },
       },
       {
         page: null, target: null, isLast: true,
@@ -6638,6 +6665,24 @@
     }
   });
 
+  // ---- settings category rail (master-detail) ----
+  (function () {
+    const rail    = document.getElementById('settingsRail');
+    const content = document.querySelector('#page-settings .settings-content');
+    if (!rail || !content) return;
+    const CATS = ['connection', 'lights', 'effects', 'app', 'advanced', 'about'];
+    function selectCat(cat) {
+      CATS.forEach(c => content.classList.remove('cat-' + c));
+      content.classList.add('cat-' + cat);
+      rail.querySelectorAll('.settings-cat').forEach(b =>
+        b.classList.toggle('active', b.dataset.cat === cat));
+      content.scrollTop = 0;
+    }
+    rail.querySelectorAll('.settings-cat').forEach(b =>
+      b.addEventListener('click', () => selectCat(b.dataset.cat)));
+    window._settingsSelectCat = selectCat;   // used by the tutorial
+  })();
+
   // ---- developer self-tests (hidden unless dev mode) ----
   (function () {
     const section = document.getElementById('devToolsSection');
@@ -6647,12 +6692,13 @@
     const output  = document.getElementById('selfTestOutput');
     if (!section || !btn) return;
 
-    // Reveal the section only when the backend reports dev mode. The pywebview
-    // API is injected asynchronously, so defer until it's ready (or call now if
-    // it already is) — calling too early returns null and leaves it hidden.
+    // Reveal the Advanced settings category only when the backend reports dev
+    // mode. The pywebview API is injected asynchronously, so defer until it's
+    // ready (or call now if it already is) — calling too early returns null.
+    const advCat = document.getElementById('settingsCatAdvanced');
     function revealIfDev() {
       Promise.resolve(callApi('is_dev_mode')).then((dev) => {
-        if (dev) section.style.display = '';
+        if (dev && advCat) advCat.style.display = '';
       });
     }
     if (window.pywebview && window.pywebview.api) {

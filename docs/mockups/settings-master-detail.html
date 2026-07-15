@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GridGlow — Settings master-detail concept (#68)</title>
+<!-- Design mockup, 2026-07-15. Proposed settings restructure for #68. Open directly in a browser. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+body{margin:0;min-height:100vh;background:#181c26;display:flex;align-items:center;justify-content:center;padding:32px}
+.gs{font-family:"Segoe UI",system-ui,sans-serif;color:#eef1f7;width:720px}
+.gs *{box-sizing:border-box}
+.gs .nv{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#7c87a0;font-size:16px}
+.gs .cat{display:flex;gap:10px;align-items:center;padding:9px 11px;border-radius:8px;color:#c3cbdd;font-size:13px}
+.gs .cat i{font-size:17px;width:18px;text-align:center}
+.gs .cat .sub{font-size:11px;color:#6b7688;margin-top:1px;display:block}
+.gs .row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:.5px solid rgba(255,255,255,.07)}
+.gs .lbl{font-size:13px;font-weight:500}
+.gs .hint{font-size:11px;color:#7c87a0;margin-top:2px}
+.gs .inp{background:#0c1120;border:.5px solid rgba(255,255,255,.14);border-radius:8px;padding:7px 11px;color:#eef1f7;font-size:12px;font-family:Consolas,monospace;min-width:96px;text-align:right}
+.gs .tog{width:36px;height:20px;border-radius:99px;background:#2a3350;position:relative;flex-shrink:0}
+.gs .tog::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+</style>
+</head>
+<body>
+<div class="gs" style="background:#0c1120;border:.5px solid rgba(255,255,255,.10);border-radius:12px;overflow:hidden">
+
+  <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:.5px solid rgba(255,255,255,.08)">
+    <span style="display:flex;gap:3px"><span style="width:5px;height:5px;border-radius:50%;background:#e24b4a;opacity:.35"></span><span style="width:5px;height:5px;border-radius:50%;background:#e24b4a;opacity:.35"></span><span style="width:5px;height:5px;border-radius:50%;background:#e24b4a;opacity:.35"></span><span style="width:5px;height:5px;border-radius:50%;background:#e24b4a;opacity:.35"></span><span style="width:5px;height:5px;border-radius:50%;background:#e24b4a;opacity:.35"></span></span>
+    <span style="font-size:13px;font-weight:500">GridGlow</span>
+    <span style="font-size:11px;padding:2px 8px;border-radius:5px;background:#241f45;color:#b3a7ff;font-weight:500">concept</span>
+    <span style="flex:1"></span>
+    <i class="ti ti-minus" style="font-size:14px;color:#7c87a0"></i>
+    <i class="ti ti-x" style="font-size:14px;color:#7c87a0"></i>
+  </div>
+
+  <div style="display:flex">
+    <div style="width:46px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-right:.5px solid rgba(255,255,255,.08)">
+      <div class="nv"><i class="ti ti-layout-dashboard"></i></div>
+      <div class="nv"><i class="ti ti-bulb"></i></div>
+      <div class="nv"><i class="ti ti-bolt"></i></div>
+      <div class="nv"><i class="ti ti-list-details"></i></div>
+      <div class="nv"><i class="ti ti-device-gamepad-2"></i></div>
+      <span style="flex:1"></span>
+      <div class="nv"><i class="ti ti-picture-in-picture"></i></div>
+      <div class="nv" style="background:#241f45;color:#b3a7ff"><i class="ti ti-settings"></i></div>
+    </div>
+
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 18px 12px">
+        <span style="font-size:17px;font-weight:500">Settings</span>
+        <span style="flex:1"></span>
+        <div style="display:flex;align-items:center;gap:7px;background:#151c2f;border:.5px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 11px;width:200px">
+          <i class="ti ti-search" style="font-size:14px;color:#7c87a0"></i>
+          <span style="font-size:12px;color:#6b7688">Search settings</span>
+        </div>
+      </div>
+
+      <div style="display:flex;border-top:.5px solid rgba(255,255,255,.06);min-height:340px">
+        <div style="width:196px;flex-shrink:0;padding:12px 10px;border-right:.5px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:3px">
+          <div class="cat" style="background:#241f45;color:#eef1f7;border-left:2px solid #8b7cf6;border-radius:0 8px 8px 0"><i class="ti ti-plug-connected" style="color:#b3a7ff"></i><span>Connection<span class="sub">Port, IP, forwarding</span></span></div>
+          <div class="cat"><i class="ti ti-bulb"></i><span>Lights<span class="sub">Discovery, LIFX, Nanoleaf, Hue</span></span></div>
+          <div class="cat"><i class="ti ti-sparkles"></i><span>Effects<span class="sub">Curves, multizone</span></span></div>
+          <div class="cat"><i class="ti ti-adjustments"></i><span>App<span class="sub">Game, mini mode, setup</span></span></div>
+          <div class="cat"><i class="ti ti-code"></i><span>Advanced<span class="sub">Developer</span></span></div>
+          <span style="flex:1"></span>
+          <div class="cat" style="color:#6b7688"><i class="ti ti-info-circle"></i><span>About<span class="sub">v0.9.1</span></span></div>
+        </div>
+
+        <div style="flex:1;min-width:0;padding:16px 20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:14px;font-weight:500">Connection</span>
+            <span style="font-size:11px;color:#7c87a0">— how GridGlow receives telemetry</span>
+          </div>
+          <div class="row"><span><div class="lbl">UDP Port</div><div class="hint">Default F1 25 telemetry port</div></span><span class="inp">20777</span></div>
+          <div class="row"><span><div class="lbl">UDP IP</div><div class="hint">Address to listen on</div></span><span class="inp">0.0.0.0</span></div>
+          <div class="row"><span><div class="lbl">Console players</div><div class="hint">Pick the adapter your console shares with this PC</div></span><span style="font-size:12px;color:#b3a7ff">Show adapters</span></div>
+          <div class="row"><span><div class="lbl">UDP forwarding</div><div class="hint">Relay every packet to a second destination</div></span><span class="tog"></span></div>
+          <div class="row"><span><div class="lbl">Forward host</div><div class="hint">Destination IP</div></span><span class="inp">127.0.0.1</span></div>
+          <div class="row" style="border-bottom:none"><span><div class="lbl">Forward port</div><div class="hint">Destination port</div></span><span class="inp">20777</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
