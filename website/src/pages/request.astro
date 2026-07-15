@@ -1,0 +1,457 @@
+---
+const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request a Title — GridGlow</title>
+  <meta name="description" content="Request support for a new sim racing title in GridGlow. We read every submission." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+
+  <!-- ═══ NAV ═══ -->
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-dot"></span>
+        GridGlow
+      </a>
+      <div class="nav-actions">
+        <a href="/roadmap" class="btn-ghost">Roadmap</a>
+        <a href={githubUrl} class="btn-ghost" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+    <div class="hero-glow glow-purple"></div>
+    <div class="hero-inner">
+      <div class="hero-badge rise" style="--d:.05s">TITLE REQUESTS</div>
+      <h1 class="rise" style="--d:.14s">Missing your sim?<br/><em>Let us know.</em></h1>
+      <p class="hero-sub rise" style="--d:.24s">
+        Every submission goes straight to a GitHub issue. We read them all and prioritise based on demand.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ FORM ═══ -->
+  <section class="section form-section">
+    <div class="container form-container">
+
+      <form id="request-form" novalidate>
+
+        <!-- honeypot — hidden from humans, bots fill it in -->
+        <input type="text" name="_trap" autocomplete="off" tabindex="-1" aria-hidden="true" style="display:none" />
+
+        <div class="field">
+          <label for="title">Game title <span class="required">*</span></label>
+          <input id="title" name="title" type="text" placeholder="e.g. Assetto Corsa Competizione" maxlength="200" autocomplete="off" required />
+        </div>
+
+        <div class="field">
+          <label for="platform">Platform <span class="optional">(optional)</span></label>
+          <input id="platform" name="platform" type="text" placeholder="e.g. PC, PS5, Xbox" maxlength="100" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label for="notes">Why do you want it? <span class="optional">(optional)</span></label>
+          <textarea id="notes" name="notes" rows="4" placeholder="Anything that helps us prioritise — how often you play it, what effects you'd want, etc." maxlength="1000"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="contact">Email or Discord <span class="optional">(optional)</span></label>
+          <p class="field-hint">Only used if we have follow-up questions. Appears in the GitHub issue — leave blank to stay anonymous.</p>
+          <input id="contact" name="contact" type="text" placeholder="you@example.com or User#1234" maxlength="200" autocomplete="off" />
+        </div>
+
+        <div id="form-error" class="form-message form-error" hidden></div>
+
+        <button type="submit" id="submit-btn" class="btn-primary btn-xl">
+          <span id="btn-label">Submit request</span>
+        </button>
+
+      </form>
+
+      <div id="success-state" class="success-state" hidden>
+        <div class="success-icon">✓</div>
+        <h2>Request submitted</h2>
+        <p>Your request has been added to the GitHub issue tracker. We read every one.</p>
+        <a id="issue-link" href="#" class="btn-ghost" target="_blank" rel="noopener">View issue on GitHub →</a>
+        <button class="btn-ghost" onclick="resetForm()">Submit another</button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    <div class="container footer-inner">
+      <span class="footer-logo">GridGlow</span>
+      <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/roadmap">Roadmap</a>
+        <a href={githubUrl} target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <p class="footer-disclaimer">Not affiliated with Formula 1, FIA, LIFX, Nanoleaf, Codemasters, or any title listed above.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0b1020;
+    --card:     rgba(255,255,255,0.05);
+    --border:   rgba(255,255,255,0.10);
+    --border-s: rgba(255,255,255,0.06);
+    --purple:   #8b7cf6;
+    --purple-l: #a78bfa;
+    --text:     #f3f5f9;
+    --muted:    #aab2c5;
+    --faint:    rgba(170,178,197,0.45);
+    --red:      #ef4444;
+    --green:    #22c55e;
+    --radius:   14px;
+    --radius-s: 10px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 200;
+    background: rgba(11,16,32,0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-s);
+  }
+  .nav-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 28px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.2px;
+    text-decoration: none;
+  }
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--purple);
+    box-shadow: 0 0 8px var(--purple);
+    flex-shrink: 0;
+  }
+  .nav-actions { display: flex; align-items: center; gap: 10px; }
+
+  /* ── BUTTONS ── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--purple);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 9px 20px;
+    border-radius: var(--radius-s);
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #7c6de8;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(139,124,246,0.35);
+  }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 18px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    background: none;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-ghost:hover {
+    color: var(--text);
+    border-color: rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.04);
+  }
+  .btn-xl { font-size: 15px; padding: 13px 28px; border-radius: var(--radius); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    padding: 160px 28px 80px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hero-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+  .glow-purple {
+    width: 800px; height: 600px;
+    background: radial-gradient(circle, rgba(139,124,246,0.2) 0%, transparent 65%);
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+  }
+  .hero-inner { position: relative; z-index: 1; }
+  .hero-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: var(--purple-l);
+    background: rgba(139,124,246,0.12);
+    border: 1px solid rgba(139,124,246,0.28);
+    border-radius: 99px;
+    padding: 5px 16px;
+    margin-bottom: 32px;
+    text-transform: uppercase;
+  }
+  .hero-inner h1 {
+    font-size: clamp(40px, 7vw, 72px);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
+  .hero-inner h1 em { font-style: normal; color: var(--purple-l); }
+  .hero-sub {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.65;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .rise {
+    animation: rise .52s cubic-bezier(.22,.8,.36,1) both;
+    animation-delay: var(--d, 0s);
+  }
+
+  /* ── FORM ── */
+  .form-section { padding: 0 0 120px; }
+  .form-container {
+    max-width: 600px;
+  }
+
+  .field {
+    margin-bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .field label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .required { color: var(--purple-l); }
+  .optional { color: var(--faint); font-weight: 400; font-size: 12px; }
+  .field-hint {
+    font-size: 12px;
+    color: var(--faint);
+    line-height: 1.5;
+    margin-top: -4px;
+  }
+  .field input,
+  .field textarea {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-s);
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    padding: 12px 16px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+    resize: vertical;
+  }
+  .field input::placeholder,
+  .field textarea::placeholder { color: var(--faint); }
+  .field input:focus,
+  .field textarea:focus {
+    border-color: rgba(139,124,246,0.5);
+    box-shadow: 0 0 0 3px rgba(139,124,246,0.12);
+  }
+  .field input.invalid,
+  .field textarea.invalid {
+    border-color: rgba(239,68,68,0.5);
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.1);
+  }
+
+  .form-message {
+    border-radius: var(--radius-s);
+    padding: 12px 16px;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .form-error {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #fca5a5;
+  }
+
+  /* ── SUCCESS ── */
+  .success-state {
+    text-align: center;
+    padding: 60px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .success-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .success-state h2 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .success-state p {
+    color: var(--muted);
+    max-width: 360px;
+    line-height: 1.6;
+  }
+  .success-state .btn-ghost { margin-top: 4px; }
+
+  /* ── FOOTER ── */
+  footer { border-top: 1px solid var(--border-s); padding: 36px 0; }
+  .footer-inner { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .footer-logo { font-size: 14px; font-weight: 700; color: var(--text); margin-right: auto; }
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+  .footer-links a:hover { color: var(--text); }
+  .footer-disclaimer { width: 100%; font-size: 11px; color: var(--faint); }
+
+  @media (max-width: 600px) {
+    .footer-inner { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .footer-logo { margin-right: 0; }
+  }
+</style>
+
+<script>
+  const form       = document.getElementById("request-form");
+  const successEl  = document.getElementById("success-state");
+  const errorEl    = document.getElementById("form-error");
+  const submitBtn  = document.getElementById("submit-btn");
+  const btnLabel   = document.getElementById("btn-label");
+  const issueLink  = document.getElementById("issue-link");
+  const titleInput = document.getElementById("title");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    titleInput.classList.remove("invalid");
+
+    const title = titleInput.value.trim();
+    if (!title) {
+      titleInput.classList.add("invalid");
+      titleInput.focus();
+      return;
+    }
+
+    submitBtn.disabled = true;
+    btnLabel.textContent = "Submitting…";
+
+    const payload = {
+      title,
+      platform: document.getElementById("platform").value.trim(),
+      notes:    document.getElementById("notes").value.trim(),
+      contact:  document.getElementById("contact").value.trim(),
+      _trap:    form.querySelector("[name=_trap]").value,
+    };
+
+    try {
+      const res  = await fetch("/api/request-title", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      if (data.issueUrl) issueLink.href = data.issueUrl;
+      form.hidden    = true;
+      successEl.hidden = false;
+
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.hidden = false;
+      submitBtn.disabled = false;
+      btnLabel.textContent = "Submit request";
+    }
+  });
+
+  window.resetForm = () => {
+    form.reset();
+    form.hidden      = false;
+    successEl.hidden = true;
+    submitBtn.disabled = false;
+    btnLabel.textContent = "Submit request";
+  };
+</script>
