@@ -4,10 +4,22 @@ All notable changes are documented here.
 
 ---
 
-## [Unreleased]
+## [0.10.0] — 2026-07-15
 
 ### Added
+- **EA SPORTS WRC support** — new `wrc_bridge.py` parses WRC's configurable "session_update" UDP telemetry (the structure GridGlow ships as `assets/wrc/gridglow.json`). Fires stage start (green), split checkpoints at each third of the stage (purple), stage finish (celebration), and return to service park (neutral). Includes an in-app installer — Settings → Connection → Install WRC telemetry config — that writes the config into the WRC telemetry folder and enables it. Game-aware UI + a new game-selector card. (#56, #66)
 - **Forza Horizon 6 support** — new `forza_bridge.py` listens to Forza's "Data Out" UDP telemetry (port 5300). Fires effects on race start (green), return to menus (neutral), and crash impacts (sharp white flash, via FH6's collision-velocity field). The shared Sled section means the race start/end effects also cover Forza Horizon 5 and Forza Motorsport; crash is FH6-only. Game-aware UI + a new game-selector card. (#53)
+- **F1 RPM meter** — multizone strips fill with live engine revs and blink at the redline.
+- **Brand-dots status light** — the top-left dots now indicate state: dim red at rest, red fill/drain while scanning for lights, green while the bridge is running.
+
+### Changed
+- **Pit-wall dashboard redesign** — the dashboard is rebuilt around a status hero band, a live sector strip, a light "garage" grid, a race-events feed, a quick-effects dock, and a slim icon rail.
+- **Settings master-detail layout** — the single long settings scroll is replaced by a category rail (Connection, Lights, Effects, App, Advanced, About) and a content pane that shows only the selected category. Developer tools remain dev-mode-gated. (#68)
+
+### Fixed
+- **Tutorial** — step 8 no longer parks itself off-screen when the settings page is scrolled; the spotlight and card are measured at the target's final position (instant scroll), and the step is re-pointed to the new settings layout.
+- **EA WRC log lines** now receive the "stage" event badge in the dashboard feed. (#67)
+- **Game switching** — `set_game_mode` no longer silently rejects non-F1/DR2 game modes (Forza was affected).
 
 ---
 
