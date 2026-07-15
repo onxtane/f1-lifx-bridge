@@ -201,12 +201,3 @@ Created automatically on first run. Not tracked in git.
 | `lifx_groups.json` | Saved light groups |
 | `nanoleaf_settings.json` | Nanoleaf IP, auth token, panel layout *(gitignored — contains credentials)* |
 | `hue_settings.json` | Hue bridge IP, application key *(gitignored — contains credentials)* |
-
----
-
-## Known issues
-
-| # | Issue |
-|---|---|
-| [#3](https://github.com/onxtane/f1-lifx-bridge/issues/3) | App flickers when a game gains focus in windowed mode — **workaround:** right-click the game `.exe` → Properties → Compatibility → enable **"Disable fullscreen optimizations"** |
-| [#44](https://github.com/onxtane/f1-lifx-bridge/issues/44) | Hue Gradient Lightstrip detection needs hardware validation |
