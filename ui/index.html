@@ -3448,8 +3448,8 @@
         if (def) addEvent(def[0], def[1], def[2]);
         return;
       }
-      if ((line.startsWith('[DR2]') || line.startsWith('[FORZA]')) && !line.includes('Listener loop')) {
-        addEvent('info', line.startsWith('[DR2]') ? 'stage' : 'forza',
+      if ((line.startsWith('[DR2]') || line.startsWith('[FORZA]') || line.startsWith('[WRC]')) && !line.includes('Listener loop')) {
+        addEvent('info', line.startsWith('[FORZA]') ? 'forza' : 'stage',
           line.slice(line.indexOf(']') + 1).trim());
       }
     };
