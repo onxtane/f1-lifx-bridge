@@ -704,6 +704,18 @@ class NanoleafController:
         """
         return
 
+    def rpm_meter(self, percent):
+        """No-op: the RPM meter is multizone-strip only.
+
+        Nanoleaf panels aren't a linear strip, so they keep the normal effects.
+        Spatial (panel-position) rev rendering is a possible follow-up.
+        """
+        return
+
+    def rpm_redline(self):
+        """No-op: the RPM meter (and its redline blink) is multizone-strip only."""
+        return
+
     def yellow_flag(self):
         if not self._is_assigned("yellow_flag"):
             return

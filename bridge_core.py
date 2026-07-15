@@ -83,6 +83,24 @@ SUPPORTED_PACKET_FORMATS = {
 PACKET_ID_EVENT = 3
 PACKET_ID_CAR_STATUS = 7
 PACKET_ID_SESSION = 1
+PACKET_ID_CAR_TELEMETRY = 6
+
+# Car Telemetry packet (ID 6): a CarTelemetryData[22] array after the header.
+# Each entry is 60 bytes across F1 21–25; within it, m_engineRPM is a uint16 at
+# offset 16 and m_revLightsPercent (0–100) is a uint8 at offset 19.
+CAR_TELEMETRY_DATA_SIZE = 60
+ENGINE_RPM_OFFSET_IN_CAR_TELEMETRY = 16
+REV_LIGHTS_PERCENT_OFFSET_IN_CAR_TELEMETRY = 19
+
+# RPM meter throttle: quantise rev-lights % into this many buckets and only
+# repaint the strip when the bucket changes, so 60 Hz telemetry doesn't flood
+# the LAN. Redline pins at the top bucket rather than flickering every packet.
+RPM_UPDATE_STEPS = 16
+
+# At the top bucket (rev limiter) the whole strip blinks, like an F1 steering
+# wheel's shift lights. Half-cycle in seconds: 0.13 ≈ 3.8 flashes/sec — a
+# deliberate flash rather than a strobe (faster reads as a glitch, not a redline).
+RPM_REDLINE_BLINK_S = 0.13
 
 # Session packet offsets are relative to header_size (passed dynamically).
 # These constants are kept for F1 24/25 reference only.
@@ -253,6 +271,10 @@ class LocalLifxController:
         self.sector_strip_override = False
         # One-shot guard so the "no multizone strip" notice isn't logged repeatedly.
         self._sector_warned_no_strip = False
+        self._rpm_warned_no_strip = False
+        # Bumped each time the redline blink (re)starts; the loop exits when its
+        # captured generation is superseded, so overlapping threads can't fight.
+        self._rpm_blink_gen = 0
 
         if self.dry_run:
             print("[LIFX] DRY_RUN is enabled. Bulbs will NOT change.")
@@ -907,6 +929,116 @@ class LocalLifxController:
                 if self.log_callback:
                     self.log_callback(msg)
 
+    def rpm_meter(self, percent):
+        """Fill multizone strips proportionally to rev-lights percent (0–100).
+
+        Lit zones grow from the low-rev end, coloured green (low) → red (redline)
+        by position; unlit zones go dark. Like sector_status this is a mode, not a
+        per-effect flash: it paints every multizone strip directly and bypasses
+        per-effect light assignment. Direction follows the start-lights setting.
+        """
+        self.clear_active_effect()
+        self._current_effect_key = 'rpm_meter'
+
+        pct = max(0, min(100, percent)) / 100.0
+
+        if self.dry_run:
+            print(f"[RPM] {percent}%")
+            return
+
+        strips = [l for l in self.lights if isinstance(l, MultiZoneLight)]
+        if not strips:
+            if self.log_callback and not self._rpm_warned_no_strip:
+                self.log_callback("[RPM] No multizone strip in the active lights "
+                                  "— the RPM meter needs a multizone strip to display.")
+                self._rpm_warned_no_strip = True
+            return
+        self._rpm_warned_no_strip = False
+
+        dark = [0, 0, self._scale_brightness(150), 3500]
+        ltr = self.mz_startlights_direction == "ltr"
+
+        for light in strips:
+            try:
+                zc = self._live_zone_count(light)
+                if zc < 1:
+                    continue
+                lit = max(0, min(zc, round(pct * zc)))
+                for pos in range(zc):
+                    # pos runs from the low-rev end; zone_idx maps it onto the
+                    # physical strip per the configured fill direction.
+                    zone_idx = pos if ltr else (zc - 1 - pos)
+                    if pos < lit:
+                        t = pos / max(zc - 1, 1)          # 0 = low rev, 1 = redline
+                        hue = round(21845 * (1.0 - t))     # green → red
+                        color = [hue, 65535, self._scale_brightness(60000), 3500]
+                    else:
+                        color = dark
+                    light.set_zone_color(zone_idx, zone_idx, color, 40, rapid=True)
+            except Exception as exc:
+                msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
+                print(msg)
+                if self.log_callback:
+                    self.log_callback(msg)
+
+    def rpm_redline(self):
+        """Blink the whole strip rapidly at the rev limiter, like an F1 wheel's
+        shift lights flashing when you bounce off the limiter.
+
+        This is a self-sustaining loop (the rev % pins in one bucket at the
+        limiter, so per-packet repaints would sit still). It runs until any other
+        effect — including the RPM fill below redline — calls clear_active_effect.
+        """
+        self._current_effect_key = 'rpm_meter'
+
+        if self.dry_run:
+            print("[RPM] redline blink")
+            return
+
+        strips = [l for l in self.lights if isinstance(l, MultiZoneLight)]
+        if not strips:
+            if self.log_callback and not self._rpm_warned_no_strip:
+                self.log_callback("[RPM] No multizone strip in the active lights "
+                                  "— the RPM meter needs a multizone strip to display.")
+                self._rpm_warned_no_strip = True
+            return
+        self._rpm_warned_no_strip = False
+
+        if self.is_effect_active("rpm_redline"):
+            return   # already blinking
+        self.set_active_effect("rpm_redline")
+        self._rpm_blink_gen += 1
+        gen = self._rpm_blink_gen
+        threading.Thread(target=self._rpm_redline_loop, args=(gen,), daemon=True).start()
+
+    def _rpm_redline_loop(self, gen):
+        red  = [0, 65535, self._scale_brightness(65535), 3500]
+        dark = [0, 0, self._scale_brightness(120), 3500]
+        on = True
+        # Schedule toggles against a monotonic clock so the blink stays even no
+        # matter how long each network paint takes — a plain sleep after painting
+        # would add the (variable) send time to every half-cycle and jitter it.
+        next_toggle = time.monotonic()
+        while self.is_effect_active("rpm_redline") and self._rpm_blink_gen == gen:
+            color = red if on else dark
+            for light in self.lights:
+                if not isinstance(light, MultiZoneLight):
+                    continue
+                try:
+                    light.set_zone_color(0, 255, color, 0, rapid=True)
+                except Exception as exc:
+                    msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
+                    print(msg)
+                    if self.log_callback:
+                        self.log_callback(msg)
+            on = not on
+            next_toggle += RPM_REDLINE_BLINK_S
+            delay = next_toggle - time.monotonic()
+            if delay > 0:
+                time.sleep(delay)
+            else:
+                next_toggle = time.monotonic()   # fell behind; resync
+
     def lights_out(self):
         self.clear_active_effect()
         self._current_effect_key = 'lights_out'
@@ -1319,6 +1451,27 @@ def parse_player_fia_flag(data, header):
     return struct.unpack_from("<b", data, offset)[0]
 
 
+def parse_player_car_telemetry(data, header):
+    """Return (rev_lights_percent, engine_rpm) for the player's car, or None.
+
+    Reads m_revLightsPercent (uint8, 0–100) and m_engineRPM (uint16) from the
+    player's CarTelemetryData block in a Car Telemetry packet (ID 6). The rev
+    percent is the game's own shift-light band, so it's used directly to drive
+    the RPM meter rather than raw RPM.
+    """
+    player_index = header.player_car_index
+    if player_index < 0 or player_index >= 22:
+        return None
+
+    base = header.header_size + (player_index * CAR_TELEMETRY_DATA_SIZE)
+    if len(data) < base + REV_LIGHTS_PERCENT_OFFSET_IN_CAR_TELEMETRY + 1:
+        return None
+
+    rpm = struct.unpack_from("<H", data, base + ENGINE_RPM_OFFSET_IN_CAR_TELEMETRY)[0]
+    rev_pct = data[base + REV_LIGHTS_PERCENT_OFFSET_IN_CAR_TELEMETRY]
+    return rev_pct, rpm
+
+
 def parse_penalty_details(data, header_size):
     """
     PENA event details:
@@ -1490,6 +1643,10 @@ class F1LifxBridgeCore:
         # Last [s1,s2,s3] sector flags painted, so we only re-paint on change.
         self._last_sector_flags = None
 
+        # Last rev-lights bucket painted by the RPM meter, so telemetry only
+        # repaints the strip when the lit level actually changes.
+        self._last_rpm_bucket = None
+
         # None = all events enabled. Set to a frozenset of string keys to restrict.
         self.enabled_events = None
 
@@ -1510,6 +1667,21 @@ class F1LifxBridgeCore:
         flash on multizone strips rather than adding to it.
         """
         return self.enabled_events is not None and "sector_status" in self.enabled_events
+
+    def _rpm_meter_active(self) -> bool:
+        """RPM meter is opt-in and, like sector status, replaces the strip's flag
+        flash. The two are mutually exclusive strip modes — if both are somehow
+        enabled, sector status wins (it shipped first) and the RPM meter yields.
+        """
+        return (self.enabled_events is not None
+                and "rpm_meter" in self.enabled_events
+                and "sector_status" not in self.enabled_events)
+
+    def _strip_reserved(self) -> bool:
+        """Whether a live strip mode (sector status or RPM meter) currently owns
+        the multizone strips, so whole-strip flag flashes skip them.
+        """
+        return self._sector_status_active() or self._rpm_meter_active()
 
     def log(self, message):
         print(message)
@@ -1563,9 +1735,10 @@ class F1LifxBridgeCore:
         with self._bridge_effect_lock:
             self._bridge_effect = None
         # Any effect taking over the strip (red flag, start lights, …) invalidates
-        # the painted sector state so live sector status repaints on the next
-        # Session packet, and releases the red-flag strip override.
+        # the painted sector/RPM state so the live strip mode repaints on the next
+        # packet, and releases the red-flag strip override.
         self._last_sector_flags = None
+        self._last_rpm_bucket = None
         if self.lifx is not None:
             self.lifx.sector_strip_override = False
 
@@ -1760,6 +1933,10 @@ class F1LifxBridgeCore:
             self.handle_car_status_packet(data, header)
             return
 
+        if header.packet_id == PACKET_ID_CAR_TELEMETRY:
+            self.handle_car_telemetry_packet(data, header)
+            return
+
         if header.packet_id == PACKET_ID_EVENT:
             self.handle_event_packet(data, header)
             return
@@ -1772,7 +1949,8 @@ class F1LifxBridgeCore:
         active = self._sector_status_active()
         override = self.lifx is not None and self.lifx.sector_strip_override
         if self.lifx is not None:
-            self.lifx.sector_mode = active   # keep the strip reservation in sync
+            # Reserve strips for whichever live strip mode is on (sectors or RPM).
+            self.lifx.sector_mode = self._strip_reserved()
 
         # Don't repaint sectors while a red flag owns the strip; it resumes once the
         # red flag clears (_clear_bridge_effect resets _last_sector_flags).
@@ -1825,6 +2003,46 @@ class F1LifxBridgeCore:
                     self.neutral_bridge()
 
             self.last_fia_flag = fia_flag
+
+    def handle_car_telemetry_packet(self, data, header):
+        # Live RPM meter (opt-in): fill the strip from the player's rev-lights
+        # percent, repainting only when the quantised level changes so 60 Hz
+        # telemetry doesn't flood the LAN.
+        if self.lifx is not None:
+            self.lifx.sector_mode = self._strip_reserved()
+
+        if not self._rpm_meter_active():
+            return
+
+        # A red flag owns the whole strip via the override — let it finish, then
+        # resume (the override reset in _clear_bridge_effect clears _last_rpm_bucket).
+        if self.lifx is not None and self.lifx.sector_strip_override:
+            return
+
+        # During the pre-race start-lights sequence, let the start lights own the
+        # strip (drivers hold high revs at the line, which would otherwise stomp
+        # the countdown). last_start_light_count is None outside that window —
+        # including practice/quali, where the RPM meter runs freely.
+        if self.last_start_light_count is not None:
+            return
+
+        telem = parse_player_car_telemetry(data, header)
+        if telem is None:
+            return
+        rev_pct, rpm = telem
+
+        bucket = round(rev_pct / 100.0 * RPM_UPDATE_STEPS)
+        if bucket == self._last_rpm_bucket:
+            return
+        self._last_rpm_bucket = bucket
+        if bucket == RPM_UPDATE_STEPS:
+            # On the limiter: hand off to the self-sustaining redline blink. It's
+            # fired once on entry — staying in-bucket sends nothing, and dropping
+            # out fires an rpm_meter fill below, whose clear_active_effect stops it.
+            self.log(f"[RPM] Redline — {rpm} rpm")
+            self._fire("rpm_redline")
+        else:
+            self._fire("rpm_meter", rev_pct)
 
     def handle_event_packet(self, data, header):
         self.event_packets += 1

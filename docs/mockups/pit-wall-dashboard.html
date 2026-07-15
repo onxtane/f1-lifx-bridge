@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GridGlow redesign concept 1 — Pit wall dashboard</title>
+<!-- Design mockup, 2026-06-26. Preferred direction (user-approved). Open directly in a browser. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+body{margin:0;min-height:100vh;background:#181c26;display:flex;align-items:center;justify-content:center;padding:32px}
+.gg{font-family:"Segoe UI",system-ui,sans-serif;color:#eef1f7;width:660px}
+.gg *{box-sizing:border-box}
+.gg .card{background:#151c2f;border:0.5px solid rgba(255,255,255,.09);border-radius:10px}
+.gg .nv{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#7c87a0;font-size:17px}
+.gg .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:0.5px solid rgba(255,255,255,.12);font-size:11px;color:#c3cbdd;background:#151c2f}
+.gg .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.gg .tag{font-size:11px;padding:2px 8px;border-radius:5px;font-weight:500}
+.gg .sl{font-size:11px;color:#7c87a0;margin:0 0 2px}
+.gg .sv{font-size:19px;font-weight:500;margin:0;line-height:1.2}
+.gg .zc{height:14px;border-radius:3px;flex:1}
+.gg .ev{display:flex;gap:8px;align-items:baseline;font-size:12px;padding:7px 0;border-top:0.5px solid rgba(255,255,255,.07)}
+.gg .mono{font-family:Consolas,monospace}
+@keyframes ggp{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+<div class="gg" style="background:#0c1120;border:0.5px solid rgba(255,255,255,.10);border-radius:12px;overflow:hidden">
+
+  <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:0.5px solid rgba(255,255,255,.08)">
+    <span style="display:flex;gap:4px"><span class="dot" style="width:6px;height:6px;background:#e24b4a"></span><span class="dot" style="width:6px;height:6px;background:#e24b4a"></span><span class="dot" style="width:6px;height:6px;background:#e24b4a"></span><span class="dot" style="width:6px;height:6px;background:#e24b4a;opacity:.45"></span><span class="dot" style="width:6px;height:6px;background:#e24b4a;opacity:.45"></span></span>
+    <span style="font-size:13px;font-weight:500">GridGlow</span>
+    <span class="tag" style="background:#241f45;color:#b3a7ff">concept</span>
+    <span style="flex:1"></span>
+    <i class="ti ti-minus" style="font-size:14px;color:#7c87a0"></i>
+    <i class="ti ti-x" style="font-size:14px;color:#7c87a0"></i>
+  </div>
+
+  <div style="display:flex">
+    <div style="width:48px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-right:0.5px solid rgba(255,255,255,.08)">
+      <div class="nv" style="background:#241f45;color:#b3a7ff"><i class="ti ti-layout-dashboard"></i></div>
+      <div class="nv"><i class="ti ti-bulb"></i></div>
+      <div class="nv"><i class="ti ti-bolt"></i></div>
+      <div class="nv"><i class="ti ti-list-details"></i></div>
+      <div class="nv"><i class="ti ti-device-gamepad-2"></i></div>
+      <span style="flex:1"></span>
+      <div class="nv"><i class="ti ti-picture-in-picture"></i></div>
+      <div class="nv"><i class="ti ti-settings"></i></div>
+    </div>
+
+    <div style="flex:1;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0">
+
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:16px">
+        <div style="width:54px;height:54px;border-radius:50%;background:#2a1622;border:2px solid #ff5d5d;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ti-player-stop" style="font-size:20px;color:#ff8b8b"></i>
+        </div>
+        <div style="min-width:0">
+          <p style="margin:0;font-size:14px;font-weight:500;display:flex;align-items:center;gap:7px"><span class="dot" style="background:#3ddc84;animation:ggp 1.6s infinite"></span>Bridge running</p>
+          <p class="mono" style="margin:3px 0 0;font-size:11px;color:#7c87a0">0.0.0.0:20777 · 60 Hz</p>
+          <span class="pill" style="margin-top:7px"><span class="dot" style="background:#e10600"></span>F1 25<span style="color:#626d85">· change</span></span>
+        </div>
+        <span style="flex:1"></span>
+        <div style="display:flex;gap:22px;flex-shrink:0">
+          <div><p class="sl">Packets/s</p><p class="sv" style="display:flex;align-items:center;gap:7px">59.8 <svg width="56" height="18" viewBox="0 0 56 18"><polyline fill="none" stroke="#3ddc84" stroke-width="1.5" points="0,11 7,10 14,12 21,9 28,11 35,8 42,11 49,9 56,10"/></svg></p></div>
+          <div><p class="sl">Events</p><p class="sv">12</p></div>
+          <div><p class="sl">Lights</p><p class="sv">3/3</p></div>
+          <div><p class="sl">Uptime</p><p class="sv mono">14:32</p></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+          <span style="font-size:12px;font-weight:500">Live sector status</span>
+          <span class="tag" style="background:#241f45;color:#b3a7ff">Sim rig strip · 8 zones</span>
+          <span style="flex:1"></span>
+          <span style="font-size:11px;color:#f5b02e;display:flex;align-items:center;gap:5px"><i class="ti ti-flag" style="font-size:13px"></i>Yellow in S2</span>
+        </div>
+        <div style="display:flex;gap:4px">
+          <span class="zc" style="background:#2e7d4f"></span><span class="zc" style="background:#2e7d4f"></span>
+          <span class="zc" style="background:#f5b02e;animation:ggp 1.4s infinite"></span><span class="zc" style="background:#f5b02e;animation:ggp 1.4s infinite"></span><span class="zc" style="background:#f5b02e;animation:ggp 1.4s infinite"></span>
+          <span class="zc" style="background:#2e7d4f"></span><span class="zc" style="background:#2e7d4f"></span><span class="zc" style="background:#2e7d4f"></span>
+        </div>
+        <div style="display:flex;margin-top:5px;font-size:11px;color:#7c87a0">
+          <span style="flex:2">S1 clear</span><span style="flex:3">S2 yellow</span><span style="flex:3;text-align:right">S3 clear</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:stretch">
+        <div class="card" style="flex:1.25;padding:12px 14px;min-width:0">
+          <p style="margin:0 0 10px;font-size:12px;font-weight:500">Lights</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#101728;border:0.5px solid rgba(255,255,255,.08);border-radius:8px;padding:10px">
+              <div style="display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;margin-bottom:8px"><span style="flex:2;background:#2e7d4f"></span><span style="flex:3;background:#f5b02e"></span><span style="flex:3;background:#2e7d4f"></span></div>
+              <p style="margin:0;font-size:12px;font-weight:500">Sim rig strip</p>
+              <p style="margin:3px 0 0;font-size:11px;color:#7c87a0">8 zones · sector mode</p>
+              <span class="tag" style="background:#12294a;color:#6db2ff;margin-top:7px;display:inline-block">LIFX</span>
+            </div>
+            <div style="background:#101728;border:0.5px solid rgba(255,255,255,.08);border-radius:8px;padding:10px">
+              <div style="height:5px;border-radius:3px;background:#f5b02e;margin-bottom:8px;animation:ggp 1.4s infinite"></div>
+              <p style="margin:0;font-size:12px;font-weight:500">Desk left</p>
+              <p style="margin:3px 0 0;font-size:11px;color:#7c87a0">Bulb · all events</p>
+              <span class="tag" style="background:#12294a;color:#6db2ff;margin-top:7px;display:inline-block">LIFX</span>
+            </div>
+            <div style="background:#101728;border:0.5px solid rgba(255,255,255,.08);border-radius:8px;padding:10px">
+              <div style="height:5px;border-radius:3px;background:#f5b02e;margin-bottom:8px;animation:ggp 1.4s infinite"></div>
+              <p style="margin:0;font-size:12px;font-weight:500">Shapes panel</p>
+              <p style="margin:3px 0 0;font-size:11px;color:#7c87a0">9 panels · flags only</p>
+              <span class="tag" style="background:#11331f;color:#5fe39a;margin-top:7px;display:inline-block">Nanoleaf</span>
+            </div>
+            <div style="border:1px dashed rgba(255,255,255,.18);border-radius:8px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#7c87a0">
+              <i class="ti ti-plus" style="font-size:17px"></i>
+              <span style="font-size:11px">Add lights</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1;padding:12px 14px;min-width:0">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:500">Race events</p>
+          <div class="ev" style="border-top:none"><span class="mono" style="font-size:11px;color:#626d85">14:02:11</span><span class="tag" style="background:#3a2c10;color:#f5b02e">flag</span><span style="color:#c3cbdd">Yellow flag — sector 2</span></div>
+          <div class="ev"><span class="mono" style="font-size:11px;color:#626d85">14:01:48</span><span class="tag" style="background:#2a2450;color:#b3a7ff">lap</span><span style="color:#c3cbdd">Fastest lap 1:31.204</span></div>
+          <div class="ev"><span class="mono" style="font-size:11px;color:#626d85">14:01:03</span><span class="tag" style="background:#12294a;color:#6db2ff">flag</span><span style="color:#c3cbdd">Blue flag — car behind</span></div>
+          <div class="ev"><span class="mono" style="font-size:11px;color:#626d85">13:58:22</span><span class="tag" style="background:#11331f;color:#5fe39a">start</span><span style="color:#c3cbdd">Lights out</span></div>
+          <div class="ev"><span class="mono" style="font-size:11px;color:#626d85">13:58:07</span><span class="tag" style="background:#3a1518;color:#ff8b8b">start</span><span style="color:#c3cbdd">Start lights 5</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;color:#7c87a0;margin-right:4px">Quick effects</span>
+        <span class="pill"><span class="dot" style="background:#e24b4a"></span>Start lights</span>
+        <span class="pill"><span class="dot" style="background:#3ddc84"></span>Lights out</span>
+        <span class="pill"><span class="dot" style="background:#f5b02e"></span>Yellow</span>
+        <span class="pill"><span class="dot" style="background:#ff5d5d"></span>Red</span>
+        <span class="pill"><span class="dot" style="background:#b3a7ff"></span>Fastest lap</span>
+        <span class="pill"><span class="dot" style="background:#eef1f7"></span>Chequered</span>
+        <span class="pill"><span class="dot" style="background:#6b7280"></span>Neutral</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

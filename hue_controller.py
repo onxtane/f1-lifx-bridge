@@ -428,6 +428,18 @@ class HueController:
         """
         return
 
+    def rpm_meter(self, percent):
+        """No-op: the RPM meter is multizone-strip only.
+
+        Plain Hue bulbs keep the normal effects. A rev meter on the Hue Gradient
+        Lightstrip is a possible follow-up.
+        """
+        return
+
+    def rpm_redline(self):
+        """No-op: the RPM meter (and its redline blink) is multizone-strip only."""
+        return
+
     def yellow_flag(self):
         self._current_effect_key = "yellow_flag"
         if self.is_effect_active("yellow_flash"):

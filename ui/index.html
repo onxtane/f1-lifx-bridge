@@ -6,13 +6,21 @@
 <style>
   :root{
     --purple:#8b7cf6;
-    --glass-fill: rgba(255,255,255,0.07);
+    --glass-fill: #151c2f;
     --glass-fill-strong: rgba(255,255,255,0.10);
-    --glass-border: rgba(255,255,255,0.16);
-    --text-main:#f3f5f9;
-    --text-muted:#aab2c5;
+    --glass-border: rgba(255,255,255,0.09);
+    --card-inner:#101728;
+    --hairline: rgba(255,255,255,0.08);
+    --text-main:#eef1f7;
+    --text-muted:#7c87a0;
+    --text-soft:#c3cbdd;
     --green:#3ddc84;
     --gray-dot:#6b7280;
+    --amber:#f5b02e;
+    --flag-green:#2e7d4f;
+    --flag-red:#ff5d5d;
+    --flag-blue:#6db2ff;
+    --mono:Consolas,"Cascadia Mono",monospace;
   }
   *{box-sizing:border-box;}
   html,body{
@@ -36,9 +44,11 @@
     position:absolute;
     inset:0;
     overflow:hidden;
-    background:linear-gradient(160deg,#0d1126 0%, #161b3a 55%, #0d1126 100%);
+    background:#0c1120;
   }
+  /* Pit-wall redesign: flat panel look — ambient blobs retired. */
   .blob{
+    display:none;
     position:absolute;
     border-radius:50%;
     filter:blur(90px);
@@ -67,10 +77,8 @@
 
   .glass{
     background:var(--glass-fill);
-    backdrop-filter:blur(22px) saturate(150%);
-    -webkit-backdrop-filter:blur(22px) saturate(150%);
     border:1px solid var(--glass-border);
-    border-radius:22px;
+    border-radius:12px;
     overflow: hidden;
   }
 
@@ -406,39 +414,53 @@
   ::-webkit-scrollbar-thumb:hover{ background:rgba(139,124,246,0.7); }
   ::-webkit-scrollbar-corner{ background:transparent; }
 
-  /* ---- sidebar ---- */
+  /* ---- sidebar (48px icon rail) ---- */
   .sidebar{
-    width:72px;
+    width:48px;
     flex-shrink:0;
     display:flex;
     flex-direction:column;
     align-items:center;
-    padding:18px 0;
-    gap:14px;
+    padding:12px 0;
+    gap:8px;
   }
+  .brand-dots{
+    display:flex; gap:3px; margin-bottom:8px; flex-shrink:0;
+  }
+  /* Brand dots double as a status light. All dim red at rest so the scan fill
+     animation reads cleanly; bright red = lit during a scan; green = running. */
+  .brand-dots span{
+    width:5px; height:5px; border-radius:50%; background:#e24b4a; opacity:.35;
+    transition:opacity .14s ease, box-shadow .14s ease, background-color .55s ease;
+  }
+  /* lit during a light scan — the dots fill up like F1 start lights */
+  .brand-dots span.lit{ opacity:1; box-shadow:0 0 5px #e24b4a, 0 0 2px #ff8b8b; }
+  /* bridge running — dots go green (fades in from red when a scan completes) */
+  .brand-dots span.done{ opacity:1; background:#3ddc84; box-shadow:0 0 5px #3ddc84, 0 0 2px #9bf3c4; }
   .nav-btn{
-    width:44px; height:44px;
-    border-radius:14px;
+    width:34px; height:34px;
+    border-radius:9px;
     display:flex; align-items:center; justify-content:center;
     color:var(--text-muted);
     cursor:pointer;
     transition: background .15s, color .15s;
     position:relative; overflow:hidden;
   }
-  .nav-btn.active{ background:var(--purple); color:white; }
+  .nav-btn svg{ width:18px; height:18px; }
+  .nav-btn.active{ background:#241f45; color:#b3a7ff; }
   .nav-btn:hover:not(.active){ background:rgba(255,255,255,0.08); }
   .sidebar .spacer{ flex:1; }
   .toggle-pill{
-    width:36px; height:64px;
-    border-radius:18px;
+    width:28px; height:44px;
+    border-radius:14px;
     background:var(--glass-fill-strong);
     border:1px solid var(--glass-border);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:6px;
+    gap:5px;
   }
-  .status-dot{ width:9px; height:9px; border-radius:50%; background:var(--gray-dot); transition:background .2s, box-shadow .2s; }
+  .status-dot{ width:8px; height:8px; border-radius:50%; background:var(--gray-dot); transition:background .2s, box-shadow .2s; }
   .status-dot.running{ background:var(--green); box-shadow:0 0 6px var(--green); }
-  .toggle-pill span{ font-size:11px; font-weight:600; color:var(--text-muted); letter-spacing:0.5px; }
+  .toggle-pill span{ font-size:9px; font-weight:600; color:var(--text-muted); letter-spacing:0.4px; }
 
   /* ---- main area ---- */
   .main{ flex:1; display:flex; flex-direction:column; gap:16px; min-width:0; }
@@ -487,37 +509,134 @@
   }
   .app-entering .sidebar,
   .app-entering .topbar,
-  .app-entering .stats-row > *,
   .app-entering .glass:not(.topbar){
     animation: panelRise .52s cubic-bezier(.22,.8,.36,1) both;
   }
   .app-entering .sidebar          { animation-delay: .05s; }
   .app-entering .topbar           { animation-delay: .10s; }
-  .app-entering .stats-row > *:nth-child(1){ animation-delay: .16s; }
-  .app-entering .stats-row > *:nth-child(2){ animation-delay: .22s; }
-  .app-entering .stats-row > *:nth-child(3){ animation-delay: .28s; }
-  .app-entering .stats-row > *:nth-child(4){ animation-delay: .34s; }
-  .app-entering .glass:not(.topbar):not(.stat-card){ animation-delay: .22s; }
+  .app-entering #page-dashboard > *:nth-child(1){ animation-delay: .14s; }
+  .app-entering #page-dashboard > *:nth-child(2){ animation-delay: .20s; }
+  .app-entering #page-dashboard .pw-mid > *:nth-child(1){ animation-delay: .26s; }
+  .app-entering #page-dashboard .pw-mid > *:nth-child(2){ animation-delay: .30s; }
+  .app-entering #page-dashboard > *:nth-child(4){ animation-delay: .36s; }
+  .app-entering .glass:not(.topbar):not(#page-dashboard .glass){ animation-delay: .22s; }
 
-  /* ---- dashboard ---- */
-  .stats-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; flex-shrink:0; }
-  .stat-card{ padding:18px 20px; }
-  .stat-card .label{ font-size:13px; color:var(--text-muted); margin:0 0 10px; }
-  .stat-card .value{ font-size:26px; font-weight:600; margin:0; }
+  /* ---- dashboard (pit wall) ---- */
+  /* The dashboard is self-contained: the shared topbar only shows on other pages. */
+  .main:has(#page-dashboard.active) .topbar{ display:none; }
 
-  .lower-row{ flex:1; display:grid; grid-template-columns:1.7fr 1fr; gap:16px; min-height:0; }
-
-  .race-control{ padding:24px 28px; display:flex; flex-direction:column; min-height:0; }
-  .race-control h2{ margin:0; font-size:22px; font-weight:600; }
-  .race-control .sub{ margin:6px 0 18px; font-size:13px; color:var(--text-muted); }
-  .race-control .waiting{ font-size:16px; font-weight:600; margin:0 0 16px; }
-  .rc-actions{ display:flex; gap:10px; margin-bottom:18px; }
-  .log-box{
-    flex:1; border-radius:16px; background:rgba(0,0,0,0.18);
-    border:1px solid var(--glass-border); padding:10px 12px; overflow-y:auto;
-    font-size:13px; color:#cfd6e6; line-height:1.5;
-    user-select:text; -webkit-user-select:text;
+  .pw-hero{ padding:14px 16px; display:flex; align-items:center; gap:16px; flex-shrink:0; }
+  .pw-power{
+    width:54px; height:54px; border-radius:50%; flex-shrink:0;
+    border:2px solid var(--green); background:rgba(61,220,132,0.10);
+    color:var(--green); display:flex; align-items:center; justify-content:center;
+    transition:border-color .2s, background .2s, color .2s;
   }
+  .pw-power:hover{ background:rgba(61,220,132,0.18); }
+  .pw-power.running{ border-color:var(--flag-red); background:#2a1622; color:#ff8b8b; }
+  .pw-power.running:hover{ background:#3a1c2b; }
+  .pw-hero-info{ min-width:0; }
+  .pw-status{ margin:0; font-size:14px; font-weight:500; display:flex; align-items:center; gap:7px; }
+  .pw-sub{ margin:3px 0 0; font-size:11px; color:var(--text-muted); font-family:var(--mono);
+           white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pw-chip{
+    display:inline-flex; align-items:center; gap:6px; margin-top:7px;
+    padding:4px 11px; border-radius:999px; cursor:pointer;
+    border:1px solid rgba(255,255,255,.12); background:var(--card-inner);
+    font-size:11px; color:var(--text-soft); font-family:inherit;
+  }
+  .pw-chip:hover{ border-color:rgba(255,255,255,.25); }
+  .pw-chip .pw-chip-hint{ color:#626d85; }
+  .pw-stats{ display:flex; gap:22px; flex-shrink:0; margin-left:auto; padding-right:6px; }
+  .pw-stat .sl{ font-size:11px; color:var(--text-muted); margin:0 0 2px; }
+  .pw-stat .sv{ font-size:19px; font-weight:500; margin:0; line-height:1.2; display:flex; align-items:center; gap:7px; }
+  .pw-stat .sv.mono{ font-family:var(--mono); font-size:17px; }
+
+  .dot{ width:7px; height:7px; border-radius:50%; display:inline-block; flex-shrink:0; }
+  @keyframes pwPulse{ 0%,100%{opacity:1} 50%{opacity:.3} }
+  .pw-pulse{ animation:pwPulse 1.5s infinite; }
+
+  .pw-sector{ padding:12px 14px; flex-shrink:0; }
+  .pw-sector-head{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .pw-sector-head .title{ font-size:12px; font-weight:500; }
+  .pw-tag{ font-size:11px; padding:2px 8px; border-radius:5px; font-weight:500; }
+  .pw-tag.accent{ background:#241f45; color:#b3a7ff; }
+  .pw-sector-flag{ margin-left:auto; font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+  .pw-zones{ display:flex; gap:4px; }
+  .pw-zones .zc{ height:14px; border-radius:3px; flex:1; background:#232c42; transition:background .3s; }
+  .pw-sector-labels{ display:flex; margin-top:5px; font-size:11px; color:var(--text-muted); }
+
+  .pw-mid{ flex:1; display:grid; grid-template-columns:1.25fr 1fr; gap:12px; min-height:0; }
+  .pw-garage{ padding:12px 14px; display:flex; flex-direction:column; min-height:0; }
+  .pw-garage-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:10px; flex-shrink:0; }
+  .pw-garage-head .title{ font-size:12px; font-weight:500; }
+  .pw-garage-head .group{ margin-left:auto; font-size:11px; color:var(--text-muted); }
+  .pw-garage-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+    overflow-y:auto; min-height:0; align-content:start; padding-right:2px;
+  }
+  .gg-card{
+    position:relative;
+    background:var(--card-inner); border:1px solid var(--hairline);
+    border-radius:8px; padding:10px; text-align:left; cursor:pointer;
+    font-family:inherit; color:var(--text-main); transition:border-color .15s;
+  }
+  .gg-card:hover{ border-color:rgba(255,255,255,.22); }
+  .gg-card.inactive{ opacity:.45; }
+  .gg-identify{
+    position:absolute; top:7px; right:7px;
+    width:22px; height:22px; border-radius:6px; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+    color:var(--text-soft); opacity:0; cursor:pointer;
+    transition:opacity .15s, background .15s;
+  }
+  .gg-card:hover .gg-identify{ opacity:1; }
+  .gg-identify:hover{ background:rgba(139,124,246,.35); color:#fff; }
+  .gg-swatch{ display:flex; gap:2px; height:5px; border-radius:3px; overflow:hidden; margin-bottom:8px; }
+  .gg-swatch span{ flex:1; background:#232c42; transition:background .3s; }
+  .gg-name{ margin:0; font-size:12px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gg-sub{ margin:3px 0 0; font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gg-badge{ margin-top:7px; display:inline-block; }
+  .gg-badge.lifx{ background:#12294a; color:var(--flag-blue); }
+  .gg-badge.nanoleaf{ background:#11331f; color:#5fe39a; }
+  .gg-badge.hue{ background:#3a2c10; color:var(--amber); }
+  .gg-add{
+    background:none; border:1px dashed rgba(255,255,255,.18); border-radius:8px;
+    padding:10px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:5px; color:var(--text-muted); cursor:pointer; font-family:inherit; font-size:11px;
+    min-height:76px; transition:border-color .15s, color .15s;
+  }
+  .gg-add:hover{ border-color:var(--purple); color:var(--text-soft); }
+
+  .pw-events{ padding:12px 14px; display:flex; flex-direction:column; min-height:0; }
+  .pw-events .title{ font-size:12px; font-weight:500; margin:0 0 4px; flex-shrink:0; }
+  .pw-events-feed{ overflow-y:auto; min-height:0; }
+  .pw-ev{
+    display:flex; gap:8px; align-items:baseline; font-size:12px;
+    padding:7px 0; border-top:1px solid rgba(255,255,255,.07);
+  }
+  .pw-ev:first-child{ border-top:none; }
+  .pw-ev .ts{ font-family:var(--mono); font-size:11px; color:#626d85; flex-shrink:0; }
+  .pw-ev .msg{ color:var(--text-soft); min-width:0; }
+  .pw-ev-empty{ font-size:12px; color:var(--text-muted); font-style:italic; padding:7px 0; }
+  .pw-tag.flag-yellow{ background:#3a2c10; color:var(--amber); }
+  .pw-tag.flag-green{ background:#11331f; color:#5fe39a; }
+  .pw-tag.flag-blue{ background:#12294a; color:var(--flag-blue); }
+  .pw-tag.flag-red{ background:#3a1518; color:#ff8b8b; }
+  .pw-tag.lap{ background:#2a2450; color:#b3a7ff; }
+  .pw-tag.info{ background:rgba(255,255,255,.07); color:var(--text-soft); }
+
+  .pw-dock{ padding:10px 14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex-shrink:0; }
+  .pw-dock .dock-label{ font-size:11px; color:var(--text-muted); margin-right:4px; }
+  .pw-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 11px; border-radius:999px; cursor:pointer;
+    border:1px solid rgba(255,255,255,.12); background:var(--glass-fill);
+    font-size:11px; color:var(--text-soft); font-family:inherit;
+    transition:border-color .15s, background .15s;
+  }
+  .pw-pill:hover{ border-color:rgba(255,255,255,.3); background:var(--card-inner); }
   .log-entry{ display:flex; align-items:baseline; gap:8px; padding:5px 6px; border-radius:8px; }
   .log-entry:hover{ background:rgba(255,255,255,0.04); }
   .log-tag{
@@ -536,18 +655,7 @@
   .log-tag-lan      { color:#38bdf8; }
   .log-tag-info     { color:#aab2c5; }
 
-  .quick-effects{ padding:24px 24px; display:flex; flex-direction:column; gap:12px; }
-  .quick-effects h2{ margin:0 0 6px; font-size:22px; font-weight:600; }
-  #quickEffectsBar{ display:flex; flex-direction:column; gap:12px; }
-  .effect-btn{ border:none; border-radius:999px; padding:14px; font-size:14px; font-weight:600; width:100%; cursor:pointer; }
-  .effect-btn.coral{ background:linear-gradient(135deg,#ff9d8a,#ff6f6f); color:#3a0d0d;}
-  .effect-btn.green{ background:linear-gradient(135deg,#7be8a8,#3ddc84); color:#0c321b;}
-  .effect-btn.amber{ background:linear-gradient(135deg,#ffd76b,#f3b73f); color:#3a2700;}
-  .effect-btn.blue{ background:linear-gradient(135deg,#7bb0f5,#4f8cf0); color:#0d2548;}
-  .effect-btn.red{ background:linear-gradient(135deg,#ff7b87,#f0455a); color:#3a0c12;}
-  .effect-btn.purple{ background:linear-gradient(135deg,#b3a4ff,#8b7cf6); color:#241a52;}
-  .effect-btn.white{ background:linear-gradient(135deg,#e8eaf6,#c5cae9); color:#1a1a2e;}
-  .effect-btn.dark{ background:linear-gradient(135deg,#37474f,#263238); color:#cfd8dc;}
+  #quickEffectsBar{ display:contents; }
 
   /* ---- lights page ---- */
   .page-content{ flex:1; padding:28px; display:flex; flex-direction:column; gap:20px; min-height:0; overflow-y:auto; }
@@ -1463,6 +1571,23 @@
         <div class="game-card-sub">Data Out · Port 5300</div>
       </div>
 
+      <!-- EA SPORTS WRC -->
+      <div class="game-card" id="gameWRC" data-game="wrc">
+        <div class="game-card-icon-area">
+          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 22 Q8 13 17 12 L38 12 Q46 13 48 18 L50 22 L48 24 L6 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M21 12 L23 8 L34 8 L35 12" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M27 8 L29 5 L33 5" stroke="#a78bfa" stroke-width="1" stroke-linecap="round"/>
+            <circle cx="15" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="15" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
+            <circle cx="41" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="41" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
+          </svg>
+        </div>
+        <div class="game-card-name">EA SPORTS WRC</div>
+        <div class="game-card-sub">JSON telemetry · Port 20777</div>
+      </div>
+
     </div>
 
     <!-- Coming soon strip -->
@@ -1568,6 +1693,7 @@
   <div class="app">
     <!-- Sidebar -->
     <div class="sidebar glass">
+      <div class="brand-dots" title="GridGlow"><span></span><span></span><span></span><span></span><span></span></div>
       <div class="nav-btn active" data-page="dashboard" title="Dashboard">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12L12 4l9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
       </div>
@@ -1619,51 +1745,79 @@
         </div>
       </div>
 
-      <!-- PAGE: Dashboard -->
+      <!-- PAGE: Dashboard (pit wall) -->
       <div class="page active" id="page-dashboard">
-        <div class="stats-row">
-          <div class="stat-card glass">
-            <p class="label">Bridge</p>
-            <p class="value" id="stat-bridge">Stopped</p>
+        <div class="pw-hero glass">
+          <button class="pw-power" id="pwPowerBtn" title="Start bridge">
+            <svg id="pwPowerPlay" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="pwPowerStop" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          </button>
+          <div class="pw-hero-info">
+            <p class="pw-status"><span class="dot" id="pwStatusDot" style="background:var(--gray-dot);"></span><span id="pwStatusMain">Bridge stopped</span></p>
+            <p class="pw-sub" id="pwStatusSub">0.0.0.0:20777</p>
+            <button class="pw-chip" id="pwGameChip" title="Switch game">
+              <span class="dot" id="pwGameDot" style="background:#e10600;"></span>
+              <span id="pwGameName">F1 25</span>
+              <span class="pw-chip-hint">· change</span>
+            </button>
           </div>
-          <div class="stat-card glass">
-            <p class="label">Lights</p>
-            <p class="value" id="stat-lifx_lights">-</p>
-          </div>
-          <div class="stat-card glass">
-            <p class="label">Active Group</p>
-            <p class="value" id="stat-active_group">-</p>
-          </div>
-          <div class="stat-card glass">
-            <p class="label">F1 Packets</p>
-            <p class="value" id="stat-f1_packets">0</p>
+          <div class="pw-stats">
+            <div class="pw-stat">
+              <p class="sl">Packets/s</p>
+              <p class="sv"><span id="pwPktRate">—</span><svg id="pwSpark" width="56" height="18" viewBox="0 0 56 18"><polyline id="pwSparkLine" fill="none" stroke="#3ddc84" stroke-width="1.5" points=""/></svg></p>
+            </div>
+            <div class="pw-stat">
+              <p class="sl">Events</p>
+              <p class="sv" id="pwEventCount">0</p>
+            </div>
+            <div class="pw-stat">
+              <p class="sl">Lights</p>
+              <p class="sv" id="pwLightCount">—</p>
+            </div>
+            <div class="pw-stat">
+              <p class="sl">Uptime</p>
+              <p class="sv mono" id="pwUptime">—</p>
+            </div>
           </div>
         </div>
 
-        <div class="lower-row">
-          <div class="race-control glass">
-            <h2>Race Control</h2>
-            <p class="sub" id="rcSub">Live F1 events, flags, and lighting triggers</p>
-            <p class="waiting" id="rcWaiting">Waiting for F1 25 telemetry...</p>
-            <div class="rc-actions">
-              <button class="btn btn-primary btn-sm" id="discoverBtn">Discover Lights</button>
-              <button class="btn btn-ghost btn-sm" id="testBtn">Test Selected</button>
+        <div class="pw-sector glass">
+          <div class="pw-sector-head">
+            <span class="title">Live sector status</span>
+            <span class="pw-tag accent" id="pwSectorChip">No strip</span>
+            <span class="pw-sector-flag" id="pwSectorFlag">Waiting for telemetry</span>
+          </div>
+          <div class="pw-zones" id="pwSectorZones"></div>
+          <div class="pw-sector-labels" id="pwSectorLabels">
+            <span style="flex:1;">S1</span><span style="flex:1;text-align:center;">S2</span><span style="flex:1;text-align:right;">S3</span>
+          </div>
+        </div>
+
+        <div class="pw-mid">
+          <div class="pw-garage glass">
+            <div class="pw-garage-head">
+              <span class="title">Lights</span>
+              <span class="group" id="stat-active_group">-</span>
             </div>
-            <div class="log-box" id="logBox">
-              <div class="log-entry muted"><span class="log-msg">No bridge output yet. Press Start Bridge to launch.</span></div>
+            <div class="pw-garage-grid" id="pwGarageGrid"></div>
+          </div>
+          <div class="pw-events glass">
+            <p class="title">Race events</p>
+            <div class="pw-events-feed" id="pwEventsFeed">
+              <div class="pw-ev-empty">No events yet — start the bridge and get on track.</div>
             </div>
           </div>
+        </div>
 
-          <div class="quick-effects glass">
-            <h2>Quick Effects</h2>
-            <div id="quickEffectsBar">
-              <button class="effect-btn coral" data-effect="Start Lights">Start Lights</button>
-              <button class="effect-btn green" data-effect="Lights Out">Lights Out</button>
-              <button class="effect-btn amber" data-effect="Yellow Flag">Yellow Flag</button>
-              <button class="effect-btn blue" data-effect="Blue Flag">Blue Flag</button>
-              <button class="effect-btn red" data-effect="Red Flag">Red Flag</button>
-              <button class="effect-btn purple" data-effect="Fastest Lap">Fastest Lap</button>
-            </div>
+        <div class="pw-dock glass quick-effects">
+          <span class="dock-label">Quick effects</span>
+          <div id="quickEffectsBar">
+            <button class="pw-pill" data-effect="Start Lights"><span class="dot" style="background:#ff6f6f;"></span>Start Lights</button>
+            <button class="pw-pill" data-effect="Lights Out"><span class="dot" style="background:#3ddc84;"></span>Lights Out</button>
+            <button class="pw-pill" data-effect="Yellow Flag"><span class="dot" style="background:#f5b02e;"></span>Yellow Flag</button>
+            <button class="pw-pill" data-effect="Blue Flag"><span class="dot" style="background:#6db2ff;"></span>Blue Flag</button>
+            <button class="pw-pill" data-effect="Red Flag"><span class="dot" style="background:#ff5d5d;"></span>Red Flag</button>
+            <button class="pw-pill" data-effect="Fastest Lap"><span class="dot" style="background:#b3a7ff;"></span>Fastest Lap</button>
           </div>
         </div>
       </div>
@@ -1954,6 +2108,17 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
+              <div class="ar-row" data-event="rpm_meter">
+                <div class="ar-icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6"/><path d="M12 9V4M12 20a8 8 0 1 1 8-8"/><path d="M17 12h3"/></svg></div>
+                <div class="ar-info">
+                  <div class="ar-name">RPM Meter</div>
+                  <div class="ar-desc">Rev lights across the strip — zones fill green→red as revs climb; multizone strips only, and mutually exclusive with Sector Status</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="event-toggle" data-event="rpm_meter">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
             </div>
             </div><!-- /collapsible-body -->
           </div><!-- /effects-section -->
@@ -2126,6 +2291,15 @@
                 </div>
                 <button class="console-ip-copy" id="consoleIpCopy">Copy</button>
               </div>
+            </div>
+
+            <!-- EA WRC telemetry config installer (shown for WRC only) -->
+            <div class="console-ip-section" id="wrcSetupSection" style="display:none;">
+              <div class="console-ip-section-label">EA SPORTS WRC Setup</div>
+              <p class="console-ip-hint">EA WRC needs a small telemetry config file installed before it can send data. This writes GridGlow's config into your WRC telemetry folder and enables it on the UDP port above.</p>
+              <button class="btn btn-primary btn-sm" id="wrcInstallBtn">Install WRC telemetry config</button>
+              <div class="wrc-setup-result" id="wrcSetupResult" style="display:none;margin-top:10px;font-size:12px;line-height:1.5;"></div>
+              <p class="console-ip-hint" style="margin-top:10px;">After installing, restart EA WRC and start a stage. The file goes to <code>Documents\My Games\WRC\telemetry</code>.</p>
             </div>
           </div>
 
@@ -2579,7 +2753,6 @@
   })();
 
   // ---- shared log state ----
-  const logBox     = document.getElementById('logBox');
   const logBoxFull = document.getElementById('logBoxFull');
   const logLines   = [];
 
@@ -2595,6 +2768,7 @@
     '[ERROR]':          { cls: 'log-tag-error',     label: 'Error' },
     '[WARNING]':        { cls: 'log-tag-warning',   label: 'Warning' },
     '[GUI]':            { cls: 'log-tag-gui',       label: 'GUI' },
+    '[RPM]':            { cls: 'log-tag-warning',   label: 'RPM' },
     '[LAN]':            { cls: 'log-tag-lan',       label: 'LAN' },
     '[preview]':        { cls: 'log-tag-info',      label: 'Preview' },
   };
@@ -2628,10 +2802,8 @@
       const html = logLines.length === 0
         ? '<div class="log-entry muted"><span class="log-msg">No logs yet.</span></div>'
         : logLines.map(formatLogLine).join('');
-      [logBox, logBoxFull].forEach(box => {
-        box.innerHTML = html;
-        box.scrollTop = box.scrollHeight;
-      });
+      logBoxFull.innerHTML = html;
+      logBoxFull.scrollTop = logBoxFull.scrollHeight;
     });
   }
 
@@ -2793,6 +2965,8 @@
     logLines.push(line);
     if (logLines.length > 2000) logLines.shift();
     renderLogs();
+    // Feed the dashboard race-events strip / sector display.
+    if (window._pwIngest) window._pwIngest(line);
     // Detect bulb errors: "[LIFX ERROR] Bulb Name: ..."
     if (line.startsWith('[LIFX ERROR] ')) {
       const rest = line.slice(13); // after "[LIFX ERROR] "
@@ -2805,25 +2979,57 @@
   // ---- status callbacks (called by Python via evaluate_js) ----
   function setStatusText(text) {
     document.getElementById('statusText').textContent = 'Status: ' + text;
+    if (window._pwSetStatusText) window._pwSetStatusText(text);
   }
 
   function setBridgeRunning(running) {
-    document.getElementById('stat-bridge').textContent = running ? 'Running' : 'Stopped';
     document.getElementById('statusDot').classList.toggle('running', running);
     document.getElementById('statusDotLabel').textContent = running ? 'ON' : 'OFF';
+    if (window._pwSetRunning) window._pwSetRunning(running);
+    setBrandDotsRunning(running);
   }
 
   function setStat(key, value) {
     const el = document.getElementById('stat-' + key);
     if (el) el.textContent = value;
+    if (window._pwSetStat) window._pwSetStat(key, value);
   }
+
+  // Animate the top-left brand dots while a light scan runs: they fill up one by
+  // one (like F1 start lights) then drain back down, looping — the front-page
+  // scanning indicator now that the redesign dropped the spinner from the dashboard.
+  // Brand dots are a status light driven by two flags:
+  //   scanning → red fill/drain animation (F1 start-lights build-up)
+  //   running  → green (fades in from red the moment a scan completes)
+  //   neither  → dim red at rest
+  let _brandScanTimer = null, _brandScanning = false, _brandRunning = false;
+  function _renderBrandDots() {
+    const dots = document.querySelectorAll('.brand-dots span');
+    if (!dots.length) return;
+    if (_brandScanning) {
+      dots.forEach(d => d.classList.remove('done'));
+      if (!_brandScanTimer) {                          // start the fill/drain loop
+        let i = 0, filling = true;
+        dots.forEach(d => d.classList.remove('lit'));
+        _brandScanTimer = setInterval(() => {
+          if (filling) { dots[i].classList.add('lit');    if (++i >= dots.length) { filling = false; i = dots.length - 1; } }
+          else         { dots[i].classList.remove('lit'); if (--i < 0)            { filling = true;  i = 0; } }
+        }, 130);
+      }
+      return;
+    }
+    // not scanning: settle to the static state (green if running, else dim red)
+    if (_brandScanTimer) { clearInterval(_brandScanTimer); _brandScanTimer = null; }
+    dots.forEach(d => { d.classList.remove('lit'); d.classList.toggle('done', _brandRunning); });
+  }
+  function setBrandDotsScanning(active) { _brandScanning = active; _renderBrandDots(); }
+  function setBrandDotsRunning(running) { _brandRunning = running; _renderBrandDots(); }
 
   function setDiscovering(active) {
     const spinner = document.getElementById('discoverySpinner');
-    spinner.classList.toggle('active', active);
-    if (active) {
-      document.getElementById('statusText').textContent = 'Status: Discovering lights...';
-    }
+    if (spinner) spinner.classList.toggle('active', active);
+    setBrandDotsScanning(active);
+    if (active) setStatusText('Discovering lights...');
   }
 
   // ---- lights page state ----
@@ -2832,6 +3038,7 @@
   function setLights(lights) {
     _discoveredLights = lights || [];
     renderLightList();
+    if (window._pwRenderGarage) window._pwRenderGarage();
     renderSetupDiscoveryList(lights);
     // Re-push to light assignments so Nanoleaf cards appear immediately.
     const nlLabels = _discoveredLights.filter(l => l.type === 'nanoleaf').map(l => l.label);
@@ -2892,6 +3099,7 @@
       if (cb) cb.classList.toggle('is-checked', _activeLabels.has(l.label));
     });
     updateStaggerAvailability();
+    if (window._pwRenderGarage) window._pwRenderGarage();
     if (window._lpRefresh) window._lpRefresh(labels);
     // Always-active Nanoleaf devices are included in the assignment view
     // even though they have no checkbox and never appear in _activeLabels.
@@ -2914,6 +3122,346 @@
   function pushSelectedLights() {
     callApi('set_selected_lights', getCheckedLabels());
   }
+
+  // ---- pit-wall dashboard ----
+  // All live dashboard state is derived from the existing update stream:
+  // setStat totals, setBridgeRunning, and tagged log lines (via _pwIngest).
+  (function () {
+    const $ = id => document.getElementById(id);
+    const FLAG_COLORS = { green:'#2e7d4f', yellow:'#f5b02e', blue:'#6db2ff', red:'#ff5d5d' };
+    const IDLE_ZONE = '#232c42';
+
+    let _running = false;
+    let _startTs = null;          // Date.now() when the bridge came up
+    let _statusText = 'Stopped';
+    let _pktTotal = null;         // cumulative packet count from the backend
+    let _pktRate = null;          // packets/s from the last two backend totals
+    let _pktLastChange = 0;       // Date.now() of the last total change
+    let _rateHist = [];
+    let _eventCount = 0;
+    let _sectorFlags = null;      // [s1,s2,s3] FIA flag ints, null until telemetry
+    let _trackColor = null;       // whole-track flag colour for non-strip swatches
+
+    function sectorSupported() {
+      const def = window._GAME_DEFS && window._GAME_DEFS[window._currentGame];
+      return def ? !!def.sectorStrip : true;  // static default is F1
+    }
+    function sectorEnabled() {
+      return sectorSupported() &&
+        !!document.querySelector('.event-toggle[data-event="sector_status"]')?.checked;
+    }
+    function sectorColor(f) {
+      return f === 3 ? FLAG_COLORS.yellow : f === 2 ? FLAG_COLORS.blue : FLAG_COLORS.green;
+    }
+    function sectorName(f) {
+      return f === 3 ? 'yellow' : f === 2 ? 'blue' : 'clear';
+    }
+    // Largest multizone strip drives the sector display, mirroring the backend
+    // (bridge_core splits each strip zc//3 / 2*zc//3; <3 zones can't split).
+    function sectorStrip() {
+      const strips = (_discoveredLights || []).filter(l =>
+        l.type !== 'nanoleaf' && l.type !== 'hue' && (l.zones || 0) >= 3);
+      if (!strips.length) return null;
+      return strips.reduce((a, b) => (b.zones > a.zones ? b : a));
+    }
+    function sectorSizes(zc) {
+      const b1 = Math.floor(zc / 3), b2 = Math.floor(2 * zc / 3);
+      return [b1, b2 - b1, zc - b2];
+    }
+
+    // ---- hero ----
+    window._pwSetRunning = function (running) {
+      _running = running;
+      $('pwStatusDot').style.background = running ? 'var(--green)' : 'var(--gray-dot)';
+      $('pwStatusDot').classList.toggle('pw-pulse', running);
+      $('pwStatusMain').textContent = running ? 'Bridge running' : 'Bridge stopped';
+      const btn = $('pwPowerBtn');
+      btn.classList.toggle('running', running);
+      btn.title = running ? 'Stop bridge' : 'Start bridge';
+      $('pwPowerPlay').style.display = running ? 'none' : '';
+      $('pwPowerStop').style.display = running ? '' : 'none';
+      if (running) {
+        if (_startTs === null) {
+          _startTs = Date.now();
+          _eventCount = 0;
+          $('pwEventCount').textContent = '0';
+        }
+      } else {
+        _startTs = null;
+        _pktRate = null;
+        _pktLastChange = 0;
+        _rateHist = [];
+        $('pwUptime').textContent = '—';
+        $('pwPktRate').textContent = '—';
+        renderSpark();
+      }
+      renderSector();
+    };
+
+    window._pwSetStatusText = function (text) {
+      _statusText = text;
+      renderSub();
+    };
+
+    window._pwSetStat = function (key, value) {
+      if (key === 'f1_packets') {
+        const n = parseInt(value);
+        if (isNaN(n)) return;
+        // The backend pushes the total roughly once a second, but only when it
+        // changed — so derive the rate from the time between pushes, not from
+        // our own sampling clock.
+        const now = Date.now();
+        if (_pktTotal !== null && n > _pktTotal && _pktLastChange) {
+          const dt = (now - _pktLastChange) / 1000;
+          if (dt > 0.2) _pktRate = (n - _pktTotal) / dt;
+        }
+        if (n !== _pktTotal) _pktLastChange = now;
+        _pktTotal = n;
+      } else if (key === 'lifx_lights') {
+        renderLightCount();
+      }
+    };
+
+    function listenAddr() {
+      const ip = $('settingIp')?.value.trim() || '0.0.0.0';
+      const port = $('settingPort')?.value.trim() || '20777';
+      return ip + ':' + port;
+    }
+    function renderSub() {
+      $('pwStatusSub').textContent = listenAddr() + ' · ' + _statusText;
+    }
+
+    function renderSpark() {
+      const line = $('pwSparkLine');
+      if (_rateHist.length < 2) { line.setAttribute('points', ''); return; }
+      const max = Math.max(...(_rateHist), 1);
+      line.setAttribute('points', _rateHist.map((v, i) => {
+        const x = (i / (_rateHist.length - 1)) * 56;
+        const y = 16 - (v / max) * 13;
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      }).join(' '));
+    }
+
+    function renderLightCount() {
+      const lights = _discoveredLights || [];
+      if (!lights.length) { $('pwLightCount').textContent = '—'; return; }
+      const useActive = _activeLabels.size > 0;
+      const active = lights.filter(l =>
+        l.type === 'nanoleaf' || l.type === 'hue' ||
+        !useActive || _activeLabels.has(l.label)).length;
+      $('pwLightCount').textContent = active + '/' + lights.length;
+    }
+
+    // Uptime, packets/s sampling, and the listen-address line all tick at 1 Hz.
+    setInterval(() => {
+      if (_running && _startTs !== null) {
+        const s = Math.floor((Date.now() - _startTs) / 1000);
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+        $('pwUptime').textContent =
+          (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0');
+        if (_pktRate !== null) {
+          // No fresh total for a few seconds means the stream stopped.
+          if (Date.now() - _pktLastChange > 3000) _pktRate = 0;
+          const rate = Math.round(_pktRate);
+          _rateHist.push(rate);
+          if (_rateHist.length > 30) _rateHist.shift();
+          $('pwPktRate').textContent = String(rate);
+          renderSpark();
+        }
+      }
+      renderSub();
+    }, 1000);
+
+    // ---- live sector status ----
+    function renderSector() {
+      const strip = sectorStrip();
+      const enabled = sectorEnabled();
+      const flags = enabled ? _sectorFlags : null;
+      $('pwSectorChip').textContent = strip
+        ? `${strip.label} · ${strip.zones} zones`
+        : 'No multizone strip';
+
+      const sizes = sectorSizes(strip ? strip.zones : 3);
+      let cells = '';
+      for (let s = 0; s < 3; s++) {
+        const col = flags ? sectorColor(flags[s]) : IDLE_ZONE;
+        const pulse = flags && flags[s] === 3 ? ' pw-pulse' : '';
+        for (let i = 0; i < sizes[s]; i++) {
+          cells += `<span class="zc${pulse}" style="background:${col};"></span>`;
+        }
+      }
+      $('pwSectorZones').innerHTML = cells;
+
+      const align = ['', 'text-align:center;', 'text-align:right;'];
+      $('pwSectorLabels').innerHTML = sizes.map((sz, s) => {
+        const state = flags ? ' ' + sectorName(flags[s]) : '';
+        return `<span style="flex:${sz};${align[s]}">S${s + 1}${state}</span>`;
+      }).join('');
+
+      const flagEl = $('pwSectorFlag');
+      if (!enabled) {
+        flagEl.style.color = '';
+        flagEl.textContent = 'Off — enable Sector Status in Effects';
+      } else if (!flags) {
+        flagEl.style.color = '';
+        flagEl.textContent = _running ? 'Waiting for telemetry' : 'Waiting for bridge';
+      } else {
+        const ys = flags.map((f, i) => f === 3 ? 'S' + (i + 1) : null).filter(Boolean);
+        if (ys.length) {
+          flagEl.style.color = 'var(--amber)';
+          flagEl.textContent = 'Yellow in ' + ys.join(', ');
+        } else {
+          flagEl.style.color = '#5fe39a';
+          flagEl.textContent = 'All sectors clear';
+        }
+      }
+    }
+    window._pwRenderSector = renderSector;
+
+    // ---- garage grid ----
+    window._pwRenderGarage = function () {
+      const lights = _discoveredLights || [];
+      const useActive = _activeLabels.size > 0;
+      const secOn = sectorEnabled();
+      const cards = lights.map((l, i) => {
+        const isNl = l.type === 'nanoleaf', isHue = l.type === 'hue';
+        const active = isNl || isHue || !useActive || _activeLabels.has(l.label);
+        const zones = l.zones || 0;
+        let swatch;
+        if (zones >= 3 && secOn && _sectorFlags) {
+          swatch = sectorSizes(zones).map((sz, s) =>
+            `<span style="flex:${sz};background:${sectorColor(_sectorFlags[s])};"></span>`).join('');
+        } else {
+          swatch = `<span style="background:${_trackColor || IDLE_ZONE};"></span>`;
+        }
+        const sub = zones > 0
+          ? `${zones} zones${secOn ? ' · sector mode' : ''}`
+          : isNl ? 'Panels' : isHue ? 'Hue' : 'Bulb';
+        const badge = isNl ? ['nanoleaf', 'Nanoleaf'] : isHue ? ['hue', 'Hue'] : ['lifx', 'LIFX'];
+        // Identify goes through bridge.lifx, so only LIFX devices get the button.
+        const identify = (!isNl && !isHue)
+          ? `<button class="gg-identify" data-index="${i}" title="Flash this light">` +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></button>'
+          : '';
+        return `<div class="gg-card${active ? '' : ' inactive'}" data-index="${i}"` +
+          ` title="${escHtml(l.label)} — ${escHtml(l.ip || '')}">` +
+          identify +
+          `<div class="gg-swatch">${swatch}</div>` +
+          `<p class="gg-name">${escHtml(l.label)}</p>` +
+          `<p class="gg-sub">${sub}</p>` +
+          `<span class="pw-tag gg-badge ${badge[0]}">${badge[1]}</span></div>`;
+      });
+      cards.push('<button class="gg-add">' +
+        '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>' +
+        'Add lights</button>');
+      $('pwGarageGrid').innerHTML = cards.join('');
+      renderLightCount();
+      renderSector();
+    };
+
+    // One delegated listener survives the grid's innerHTML rebuilds.
+    $('pwGarageGrid').addEventListener('click', e => {
+      const idBtn = e.target.closest('.gg-identify');
+      if (idBtn) {
+        const light = (_discoveredLights || [])[+idBtn.dataset.index];
+        if (light) callApi('identify_light', light.label);
+        return;
+      }
+      if (e.target.closest('.gg-card, .gg-add')) navigateTo('lights');
+    });
+
+    // ---- race events feed ----
+    function addEvent(cls, tag, msg) {
+      _eventCount++;
+      $('pwEventCount').textContent = String(_eventCount);
+      const feed = $('pwEventsFeed');
+      const empty = feed.querySelector('.pw-ev-empty');
+      if (empty) empty.remove();
+      const ts = new Date().toTimeString().slice(0, 8);
+      const div = document.createElement('div');
+      div.className = 'pw-ev';
+      div.innerHTML = `<span class="ts">${ts}</span>` +
+        `<span class="pw-tag ${cls}">${tag}</span>` +
+        `<span class="msg">${escHtml(msg)}</span>`;
+      feed.prepend(div);
+      while (feed.children.length > 30) feed.lastChild.remove();
+    }
+
+    // FTLP/PENA/RTMT get richer dedicated log lines right after the code line,
+    // so those codes are deliberately absent here.
+    const EVENT_CODES = {
+      STLG: ['flag-red',   'start',   'Start lights'],
+      LGOT: ['flag-green', 'start',   'Lights out'],
+      SSTA: ['info',       'session', 'Session started'],
+      SEND: ['info',       'session', 'Session ended'],
+      CHQF: ['info',       'flag',    'Chequered flag'],
+      RDFL: ['flag-red',   'flag',    'Red flag'],
+    };
+
+    window._pwIngest = function (line) {
+      if (line.startsWith('[SECTOR STATUS]')) {
+        const m = line.match(/\[\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/);
+        if (m) {
+          _sectorFlags = [+m[1], +m[2], +m[3]];
+          const ys = _sectorFlags.map((f, i) => f === 3 ? 'S' + (i + 1) : null).filter(Boolean);
+          addEvent(ys.length ? 'flag-yellow' : 'flag-green', 'flag',
+            ys.length ? 'Yellow flag — ' + ys.join(', ') : 'All sectors clear');
+          window._pwRenderGarage();
+        }
+        return;
+      }
+      if (line.startsWith('[FIA FLAG]') || line.startsWith('[MARSHAL FLAG]')) {
+        const name = line.slice(line.indexOf(']') + 1).trim().toLowerCase();
+        if (name === 'none' || name === 'invalid') {
+          _trackColor = null;
+          addEvent('info', 'flag', 'Flag cleared');
+        } else if (FLAG_COLORS[name]) {
+          _trackColor = FLAG_COLORS[name];
+          addEvent('flag-' + name, 'flag', name[0].toUpperCase() + name.slice(1) + ' flag');
+        } else {
+          addEvent('info', 'flag', name);
+        }
+        window._pwRenderGarage();
+        return;
+      }
+      if (line.startsWith('[FASTEST LAP]')) {
+        if (line.includes('Ignored')) return;
+        const m = line.match(/lap_time=([\d.]+)/);
+        let msg = 'Fastest lap';
+        if (m) {
+          const t = +m[1];
+          msg += ` ${Math.floor(t / 60)}:${(t % 60).toFixed(3).padStart(6, '0')}`;
+        }
+        addEvent('lap', 'lap', msg);
+        return;
+      }
+      if (line.startsWith('[PENALTY]')) {
+        addEvent('info', 'penalty', 'Penalty — car ' + (line.match(/vehicle=(\d+)/)?.[1] ?? '?'));
+        return;
+      }
+      if (line.startsWith('[RETIREMENT]')) {
+        addEvent('info', 'retire', 'Retirement — car ' + (line.match(/vehicle=(\d+)/)?.[1] ?? '?'));
+        return;
+      }
+      if (line.startsWith('[EVENT]')) {
+        const def = EVENT_CODES[line.match(/code=(\w+)/)?.[1]];
+        if (def) addEvent(def[0], def[1], def[2]);
+        return;
+      }
+      if ((line.startsWith('[DR2]') || line.startsWith('[FORZA]')) && !line.includes('Listener loop')) {
+        addEvent('info', line.startsWith('[DR2]') ? 'stage' : 'forza',
+          line.slice(line.indexOf(']') + 1).trim());
+      }
+    };
+
+    // ---- controls ----
+    $('pwPowerBtn').addEventListener('click', () =>
+      callApi(_running ? 'stop_bridge' : 'start_bridge'));
+    $('pwGameChip').addEventListener('click', () => showGameSelector(false));
+
+    window._pwRenderGarage();
+    renderSub();
+  })();
 
   // ---- API bridge ----
   function callApi(fnName, ...args) {
@@ -2995,8 +3543,6 @@
   document.getElementById('startBtn').addEventListener('click', () => callApi('start_bridge'));
   document.getElementById('stopBtn').addEventListener('click', () => callApi('stop_bridge'));
 
-  document.getElementById('discoverBtn').addEventListener('click', () => callApi('discover_lights'));
-  document.getElementById('testBtn').addEventListener('click', () => callApi('test_selected'));
   document.getElementById('discoverBtn2').addEventListener('click', () => callApi('discover_lights'));
   document.getElementById('testBtn2').addEventListener('click', () => callApi('test_selected'));
 
@@ -3020,7 +3566,7 @@
     setTimeout(() => { btn.textContent = orig; }, 1500);
   });
 
-  document.querySelectorAll('.effect-btn[data-effect]').forEach(btn => {
+  document.querySelectorAll('.pw-pill[data-effect]').forEach(btn => {
     btn.addEventListener('click', () => callApi('trigger_effect', btn.dataset.effect));
   });
 
@@ -3075,12 +3621,14 @@
   window._GAME_DEFS = {
     f1_25: {
       label: 'F1 25',
+      accent: '#e10600',
+      sectorStrip: true,   // F1 telemetry carries marshal-zone flags
       rcSub: 'Live F1 events, flags, and lighting triggers',
       rcWaiting: 'Waiting for F1 25 telemetry...',
       arSub: 'Which F1 events trigger your lights',
       events: ['start_lights','lights_out','yellow_flag','blue_flag','red_flag',
                'fastest_lap','chequered_flag','white_warning','black_flag','neutral',
-               'sector_status'],
+               'sector_status','rpm_meter'],
       // Display name / desc overrides for shared keys (empty = use HTML defaults)
       names: {},
       descs: {},
@@ -3119,6 +3667,8 @@
     },
     dr2: {
       label: 'DiRT Rally 2.0',
+      accent: '#f5b02e',
+      sectorStrip: false,
       rcSub: 'Stage events and rally lighting triggers',
       rcWaiting: 'Waiting for DiRT Rally 2.0 UDP packets...',
       arSub: 'Which rally events trigger your lights',
@@ -3161,6 +3711,8 @@
     },
     forza: {
       label: 'Forza Horizon 6',
+      accent: '#2dd4bf',
+      sectorStrip: false,
       rcSub: 'Driving telemetry and lighting triggers',
       rcWaiting: 'Waiting for Forza Data Out packets...',
       arSub: 'Which Forza events trigger your lights',
@@ -3189,6 +3741,46 @@
         { label: 'Race Start',      animKey: 'Lights Out'   },
         { label: 'Return to Menus', animKey: 'Neutral'      },
         { label: 'Crash',          animKey: 'White Warning' },
+      ],
+    },
+    wrc: {
+      label: 'EA SPORTS WRC',
+      accent: '#4f8ef7',
+      sectorStrip: false,
+      rcSub: 'Rally stage events and lighting triggers',
+      rcWaiting: 'Waiting for EA SPORTS WRC UDP packets...',
+      arSub: 'Which rally events trigger your lights',
+      events: ['lights_out','fastest_lap','chequered_flag','neutral'],
+      names: {
+        lights_out:     'Stage Start',
+        fastest_lap:    'Split Checkpoint',
+        chequered_flag: 'Stage Finish',
+        neutral:        'Service Park',
+      },
+      descs: {
+        lights_out:     'Green flash when the stage begins',
+        fastest_lap:    'Purple flash at each split checkpoint',
+        chequered_flag: 'White/green flash when the stage ends',
+        neutral:        'Warm white on return to service park',
+      },
+      qeEffects: [
+        { trigger: 'Lights Out',     label: 'Stage Start',      cls: 'green'  },
+        { trigger: 'Fastest Lap',    label: 'Split Checkpoint', cls: 'purple' },
+        { trigger: 'Chequered Flag', label: 'Stage Finish',     cls: 'coral'  },
+        { trigger: 'Neutral',        label: 'Service Park',     cls: 'amber'  },
+      ],
+      laEffects: [
+        { key: 'lights_out',     label: 'Stage Start',      icon: '🟢' },
+        { key: 'fastest_lap',    label: 'Split Checkpoint', icon: '💜' },
+        { key: 'chequered_flag', label: 'Stage Finish',     icon: '🏁' },
+        { key: 'neutral',        label: 'Service Park',     icon: '💡' },
+      ],
+      lpPills: [
+        { label: 'Idle',             animKey: 'Idle'        },
+        { label: 'Stage Start',      animKey: 'Lights Out'  },
+        { label: 'Split Checkpoint', animKey: 'Fastest Lap' },
+        { label: 'Stage Finish',     animKey: 'Chequered'   },
+        { label: 'Service Park',     animKey: 'Neutral'     },
       ],
     },
   };
@@ -3220,15 +3812,20 @@
     window._currentGame = game;
     const evSet = new Set(def.events);
 
-    // RC subtitle + waiting text
-    const rcSub = document.getElementById('rcSub');
-    if (rcSub) rcSub.textContent = def.rcSub;
-    const rcWaiting = document.getElementById('rcWaiting');
-    if (rcWaiting) rcWaiting.textContent = def.rcWaiting;
+    // Dashboard hero game chip
+    const chipName = document.getElementById('pwGameName');
+    if (chipName) chipName.textContent = def.label;
+    const chipDot = document.getElementById('pwGameDot');
+    if (chipDot) chipDot.style.background = def.accent || 'var(--purple)';
 
-    // Stat card label
-    const pktLabel = document.querySelector('#stat-f1_packets')?.previousElementSibling;
-    if (pktLabel) pktLabel.textContent = def.label + ' Packets';
+    // Sector strip only exists for games whose telemetry carries sector flags.
+    const sectorCard = document.querySelector('.pw-sector');
+    if (sectorCard) sectorCard.style.display = def.sectorStrip ? '' : 'none';
+    if (window._pwRenderGarage) window._pwRenderGarage();
+
+    // EA WRC needs a telemetry config file installed; its setup helper shows for WRC only.
+    const wrcSetup = document.getElementById('wrcSetupSection');
+    if (wrcSetup) wrcSetup.style.display = (game === 'wrc') ? '' : 'none';
 
     // Auto-Response subtitle
     const arSub = document.getElementById('arSub');
@@ -3261,15 +3858,23 @@
       }
     });
 
-    // Quick Effects bar: rebuild buttons
+    // Quick Effects dock: rebuild pills
+    const QE_DOT = {
+      coral: '#ff6f6f', green: '#3ddc84', amber: '#f5b02e', blue: '#6db2ff',
+      red: '#ff5d5d', purple: '#b3a7ff', white: '#eef1f7', dark: '#6b7280',
+    };
     const qeBar = document.getElementById('quickEffectsBar');
     if (qeBar) {
       qeBar.innerHTML = '';
       def.qeEffects.forEach(qe => {
         const btn = document.createElement('button');
-        btn.className = `effect-btn ${qe.cls}`;
+        btn.className = 'pw-pill';
         btn.dataset.effect = qe.trigger;
-        btn.textContent = qe.label;
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.style.background = QE_DOT[qe.cls] || '#6b7280';
+        btn.appendChild(dot);
+        btn.appendChild(document.createTextNode(qe.label));
         btn.addEventListener('click', () => callApi('trigger_effect', qe.trigger));
         qeBar.appendChild(btn);
       });
@@ -3290,13 +3895,13 @@
   const ALL_EVENTS = [
     'start_lights','lights_out','yellow_flag','blue_flag','red_flag',
     'fastest_lap','chequered_flag','white_warning','black_flag','neutral',
-    'sector_status'
+    'sector_status','rpm_meter'
   ];
 
   // Opt-in events default OFF (not part of the "all on → null" collapse). null
   // enabled_events means "every normal event on, opt-ins off" — matching the
   // backend, which only treats sector_status as active when explicitly listed.
-  const OPT_IN_EVENTS = new Set(['sector_status']);
+  const OPT_IN_EVENTS = new Set(['sector_status', 'rpm_meter']);
 
   function getEnabledEvents() {
     const def = window._GAME_DEFS[window._currentGame];
@@ -3315,6 +3920,8 @@
       if (!cb) return;
       cb.checked = enabled === null ? !OPT_IN_EVENTS.has(key) : enabled.has(key);
     });
+    // Sector-status toggle state feeds the dashboard sector strip.
+    if (window._pwRenderGarage) window._pwRenderGarage();
   }
 
   function saveEnabledEvents() {
@@ -3331,8 +3938,24 @@
     callApi('set_enabled_events', value);
   }
 
+  // Sector Status and RPM Meter both own the multizone strip, so only one can be
+  // on at a time — enabling either switches the other off.
+  const STRIP_MODES = ['sector_status', 'rpm_meter'];
+  function enforceStripModeExclusivity(changed) {
+    if (!changed.checked || !STRIP_MODES.includes(changed.dataset.event)) return;
+    STRIP_MODES.forEach(key => {
+      if (key === changed.dataset.event) return;
+      const other = document.querySelector(`.event-toggle[data-event="${key}"]`);
+      if (other && other.checked) other.checked = false;
+    });
+  }
+
   document.querySelectorAll('.event-toggle').forEach(cb => {
-    cb.addEventListener('change', saveEnabledEvents);
+    cb.addEventListener('change', () => {
+      enforceStripModeExclusivity(cb);
+      saveEnabledEvents();
+      if (window._pwRenderGarage) window._pwRenderGarage();
+    });
   });
 
   // Load saved enabled_events when pywebview is ready
@@ -3939,6 +4562,39 @@
       } finally {
         pairBtn.disabled    = false;
         pairBtn.textContent = 'Pair';
+      }
+    });
+  })();
+
+  // ---- EA WRC telemetry config install ----
+  (function () {
+    const btn = document.getElementById('wrcInstallBtn');
+    const out = document.getElementById('wrcSetupResult');
+    if (!btn || !out) return;
+
+    function showResult(msg, ok) {
+      out.style.display = '';
+      out.textContent = msg;
+      out.style.color = ok ? 'var(--green)' : '#ff8b8b';
+    }
+
+    btn.addEventListener('click', async () => {
+      const port = parseInt(document.getElementById('settingPort')?.value, 10) || 20777;
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = 'Installing…';
+      try {
+        const res = await callApi('install_wrc_config', port);
+        if (res && res.ok) {
+          showResult(`Installed to ${res.path} on port ${res.port}. Restart EA WRC and start a stage.`, true);
+        } else {
+          showResult(res?.error || 'Install failed — check the log.', false);
+        }
+      } catch (e) {
+        showResult('Install failed — check the log.', false);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
       }
     });
   })();
@@ -5741,14 +6397,14 @@
   (function () {
     const STEPS = [
       {
-        page: 'dashboard', target: '.stats-row',
-        title: 'Your Dashboard at a Glance',
-        body: 'These cards show live status — bridge state, how many lights are active, your current group, and how many packets your game has sent.',
+        page: 'dashboard', target: '.pw-hero',
+        title: 'Your Pit Wall at a Glance',
+        body: 'This strip shows live status — bridge state, the address it listens on, packets per second, race events, active lights, and uptime.',
       },
       {
-        page: 'dashboard', target: '#startBtn',
+        page: 'dashboard', target: '#pwPowerBtn',
         title: 'Start the Bridge First',
-        body: 'Hit Start Bridge once to open the UDP listener. It stays running in the background and picks up every event F1 25 broadcasts over your local network.',
+        body: 'Hit this button once to open the UDP listener. It stays running in the background and picks up every event F1 25 broadcasts over your local network.',
       },
       {
         page: 'dashboard', target: '.quick-effects',
@@ -5914,8 +6570,12 @@
       const tEl = document.querySelector(step.target);
       if (!tEl) { card.style.opacity = '1'; return; }
 
-      tEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      await wait(340);
+      // Instant (not smooth) so the target is at its final position before we
+      // measure it. A smooth scroll is still mid-flight after the wait when the
+      // page starts far from the target (e.g. Settings scrolled to the bottom),
+      // which parks the spotlight and card off-screen and traps the tutorial.
+      tEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+      await wait(200);
 
       const r  = tEl.getBoundingClientRect();
       const P  = 10;

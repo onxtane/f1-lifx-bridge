@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GridGlow redesign concept 2 — Broadcast TV overlay</title>
+<!-- Design mockup, 2026-06-26. Alternative aesthetic for comparison against pit-wall-dashboard.html. Open directly in a browser. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+body{margin:0;min-height:100vh;background:#181c26;display:flex;align-items:center;justify-content:center;padding:32px}
+.bc{font-family:"Segoe UI",system-ui,sans-serif;color:#f5f6f8;width:660px}
+.bc *{box-sizing:border-box}
+.bc .mono{font-family:Consolas,monospace}
+.bc .panel{background:#12141d;border:0.5px solid rgba(255,255,255,.08)}
+.bc .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8b93a7}
+.bc .big{font-size:28px;font-weight:500;line-height:1.1}
+.bc .qb{transform:skewX(-10deg);border:0.5px solid rgba(255,255,255,.18);padding:6px 13px;font-size:11px;background:#12141d;display:inline-flex}
+.bc .qi{transform:skewX(10deg);display:inline-flex;align-items:center;gap:6px;color:#c9cfdd}
+.bc .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.bc .trow{display:flex;align-items:center;gap:8px;padding:9px 10px;font-size:12px}
+@keyframes bcp{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes bct{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+</style>
+</head>
+<body>
+<div class="bc" style="background:#0a0c14;border:0.5px solid rgba(255,255,255,.10);border-radius:12px;overflow:hidden">
+
+  <div style="display:flex;align-items:center;padding:10px 14px 10px 0;gap:10px">
+    <div style="transform:skewX(-12deg);background:#e10600;padding:8px 20px 8px 24px;margin-left:-8px">
+      <span style="transform:skewX(12deg);display:inline-block;font-size:14px;font-weight:500">GridGlow</span>
+    </div>
+    <div style="transform:skewX(-12deg);background:#12141d;border:0.5px solid rgba(255,255,255,.10);padding:8px 16px">
+      <span class="qi" style="gap:8px"><span style="font-size:12px;font-weight:500">F1 25</span><span class="mono" style="font-size:11px;color:#8b93a7">0.0.0.0:20777</span></span>
+    </div>
+    <span style="flex:1"></span>
+    <span style="display:flex;align-items:center;gap:6px"><span class="dot" style="background:#e10600;animation:bcp 1.4s infinite"></span><span class="lbl" style="color:#f5f6f8">Live</span></span>
+    <div class="qb" style="border-color:#e10600;background:#2a1014"><span class="qi" style="color:#ff8b8b"><i class="ti ti-player-stop" style="font-size:13px"></i>Stop</span></div>
+    <span class="mono" style="font-size:15px">14:32</span>
+    <i class="ti ti-minus" style="font-size:14px;color:#8b93a7"></i>
+    <i class="ti ti-x" style="font-size:14px;color:#8b93a7"></i>
+  </div>
+
+  <div style="background:#f5b02e;clip-path:polygon(0 0,100% 0,calc(100% - 16px) 100%,0 100%);display:flex;align-items:center;gap:9px;padding:8px 22px 8px 14px;animation:bcp 2.4s infinite">
+    <i class="ti ti-flag" style="font-size:15px;color:#412402"></i>
+    <span style="font-size:13px;font-weight:500;color:#412402">Yellow flag — sector 2</span>
+    <span style="flex:1"></span>
+    <span class="lbl" style="color:#633806;letter-spacing:.1em">Marshal zones 4–6</span>
+  </div>
+
+  <div style="display:flex;gap:12px;padding:14px">
+    <div class="panel" style="width:212px;flex-shrink:0">
+      <div class="trow" style="border-bottom:0.5px solid rgba(255,255,255,.08)"><span class="lbl">Lights</span><span style="flex:1"></span><span class="lbl" style="color:#5fe39a">3 on</span></div>
+      <div class="trow" style="border-left:4px solid #b3a7ff;background:#0e1119">
+        <span style="min-width:0"><span style="display:block;font-weight:500">Sim rig strip</span><span style="font-size:11px;color:#8b93a7">8 zones · sectors</span></span>
+        <span style="flex:1"></span><span class="lbl">LFX</span>
+      </div>
+      <div class="trow" style="border-left:4px solid #f5b02e">
+        <span style="min-width:0"><span style="display:block;font-weight:500">Desk left</span><span style="font-size:11px;color:#8b93a7">Bulb · all events</span></span>
+        <span style="flex:1"></span><span class="lbl">LFX</span>
+      </div>
+      <div class="trow" style="border-left:4px solid #f5b02e;background:#0e1119">
+        <span style="min-width:0"><span style="display:block;font-weight:500">Shapes panel</span><span style="font-size:11px;color:#8b93a7">9 panels · flags</span></span>
+        <span style="flex:1"></span><span class="lbl">NNL</span>
+      </div>
+      <div class="trow" style="color:#8b93a7;border-top:0.5px solid rgba(255,255,255,.08)"><i class="ti ti-plus" style="font-size:14px"></i><span style="font-size:11px">Add lights</span></div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div style="display:flex;gap:12px">
+        <div class="panel" style="flex:1.4;padding:11px 13px;border-bottom:2px solid #e10600">
+          <p class="lbl" style="margin:0 0 6px">Packets/s</p>
+          <p class="big mono" style="margin:0;display:flex;align-items:center;gap:10px">59.8 <svg width="58" height="17" viewBox="0 0 58 17"><polyline fill="none" stroke="#f5f6f8" stroke-width="1.5" points="0,10 7,9 14,12 21,8 29,10 36,7 43,10 50,8 58,9"/></svg></p>
+        </div>
+        <div class="panel" style="flex:1;padding:11px 13px"><p class="lbl" style="margin:0 0 6px">Events</p><p class="big mono" style="margin:0">12</p></div>
+        <div class="panel" style="flex:1;padding:11px 13px"><p class="lbl" style="margin:0 0 6px">Uptime</p><p class="big mono" style="margin:0">14:32</p></div>
+      </div>
+
+      <div class="panel" style="padding:11px 13px">
+        <p class="lbl" style="margin:0 0 8px">Track status</p>
+        <div style="display:flex;gap:6px">
+          <div style="flex:2;background:#1d5c38;clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);padding:9px 14px"><span style="font-size:14px;font-weight:500">S1</span><span style="font-size:11px;color:#bfe9cf;margin-left:8px">clear</span></div>
+          <div style="flex:3;background:#f5b02e;clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);padding:9px 14px;animation:bcp 1.6s infinite"><span style="font-size:14px;font-weight:500;color:#412402">S2</span><span style="font-size:11px;color:#633806;margin-left:8px">yellow</span></div>
+          <div style="flex:3;background:#1d5c38;clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);padding:9px 14px"><span style="font-size:14px;font-weight:500">S3</span><span style="font-size:11px;color:#bfe9cf;margin-left:8px">clear</span></div>
+        </div>
+      </div>
+
+      <div class="panel" style="padding:10px 13px;display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        <span class="lbl" style="margin-right:2px">Quick effects</span>
+        <span class="qb"><span class="qi"><span class="dot" style="background:#e24b4a"></span>Start lights</span></span>
+        <span class="qb"><span class="qi"><span class="dot" style="background:#3ddc84"></span>Lights out</span></span>
+        <span class="qb"><span class="qi"><span class="dot" style="background:#f5b02e"></span>Yellow</span></span>
+        <span class="qb"><span class="qi"><span class="dot" style="background:#ff5d5d"></span>Red</span></span>
+        <span class="qb"><span class="qi"><span class="dot" style="background:#b3a7ff"></span>Fastest lap</span></span>
+        <span class="qb"><span class="qi"><span class="dot" style="background:#f5f6f8"></span>Chequered</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:stretch;border-top:0.5px solid rgba(255,255,255,.08)">
+    <div style="background:#e10600;padding:7px 16px;clip-path:polygon(0 0,100% 0,calc(100% - 12px) 100%,0 100%)"><span class="lbl" style="color:#fff">Events</span></div>
+    <div style="flex:1;overflow:hidden;display:flex;align-items:center">
+      <div class="mono" style="white-space:nowrap;font-size:11px;color:#c9cfdd;animation:bct 30s linear infinite">
+        <span style="padding-right:40px">14:02:11 Yellow flag — sector 2&nbsp;&nbsp;·&nbsp;&nbsp;14:01:48 Fastest lap 1:31.204&nbsp;&nbsp;·&nbsp;&nbsp;14:01:03 Blue flag — car behind&nbsp;&nbsp;·&nbsp;&nbsp;13:58:22 Lights out&nbsp;&nbsp;·&nbsp;&nbsp;13:58:07 Start lights 5</span>
+        <span style="padding-right:40px">14:02:11 Yellow flag — sector 2&nbsp;&nbsp;·&nbsp;&nbsp;14:01:48 Fastest lap 1:31.204&nbsp;&nbsp;·&nbsp;&nbsp;14:01:03 Blue flag — car behind&nbsp;&nbsp;·&nbsp;&nbsp;13:58:22 Lights out&nbsp;&nbsp;·&nbsp;&nbsp;13:58:07 Start lights 5</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

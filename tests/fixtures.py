@@ -10,12 +10,17 @@ import struct
 # _HEADER_FORMAT_2425 = "<HBBBBBQfIIBB"  (bridge_core.py)
 _F1_HEADER_FMT = "<HBBBBBQfIIBB"
 
-PACKET_ID_SESSION    = 1
-PACKET_ID_EVENT      = 3
-PACKET_ID_CAR_STATUS = 7
+PACKET_ID_SESSION        = 1
+PACKET_ID_EVENT          = 3
+PACKET_ID_CAR_TELEMETRY  = 6
+PACKET_ID_CAR_STATUS     = 7
 
 _CAR_STATUS_DATA_SIZE = 55
 _FIA_FLAG_OFFSET      = 28   # within a CarStatusData block
+
+_CAR_TELEMETRY_DATA_SIZE = 60
+_ENGINE_RPM_OFFSET       = 16   # uint16, within a CarTelemetryData block
+_REV_LIGHTS_PCT_OFFSET   = 19   # uint8 (0–100), within a CarTelemetryData block
 
 
 def f1_header(packet_id, player_idx=0, packet_format=2025):
@@ -80,6 +85,19 @@ def f1_car_status_fia(flag, player_idx=0):
     off = player_idx * _CAR_STATUS_DATA_SIZE + _FIA_FLAG_OFFSET
     struct.pack_into("<b", body, off, flag)   # int8, signed
     return f1_header(PACKET_ID_CAR_STATUS, player_idx) + bytes(body)
+
+
+def f1_car_telemetry(rev_lights_percent, engine_rpm=11000, player_idx=0):
+    """Car Telemetry packet (ID 6) carrying rev-lights % and RPM for the player.
+
+    Layout: CarTelemetryData[22] after the header, 60 bytes each; within a block
+    m_engineRPM is a uint16 at +16 and m_revLightsPercent a uint8 at +19.
+    """
+    body = bytearray(_CAR_TELEMETRY_DATA_SIZE * 22)
+    base = player_idx * _CAR_TELEMETRY_DATA_SIZE
+    struct.pack_into("<H", body, base + _ENGINE_RPM_OFFSET, engine_rpm)
+    body[base + _REV_LIGHTS_PCT_OFFSET] = max(0, min(100, rev_lights_percent))
+    return f1_header(PACKET_ID_CAR_TELEMETRY, player_idx) + bytes(body)
 
 
 def f1_session_marshal(flag, num_zones=1):

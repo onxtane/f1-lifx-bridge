@@ -123,6 +123,55 @@ class F1DispatchTests(unittest.TestCase):
             self.feed(fx.f1_session_zones([(0.5, 3)])),
             [("sector_status", ([0, 3, 0],)), ("yellow_flag", ())])
 
+    # ── Live RPM meter (opt-in; #12) ─────────────────────────────────────────
+    def test_rpm_meter_fires_when_enabled(self):
+        self.bridge.enabled_events = frozenset({"rpm_meter"})
+        self.assertEqual(self.feed(fx.f1_car_telemetry(50)),
+                         [("rpm_meter", (50,))])
+
+    def test_rpm_meter_off_by_default(self):
+        # enabled_events None → opt-in RPM meter inactive
+        self.assertEqual(self.feed(fx.f1_car_telemetry(50)), [])
+
+    def test_rpm_meter_repaints_only_on_bucket_change(self):
+        self.bridge.enabled_events = frozenset({"rpm_meter"})
+        self.feed(fx.f1_car_telemetry(50))        # bucket 8 → paints
+        self.bridge.dispatches.clear()
+        self.feed(fx.f1_car_telemetry(53))        # still bucket 8 → no repaint
+        self.assertEqual(self.bridge.dispatches, [])
+        self.assertEqual(self.feed(fx.f1_car_telemetry(75)),  # bucket 12 → repaints
+                         [("rpm_meter", (75,))])
+
+    def test_rpm_meter_suppressed_during_start_sequence(self):
+        self.bridge.enabled_events = frozenset({"rpm_meter"})
+        self.feed(fx.f1_start_lights(3))          # start lights own the strip
+        self.bridge.dispatches.clear()
+        self.assertEqual(self.feed(fx.f1_car_telemetry(90)), [])   # suppressed
+        self.feed(fx.f1_lights_out())             # lights out ends the sequence
+        self.bridge.dispatches.clear()
+        self.assertEqual(self.feed(fx.f1_car_telemetry(90)),
+                         [("rpm_meter", (90,))])
+
+    def test_rpm_meter_yields_to_sector_status(self):
+        # Both enabled → sector status wins; the RPM meter yields (one strip mode).
+        self.bridge.enabled_events = frozenset({"rpm_meter", "sector_status"})
+        self.assertEqual(self.feed(fx.f1_car_telemetry(90)), [])
+
+    def test_rpm_meter_blinks_at_redline(self):
+        # Top bucket (rev limiter) hands off to the self-sustaining blink loop.
+        self.bridge.enabled_events = frozenset({"rpm_meter"})
+        self.assertEqual(self.feed(fx.f1_car_telemetry(100)),
+                         [("rpm_redline", ())])
+
+    def test_rpm_meter_redline_fires_once_then_resumes_fill(self):
+        self.bridge.enabled_events = frozenset({"rpm_meter"})
+        self.feed(fx.f1_car_telemetry(100))       # enter redline → blink
+        self.bridge.dispatches.clear()
+        self.feed(fx.f1_car_telemetry(100))       # still redline → nothing new
+        self.assertEqual(self.bridge.dispatches, [])
+        self.assertEqual(self.feed(fx.f1_car_telemetry(60)),  # drop out → fill
+                         [("rpm_meter", (60,))])
+
     # ── Cross-cutting behaviour ──────────────────────────────────────────────
     def test_unsupported_packet_format_ignored(self):
         pkt = fx.f1_start_lights(5)
