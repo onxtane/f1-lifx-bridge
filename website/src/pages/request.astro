@@ -22,6 +22,7 @@ const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
       </a>
       <div class="nav-actions">
         <a href="/roadmap" class="btn-ghost">Roadmap</a>
+        <a href="/request" class="btn-ghost">Request a title</a>
         <a href={githubUrl} class="btn-ghost" target="_blank" rel="noopener">GitHub</a>
       </div>
     </div>
@@ -59,8 +60,8 @@ const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
         </div>
 
         <div class="field">
-          <label for="notes">Why do you want it? <span class="optional">(optional)</span></label>
-          <textarea id="notes" name="notes" rows="4" placeholder="Anything that helps us prioritise — how often you play it, what effects you'd want, etc." maxlength="1000"></textarea>
+          <label for="notes">Additional details <span class="optional">(optional)</span></label>
+          <textarea id="notes" name="notes" rows="4" placeholder="How often you play it, what effects you'd want, anything that helps us prioritise." maxlength="1000"></textarea>
         </div>
 
         <div class="field">
@@ -344,6 +345,8 @@ const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
   }
 
   /* ── SUCCESS ── */
+  [hidden] { display: none !important; }
+
   .success-state {
     text-align: center;
     padding: 60px 0;
