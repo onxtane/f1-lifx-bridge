@@ -4,6 +4,22 @@ All notable changes are documented here.
 
 ---
 
+## [0.10.3] — 2026-07-16
+
+### Added
+- **The RPM meter's colour ramp is yours to set** — Settings → Effects → Multizone. Four presets (classic green→red, blue→white, single-colour intensity, traffic) or up to six custom stops, with a live preview of what the strip will actually show. The default is unchanged, down to the byte, for anyone who leaves it alone. (#71)
+- **Effect replays inside the app** — Settings → Advanced → Effect Replays runs the three replay tools without a terminal: every F1 effect in race order, the RPM meter sweep, and sector status. They send real packets to the running bridge, so effects fire on your real lights without launching the game. Needs an F1 title selected and the bridge started. (#77)
+
+### Changed
+- **The redline now flashes your gradient** rather than a solid colour — at the limiter the strip is full, so the flash is that same picture switching on and off. A blue→white ramp no longer flashes red at the limiter. (#71)
+- **The RPM meter can be assigned per light** — it appears in Light Assignment, so one strip can run the revs while another stays on flags. It previously took over every multizone strip regardless. Existing setups keep the meter on the lights that already had it. (#71)
+
+### Fixed
+- **The idle colour now saves when you pick it.** It only ever persisted if you also toggled Slow Pulse — the picker updated the swatch and then quietly dropped your choice, so it reverted on the next launch. Long-standing; fixed while reworking the picker.
+- **The roadmap link in the README** pointed at a domain that has never existed.
+
+---
+
 ## [0.10.2] — 2026-07-16
 
 ### Added
