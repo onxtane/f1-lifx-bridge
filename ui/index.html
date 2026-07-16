@@ -2267,7 +2267,7 @@
           <div class="page-content settings-content cat-connection" style="overflow-y:auto;">
           <div class="settings-section" data-cat="app">
             <h3>App</h3>
-            <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
+            <div class="setting-row">
               <div>
                 <div class="setting-label">Show game selector on launch</div>
                 <div class="setting-hint">Ask which title you're playing each time the app opens</div>
@@ -2275,6 +2275,18 @@
               <div class="setting-control">
                 <label class="toggle-switch">
                   <input type="checkbox" id="settingShowGameSelector" checked>
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
+              <div>
+                <div class="setting-label">Advanced mode</div>
+                <div class="setting-hint" id="settingAdvancedModeHint">Adds the Advanced settings category — developer tools, diagnostics, and self-tests</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingAdvancedMode">
                   <span class="toggle-track"></span>
                 </label>
               </div>
@@ -3991,6 +4003,8 @@
     window._loadedSettings = settings || {};
     dismissSplash();
     if (!settings) return;
+
+    if (window._applyAdvancedMode) window._applyAdvancedMode(settings.advanced_mode);
 
     if (Object.prototype.hasOwnProperty.call(settings, 'enabled_events')) {
       applyEnabledEvents(settings.enabled_events);
@@ -6683,7 +6697,56 @@
     window._settingsSelectCat = selectCat;   // used by the tutorial
   })();
 
-  // ---- developer self-tests (hidden unless dev mode) ----
+  // ---- advanced mode — owns whether the Advanced settings category exists ----
+  (function () {
+    const advCat = document.getElementById('settingsCatAdvanced');
+    const toggle = document.getElementById('settingAdvancedMode');
+    const hint   = document.getElementById('settingAdvancedModeHint');
+    if (!advCat || !toggle) return;
+
+    // Running from source / GRIDGLOW_DEV=1 forces advanced mode on regardless
+    // of the toggle.
+    let forcedByDev = false;
+
+    function apply() {
+      const on = forcedByDev || toggle.checked;
+      advCat.style.display = on ? '' : 'none';
+      // Don't strand the user on a category that just disappeared.
+      const content = document.querySelector('#page-settings .settings-content');
+      if (!on && content && content.classList.contains('cat-advanced') && window._settingsSelectCat) {
+        window._settingsSelectCat('connection');
+      }
+    }
+
+    // Called once the saved settings arrive.
+    window._applyAdvancedMode = function (enabled) {
+      toggle.checked = !!enabled;
+      apply();
+    };
+
+    toggle.addEventListener('change', function () {
+      callApi('save_gui_settings', { advanced_mode: this.checked });
+      apply();
+    });
+
+    // The pywebview API is injected asynchronously, so defer until it's ready
+    // (or ask now if it already is) — calling too early returns null.
+    function checkDev() {
+      Promise.resolve(callApi('is_dev_mode')).then((dev) => {
+        forcedByDev = !!dev;
+        if (forcedByDev) {
+          toggle.checked  = true;
+          toggle.disabled = true;
+          if (hint) hint.textContent = 'Always on when running from source or with GRIDGLOW_DEV=1';
+        }
+        apply();
+      });
+    }
+    if (window.pywebview && window.pywebview.api) checkDev();
+    else window.addEventListener('pywebviewready', checkDev);
+  })();
+
+  // ---- developer self-tests (live inside the Advanced category) ----
   (function () {
     const section = document.getElementById('devToolsSection');
     const btn     = document.getElementById('runSelfTestsBtn');
@@ -6691,21 +6754,6 @@
     const badge   = document.getElementById('selfTestBadge');
     const output  = document.getElementById('selfTestOutput');
     if (!section || !btn) return;
-
-    // Reveal the Advanced settings category only when the backend reports dev
-    // mode. The pywebview API is injected asynchronously, so defer until it's
-    // ready (or call now if it already is) — calling too early returns null.
-    const advCat = document.getElementById('settingsCatAdvanced');
-    function revealIfDev() {
-      Promise.resolve(callApi('is_dev_mode')).then((dev) => {
-        if (dev && advCat) advCat.style.display = '';
-      });
-    }
-    if (window.pywebview && window.pywebview.api) {
-      revealIfDev();
-    } else {
-      window.addEventListener('pywebviewready', revealIfDev);
-    }
 
     btn.addEventListener('click', async () => {
       btn.disabled = true;
