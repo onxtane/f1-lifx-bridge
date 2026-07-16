@@ -84,7 +84,7 @@ F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, and EA SPORTS WRC broadcast 
 | Assetto Corsa | 🔜 Planned — [#49](https://github.com/onxtane/f1-lifx-bridge/issues/49) |
 | Project CARS 2 | 🔜 Planned — [#50](https://github.com/onxtane/f1-lifx-bridge/issues/50) |
 
-See the full roadmap at [gridglow.pages.dev/roadmap](https://gridglow.pages.dev/roadmap) or [#31](https://github.com/onxtane/f1-lifx-bridge/issues/31).
+See the full roadmap at [f1-lifx-bridge.pages.dev/roadmap](https://f1-lifx-bridge.pages.dev/roadmap) or [#31](https://github.com/onxtane/f1-lifx-bridge/issues/31).
 
 ---
 
