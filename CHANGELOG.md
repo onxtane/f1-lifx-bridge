@@ -4,6 +4,20 @@ All notable changes are documented here.
 
 ---
 
+## [0.10.4] — 2026-07-16
+
+### Added
+- **Forza Horizon 5 and Forza Motorsport** are now offered in the game selector. Race start and return to menus have actually worked on both all along — the Sled section of Forza's Data Out telemetry is byte-identical across the family — but only Horizon 6 was listed, so there was no way to pick them. The Forza card now covers all three titles, the way the F1 card covers five. (#52, #54)
+
+### Changed
+- **Crash detection is Horizon 6 only, and now says so.** Horizon 5 and Motorsport don't send the collision data it needs; the effect row spells that out instead of leaving you to work it out.
+- **The Forza log names the packet layout it sees**, once per size, so a mis-detected title is visible rather than silent. The Horizon 5 / Horizon 6 split is worked out from packet size, and that size comes from documentation rather than from a running game — if yours reports something unexpected, that line is what tells us. (#52)
+
+### Fixed
+- **A hard-to-trace false crash flash.** The collision check now looks for a spike from rest rather than any high reading, so if the packet layout is ever misread, a stray flash can't turn into a strobe for a whole drive.
+
+---
+
 ## [0.10.3] — 2026-07-16
 
 ### Added
