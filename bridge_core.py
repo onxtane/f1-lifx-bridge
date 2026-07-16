@@ -1158,7 +1158,9 @@ class LocalLifxController:
         self.clear_active_effect()
         self._current_effect_key = 'white_warning'
         self._activate_curve('white_warning')
-        print("[WARNING] White flashing")
+        # Not a severity prefix: this is the white-flag effect firing, and the UI
+        # raises a banner for any [WARNING] line that reaches the log.
+        print("[EFFECT] White flashing")
         white = [0, 0, 65535, 4500]
         dark = [0, 0, 1, 3500]
         self.flash_colors([white, dark], loops=3, hold_ms=250)
