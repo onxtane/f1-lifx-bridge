@@ -167,7 +167,14 @@
     background:rgba(139,124,246,0.10);
     box-shadow:0 12px 40px rgba(139,124,246,0.22);
   }
-  .brand-card-locked{ opacity:0.38; cursor:not-allowed; pointer-events:none; }
+  /* Locked = visible but not selectable. Dim the content rather than the whole
+     card, so the "In progress" badge stays legible (a child can't undo a
+     parent's opacity). */
+  .brand-card-locked{ cursor:not-allowed; pointer-events:none; }
+  .brand-card-locked .brand-card-icon-wrap,
+  .brand-card-locked .brand-card-name,
+  .brand-card-locked .brand-card-tagline,
+  .brand-card-locked .brand-card-note{ opacity:0.4; }
   .brand-card-icon-wrap{
     width:72px; height:72px; border-radius:50%;
     background:rgba(139,124,246,0.14);
@@ -1418,6 +1425,24 @@
         </div>
         <div class="brand-card-name">Philips Hue</div>
         <div class="brand-card-tagline">Requires Hue Bridge<br>on your network</div>
+      </div>
+
+      <!-- Govee — not implemented yet (#62). Shown locked so users can see it's
+           coming rather than assuming it's unsupported. -->
+      <div class="brand-card brand-card-locked" id="brandGovee" aria-disabled="true">
+        <div class="brand-coming-soon">In progress</div>
+        <div class="brand-card-icon-wrap" style="background:rgba(45,212,191,0.1);border-color:rgba(45,212,191,0.22);box-shadow:0 0 28px rgba(45,212,191,0.1);">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="9" width="20" height="6" rx="3" stroke="rgba(45,212,191,0.7)" stroke-width="1.5"/>
+            <circle cx="6"  cy="12" r="1.2" fill="rgba(45,212,191,0.7)"/>
+            <circle cx="10" cy="12" r="1.2" fill="rgba(45,212,191,0.7)"/>
+            <circle cx="14" cy="12" r="1.2" fill="rgba(45,212,191,0.7)"/>
+            <circle cx="18" cy="12" r="1.2" fill="rgba(45,212,191,0.7)"/>
+          </svg>
+        </div>
+        <div class="brand-card-name">Govee</div>
+        <div class="brand-card-tagline">Local LAN control<br>Enabled in the Govee app</div>
+        <div class="brand-card-note">Support is being worked on</div>
       </div>
 
     </div>
