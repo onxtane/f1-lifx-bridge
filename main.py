@@ -32,6 +32,7 @@ import webview
 
 from bridge_runner import BridgeRunner
 
+import runtime_check
 from app_paths import BUNDLE_DIR, USER_DATA_DIR
 
 UI_FILE = BUNDLE_DIR / "ui" / "index.html"
@@ -367,6 +368,12 @@ class Api:
 
 
 def main():
+    # Before pywebview touches the rendering stack: if WebView2 or .NET is
+    # missing it neither renders nor fails usefully, so say what's wrong while we
+    # still can (#72).
+    if not runtime_check.verify_or_explain():
+        return
+
     api = Api()
 
     window = webview.create_window(

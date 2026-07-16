@@ -4,6 +4,13 @@ All notable changes are documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **A missing WebView2 or .NET runtime now explains itself instead of failing silently** — GridGlow draws its window with WebView2, reached through .NET. Neither is bundled, and when either was absent the app didn't fail usefully: without .NET it exited without a word (the crash landed in a windowed build's non-existent console), and without WebView2 it quietly rendered in Internet Explorer's engine instead, so the UI came up mangled with no clue why. Startup now checks for both first and, if either is missing or too old, shows a plain-language dialog naming what's needed and offering to open Microsoft's download page. (#72)
+
+---
+
 ## [0.10.1] — 2026-07-16
 
 ### Fixed

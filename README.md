@@ -94,6 +94,11 @@ See the full roadmap at [gridglow.pages.dev/roadmap](https://gridglow.pages.dev/
 - F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, or EA SPORTS WRC on PC with UDP telemetry enabled
 - LIFX, Nanoleaf, or Philips Hue device on the same LAN
 
+GridGlow draws its window using the **Microsoft Edge WebView2 runtime** and **.NET Framework 4.6.2+**.
+Both ship with Windows 10/11, so there's normally nothing to install — but they're absent from some
+LTSC, stripped-down, and VM images. If either is missing, GridGlow says so on startup and points you
+at Microsoft's installer rather than failing silently.
+
 ### Running from source
 
 ```
@@ -192,6 +197,7 @@ f1_lifx_app/
 ├── main.py                  # pywebview window + JS API layer
 ├── bridge_runner.py         # threading wrapper, settings dispatch, game switching
 ├── bridge_core.py           # F1 UDP listener, packet parsing, all lighting effects
+├── runtime_check.py         # startup gate: WebView2 / .NET present, or explain why not
 ├── dr2_bridge.py            # DiRT Rally 2.0 UDP listener (extends bridge_core)
 ├── forza_bridge.py          # Forza Data Out UDP listener (extends bridge_core)
 ├── wrc_bridge.py            # EA SPORTS WRC UDP listener (extends bridge_core)
