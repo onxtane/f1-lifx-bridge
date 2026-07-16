@@ -6995,13 +6995,19 @@
       if (!running) setStatus('', null);
     };
 
-    (async function load() {
-      const list = await callApi('list_replays');
-      render(list || []);
-      // A replay survives a settings-page revisit, so re-sync on load.
-      const st = await callApi('get_replay_state');
-      if (st && st.running) window.setReplayRunning(true, st.key);
-    })();
+    // Wait for the API before asking for the list (or ask now if it's already
+    // up) — calling too early returns null, which would render an empty section
+    // with no way to run anything.
+    function load() {
+      Promise.resolve(callApi('list_replays')).then(async (list) => {
+        render(list || []);
+        // A replay outlives a trip to another page, so re-sync on load.
+        const st = await callApi('get_replay_state');
+        if (st && st.running) window.setReplayRunning(true, st.key);
+      });
+    }
+    if (window.pywebview && window.pywebview.api) load();
+    else window.addEventListener('pywebviewready', load);
   })();
 </script>
 
