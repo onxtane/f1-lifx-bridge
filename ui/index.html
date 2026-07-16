@@ -3844,6 +3844,7 @@
         { key: 'white_warning',  label: 'White Warning',  icon: '⚪' },
         { key: 'black_flag',     label: 'Black Flag',     icon: '🏴' },
         { key: 'neutral',        label: 'Track Clear',    icon: '💡' },
+        { key: 'rpm_meter',      label: 'RPM Meter',      icon: '📊' },
       ],
       lpPills: [
         { label: 'Idle',          animKey: 'Idle'          },
@@ -5463,6 +5464,7 @@
     { key: 'white_warning',  label: 'White Warning',   icon: '⚪' },
     { key: 'black_flag',     label: 'Black Flag',      icon: '🏴' },
     { key: 'neutral',        label: 'Track Clear',     icon: '💡' },
+    { key: 'rpm_meter',      label: 'RPM Meter',       icon: '📊' },
   ];
 
   (function () {
@@ -5472,6 +5474,23 @@
     // null = all effects; Set = specific effects enabled
     let _assignments = {};  // { lightLabel: null | Set<effectKey> }
 
+    // rpm_meter used to bypass light assignment entirely, so it ran on every
+    // strip and there was no checkbox to tick. Now that it's assignable, an
+    // existing explicit assignment would read as "RPM off" and the meter would
+    // vanish for anyone who'd ever customised their lights. Tick it on once so
+    // they keep what they already had; after that the choice is theirs.
+    const RPM_MIGRATION_KEY = 'lifx_la_rpm_meter_migrated';
+
+    function migrateRpmMeter() {
+      if (localStorage.getItem(RPM_MIGRATION_KEY)) return false;
+      let touched = false;
+      for (const val of Object.values(_assignments)) {
+        if (val instanceof Set && !val.has('rpm_meter')) { val.add('rpm_meter'); touched = true; }
+      }
+      localStorage.setItem(RPM_MIGRATION_KEY, '1');
+      return touched;
+    }
+
     function load() {
       try {
         const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
@@ -5480,6 +5499,7 @@
           _assignments[label] = val === null ? null : new Set(val);
         }
       } catch { _assignments = {}; }
+      if (migrateRpmMeter()) save();
     }
 
     function save() {

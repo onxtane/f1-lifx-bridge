@@ -1051,9 +1051,10 @@ class LocalLifxController:
 
         Lit zones grow from the low-rev end, coloured along rpm_gradient by
         position (green → red by default); unlit zones go dark. Like
-        sector_status this is a mode, not a
-        per-effect flash: it paints every multizone strip directly and bypasses
-        per-effect light assignment. Direction follows the start-lights setting.
+        sector_status this is a mode rather than a per-effect flash — it paints
+        multizone strips directly — but it does respect light assignment, so you
+        can pick which strips run the meter. Direction follows the start-lights
+        setting.
         """
         self.clear_active_effect()
         self._current_effect_key = 'rpm_meter'
@@ -1064,17 +1065,9 @@ class LocalLifxController:
             print(f"[RPM] {percent}%")
             return
 
-        strips = [l for l in self.lights if isinstance(l, MultiZoneLight)]
-        if not strips:
-            if self.log_callback and not self._rpm_warned_no_strip:
-                self.log_callback("[RPM] No multizone strip in the active lights "
-                                  "— the RPM meter needs a multizone strip to display.")
-                self._rpm_warned_no_strip = True
+        strips = self._rpm_strips()
+        if strips is None:
             return
-        self._rpm_warned_no_strip = False
-
-        dark = [0, 0, self._scale_brightness(150), 3500]
-        ltr = self.mz_startlights_direction == "ltr"
 
         for light in strips:
             try:
@@ -1082,24 +1075,59 @@ class LocalLifxController:
                 if zc < 1:
                     continue
                 lit = max(0, min(zc, round(pct * zc)))
-                for pos in range(zc):
-                    # pos runs from the low-rev end; zone_idx maps it onto the
-                    # physical strip per the configured fill direction.
-                    zone_idx = pos if ltr else (zc - 1 - pos)
-                    if pos < lit:
-                        t = pos / max(zc - 1, 1)          # 0 = low rev, 1 = redline
-                        hue, sat, val = sample_rpm_gradient(self.rpm_gradient, t)
-                        color = [hue, sat,
-                                 self._scale_brightness(round(val * RPM_FILL_BRIGHTNESS)),
-                                 3500]
-                    else:
-                        color = dark
-                    light.set_zone_color(zone_idx, zone_idx, color, 40, rapid=True)
+                self._paint_rpm_zones(light, zc, lit, RPM_FILL_BRIGHTNESS,
+                                      duration_ms=40, batched=False)
             except Exception as exc:
                 msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
                 print(msg)
                 if self.log_callback:
                     self.log_callback(msg)
+
+    def _rpm_strips(self):
+        """Multizone strips assigned to the RPM meter, or None if there are none.
+
+        Honours light assignment (#71 follow-up): the meter used to grab every
+        strip regardless, so there was no way to keep one strip for flags while
+        another ran the revs.
+        """
+        strips = [l for l in self._effect_lights() if isinstance(l, MultiZoneLight)]
+        if not strips:
+            if self.log_callback and not self._rpm_warned_no_strip:
+                self.log_callback("[RPM] No multizone strip assigned to the RPM meter "
+                                  "— it needs a multizone strip to display. Check "
+                                  "Light Assignment.")
+                self._rpm_warned_no_strip = True
+            return None
+        self._rpm_warned_no_strip = False
+        return strips
+
+    def _paint_rpm_zones(self, light, zone_count, lit, full_brightness,
+                         duration_ms=40, batched=False):
+        """Paint one strip: zones below `lit` take their gradient colour, rest dark.
+
+        Shared by the fill and the redline blink so the two can't drift — the
+        blink is the same picture, just at full brightness and flashing.
+
+        `batched` buffers every zone and applies them in one go (apply=0 until
+        the last). The blink needs that or the strip tears zone-by-zone at
+        7.7 Hz; the fill doesn't, and its 40 ms fade does the smoothing.
+        """
+        dark = [0, 0, self._scale_brightness(150), 3500]
+        ltr = self.mz_startlights_direction == "ltr"
+        for pos in range(zone_count):
+            # pos runs from the low-rev end; zone_idx maps it onto the physical
+            # strip per the configured fill direction.
+            zone_idx = pos if ltr else (zone_count - 1 - pos)
+            if pos < lit:
+                t = pos / max(zone_count - 1, 1)      # 0 = low rev, 1 = redline
+                hue, sat, val = sample_rpm_gradient(self.rpm_gradient, t)
+                color = [hue, sat,
+                         self._scale_brightness(round(val * full_brightness)), 3500]
+            else:
+                color = dark
+            apply = 1 if (not batched or pos == zone_count - 1) else 0
+            light.set_zone_color(zone_idx, zone_idx, color, duration_ms,
+                                 rapid=True, apply=apply)
 
     def rpm_redline(self):
         """Blink the whole strip rapidly at the rev limiter, like an F1 wheel's
@@ -1115,30 +1143,26 @@ class LocalLifxController:
             print("[RPM] redline blink")
             return
 
-        strips = [l for l in self.lights if isinstance(l, MultiZoneLight)]
-        if not strips:
-            if self.log_callback and not self._rpm_warned_no_strip:
-                self.log_callback("[RPM] No multizone strip in the active lights "
-                                  "— the RPM meter needs a multizone strip to display.")
-                self._rpm_warned_no_strip = True
+        strips = self._rpm_strips()
+        if strips is None:
             return
-        self._rpm_warned_no_strip = False
 
         if self.is_effect_active("rpm_redline"):
             return   # already blinking
         self.set_active_effect("rpm_redline")
         self._rpm_blink_gen += 1
         gen = self._rpm_blink_gen
-        threading.Thread(target=self._rpm_redline_loop, args=(gen,), daemon=True).start()
+        # Hand the strips over rather than re-resolving them on the blink thread:
+        # _effect_lights() reads _current_effect_key, which another effect can
+        # change out from under us mid-flash.
+        threading.Thread(target=self._rpm_redline_loop, args=(gen, strips),
+                         daemon=True).start()
 
-    def _rpm_redline_loop(self, gen):
-        # Blink the gradient's top colour, not a hard-coded red: that top stop
-        # *is* the redline colour, so a blue -> white ramp shouldn't suddenly
-        # flash red at the limiter. Full 65535 here (vs the fill's 60000) keeps
-        # the blink brighter than the strip it interrupts. On the default ramp
-        # the top stop is red, so this is unchanged.
-        hue, sat, val = self.rpm_gradient[-1]
-        red  = [hue, sat, self._scale_brightness(round(val * 65535)), 3500]
+    def _rpm_redline_loop(self, gen, strips):
+        # Flash the whole gradient, not one solid colour: at the limiter the
+        # strip is full, so the blink is that same picture switching on and off.
+        # Full 65535 here (vs the fill's 60000) keeps the flash brighter than the
+        # fill it interrupts.
         dark = [0, 0, self._scale_brightness(120), 3500]
         on = True
         # Schedule toggles against a monotonic clock so the blink stays even no
@@ -1146,12 +1170,16 @@ class LocalLifxController:
         # would add the (variable) send time to every half-cycle and jitter it.
         next_toggle = time.monotonic()
         while self.is_effect_active("rpm_redline") and self._rpm_blink_gen == gen:
-            color = red if on else dark
-            for light in self.lights:
-                if not isinstance(light, MultiZoneLight):
-                    continue
+            for light in strips:
                 try:
-                    light.set_zone_color(0, 255, color, 0, rapid=True)
+                    zc = self._live_zone_count(light)
+                    if zc < 1:
+                        continue
+                    if on:
+                        self._paint_rpm_zones(light, zc, zc, 65535,
+                                              duration_ms=0, batched=True)
+                    else:
+                        light.set_zone_color(0, 255, dark, 0, rapid=True)
                 except Exception as exc:
                     msg = f"[LIFX ERROR] {self.safe_label(light)}: {exc}"
                     print(msg)
