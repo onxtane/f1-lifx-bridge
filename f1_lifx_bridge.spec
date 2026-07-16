@@ -13,7 +13,7 @@ IS_WIN = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
 
 # Keep in sync with the UI/website version on release.
-APP_VERSION = "0.10.0"
+APP_VERSION = "0.10.1"
 
 block_cipher = None
 

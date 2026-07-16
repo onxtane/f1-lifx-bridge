@@ -1,5 +1,5 @@
 ---
-const version = "0.10.0";
+const version = "0.10.1";
 const downloadUrl = `https://github.com/onxtane/f1-lifx-bridge/releases/download/v${version}/F1LifxBridge-v${version}.zip`;
 const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
 
@@ -34,6 +34,7 @@ const gamePages = [
       { name: "Chequered Flag", color: "#f8fafc", desc: "Race end",                              delay: "0.6s", id: "chequered-flag" },
       { name: "White Warning",  color: "#cbd5e1", desc: "Slow vehicle on track",                  delay: "0.7s", id: "white-warning"  },
       { name: "Neutral",        color: "#fbbf24", desc: "Returns to your idle colour",            delay: "0.8s", id: "neutral"        },
+      { name: "RPM Meter",      color: "#ef4444", desc: "Multizone strips fill with live engine revs and blink at the redline", delay: "0.9s", id: "rpm", wide: true },
     ],
   },
   {
@@ -221,7 +222,7 @@ const features = [
           <div class={`ev-page${gi === 0 ? ' active' : ''}`} data-game={game.id}>
             <div class="events-grid">
               {game.events.map(e => (
-                <div class="event-card" data-effect={e.id} style={`--c: ${e.color}; --delay: ${e.delay}`}>
+                <div class={`event-card${e.wide ? ' event-card-wide' : ''}`} data-effect={e.id} style={`--c: ${e.color}; --delay: ${e.delay}`}>
                   <div class="effect-canvas"></div>
                   <div class="event-bar"></div>
                   <div class="event-name">{e.name}</div>
@@ -801,6 +802,7 @@ const features = [
     grid-template-columns: repeat(3, 1fr);
     gap: 14px;
   }
+  .event-card-wide { grid-column: 1 / -1; }
   .event-card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -1286,6 +1288,35 @@ function chequeredEffect(canvas) {
   return () => { alive=false; timers.forEach(clearTimeout); canvas.innerHTML=''; canvas.style.cssText=''; };
 }
 
+// ── effect: RPM meter (rev up, redline blink) ─────────────
+function rpmEffect(canvas) {
+  canvas.style.cssText = 'position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:0;';
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg, rgba(34,197,94,0.30), rgba(245,158,11,0.30) 62%, rgba(239,68,68,0.42));transition:width .05s linear;';
+  const red = document.createElement('div');
+  red.style.cssText = 'position:absolute;inset:0;background:rgba(239,68,68,0);transition:background .06s;';
+  canvas.appendChild(bar);
+  canvas.appendChild(red);
+  let alive = true, raf;
+  const start = performance.now();
+  const CYCLE = 2000;
+  const tick = () => {
+    if (!alive) return;
+    const now = performance.now();
+    const p = ((now - start) % CYCLE) / CYCLE;
+    let rev;
+    if (p < 0.55) rev = p / 0.55;                    // rev up
+    else if (p < 0.75) rev = 1;                       // hold at redline
+    else rev = Math.max(0, 1 - (p - 0.75) / 0.10);    // drop back
+    bar.style.width = (rev * 100).toFixed(1) + '%';
+    const atRedline = rev > 0.9 && p < 0.75;
+    red.style.background = (atRedline && Math.floor(now / 80) % 2 === 0) ? 'rgba(239,68,68,0.28)' : 'rgba(239,68,68,0)';
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  return () => { alive = false; cancelAnimationFrame(raf); canvas.innerHTML = ''; canvas.style.cssText = ''; };
+}
+
 // ── effect registry ───────────────────────────────────────
 const handlers = {
   'start-lights':   startLightsEffect,
@@ -1298,6 +1329,7 @@ const handlers = {
   'white-warning':  makeBlink('#cbd5e1', 3,  200, 240, 1400),
   'neutral':        makePulse('#fbbf24', 2000),
   'crash':          makeBlink('#ffffff', 1,  120, 0,   1800),
+  'rpm':            rpmEffect,
 };
 
 // ── wire up cards (all game pages) ───────────────────────

@@ -4,6 +4,13 @@ All notable changes are documented here.
 
 ---
 
+## [0.10.1] — 2026-07-16
+
+### Fixed
+- **Bridge no longer crashes when switching to DiRT Rally 2.0 or Forza** — the in-game setup hints those listeners print contain arrow characters, which a Windows cp1252 console can't encode. The resulting `UnicodeEncodeError` escaped the listener loop and killed the bridge thread. Logging now swallows print failures outright (no log line can take down a listener), stdout/stderr are forced to UTF-8 with replacement, and the affected log strings are plain ASCII. The same fault was waiting in the DiRT Rally 2.0 and Forza crash logs, which printed a delta symbol. (#76)
+
+---
+
 ## [0.10.0] — 2026-07-15
 
 ### Added
