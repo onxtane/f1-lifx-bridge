@@ -114,6 +114,7 @@ const features = [
       </span>
       <div class="nav-actions">
         <a href="/roadmap" class="btn-ghost">Roadmap</a>
+        <a href="/help-wanted" class="btn-ghost">Help wanted</a>
         <a href="/request" class="btn-ghost">Request a title</a>
         <a href={githubUrl} class="btn-ghost" target="_blank" rel="noopener">GitHub</a>
         <a href={downloadUrl} class="btn-primary nav-dl">Download <span class="ver">v{version}</span></a>
@@ -713,6 +714,11 @@ const features = [
     z-index: 1;
   }
   @media (max-width: 600px) {
+    /* Four nav items don't fit a phone on one row. Let the bar grow to a
+       second row rather than break labels mid-button. */
+    .nav-inner { height: auto; min-height: 58px; padding: 12px 16px; flex-wrap: wrap; row-gap: 10px; }
+    .nav-actions { gap: 6px; flex-wrap: wrap; }
+    .btn-ghost { padding: 7px 10px; font-size: 12px; white-space: nowrap; }
     .screenshots-grid { grid-template-columns: 1fr; }
     .screenshot-main  { grid-column: 1; }
   }

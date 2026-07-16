@@ -1,109 +1,59 @@
 ---
 const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
-const issueUrl  = "https://github.com/onxtane/f1-lifx-bridge/issues/31";
+const issue = (n) => `${githubUrl}/issues/${n}`;
 
-const titles = [
+// Every item here is blocked on hardware, a machine, or a game we don't have —
+// not on time. Each one says plainly what would unblock it.
+const blockers = [
   {
-    name: "F1 24",
-    status: "done",
-    color: "#22c55e",
-    desc: "Identical 29-byte UDP header to F1 25. Shipped — select F1 25 / 24 in the game selector.",
-    eta: "Done",
+    name: "Philips Hue gradient strips",
+    need: "A Hue strip",
+    color: "#f59e0b",
+    desc: "Per-segment control is written, but it has never run on a real gradient strip. If you own one, we'd like to know whether the segments light up the way they should — or whether it does nothing at all.",
+    ask: "Tell us what happens when you try it.",
+    n: 44,
   },
   {
-    name: "F1 2021 – 2023",
-    status: "done",
-    color: "#22c55e",
-    desc: "Same Codemasters UDP protocol, different header layout (24–28 bytes vs 29). Version-aware packet parsing shipped — select your title in the game selector.",
-    eta: "Done",
-  },
-  {
-    name: "DiRT Rally 2.0",
-    status: "done",
-    color: "#22c55e",
-    desc: "UDP via hardware_settings_config.xml with extradata=3. OutSim protocol — stage start, split checkpoints, stage finish, and service park return all shipped.",
-    eta: "Done",
-  },
-  {
-    name: "Forza Horizon 6",
-    status: "done",
-    color: "#22c55e",
-    desc: "UDP Data Out via HUD & Gameplay settings. Race events shipped — select Forza Horizon 6 in the game selector.",
-    eta: "Done",
-  },
-  {
-    name: "Forza Horizon 5",
-    status: "done",
-    color: "#22c55e",
-    desc: "UDP Data Out via HUD & Gameplay settings. Race start and return to menus shipped — pick Forza in the game selector. Crash detection is Horizon 6 only.",
-    eta: "Done",
-  },
-  {
-    name: "Forza Motorsport",
-    status: "done",
-    color: "#22c55e",
-    desc: "Shares the Forza Data Out format — one parser covers all three titles. Race start and return to menus shipped; crash is Horizon 6 only.",
-    eta: "Done",
-  },
-  {
-    name: "EA Sports WRC",
-    status: "done",
-    color: "#22c55e",
-    desc: "UDP JSON telemetry via Documents\\My Games\\WRC\\telemetry\\. Stage and rally events shipped — select EA Sports WRC in the game selector.",
-    eta: "Done",
-  },
-  {
-    name: "WRC 8 / 9 / 10 / Generations",
-    status: "planned",
-    color: "#eab308",
-    desc: "UDP telemetry confirmed across the KT Racing WRC series. Widely supported by third-party dash apps.",
-    eta: "Planned",
-  },
-  {
-    name: "Assetto Corsa",
-    status: "next",
-    color: "#22c55e",
-    desc: "UDP remote telemetry server on port 9996. Broad sim community, excellent documentation.",
-    eta: "Up next",
-  },
-  {
-    name: "Project CARS / CARS 2",
-    status: "planned",
+    name: "Govee lights",
+    need: "A Govee device",
     color: "#06b6d4",
-    desc: "UDP Shared Data output with configurable IP and port. Covers the SMS engine used across multiple titles.",
-    eta: "Planned",
+    desc: "Govee's LAN API looks like a good fit for GridGlow — local, no cloud, no key. We don't have a Govee device to build or test against.",
+    ask: "Own one? Say so on the issue.",
+    n: 62,
   },
   {
-    name: "BeamNG.drive",
-    status: "planned",
+    name: "macOS",
+    need: "A Mac",
     color: "#a78bfa",
-    desc: "OutGauge UDP available via in-game app activation. Unique open-world crash physics add a new dimension to lighting effects.",
-    eta: "Planned",
+    desc: "The macOS build compiles and passes CI on Apple Silicon, but it has never actually been launched on a Mac. It almost certainly has rough edges we can't see from here.",
+    ask: "Run it and tell us what breaks.",
+    n: 45,
   },
   {
-    name: "Live For Speed",
-    status: "considering",
-    color: "#64748b",
-    desc: "One of the earliest OutSim/OutGauge UDP implementations. Niche but dedicated community.",
-    eta: "Considering",
+    name: "Forza Horizon 5 · Forza Motorsport",
+    need: "Either game",
+    color: "#2dd4bf",
+    desc: "Both are supported: race start and return to menus. We worked the packet format out from documentation rather than from the games themselves, so one detail is still unconfirmed.",
+    ask: "Start the bridge, drive for ten seconds, and send us the “Packet size” line from the log.",
+    n: 52,
   },
   {
-    name: "KartKraft",
-    status: "considering",
-    color: "#64748b",
-    desc: "Native UDP output configurable via Game.ini. Karting-specific event set.",
-    eta: "Considering",
+    name: "EA SPORTS WRC",
+    need: "The game",
+    color: "#4f8ef7",
+    desc: "Stage start, split checkpoints and stage finish are built and tested against crafted packets — but nobody has confirmed they fire during a real rally.",
+    ask: "Run a stage and tell us if your lights keep up.",
+    n: 56,
   },
   {
-    name: "DiRT 4",
-    status: "considering",
-    color: "#64748b",
-    desc: "Same OutSim protocol as DiRT Rally series. Legacy title but straightforward to add.",
-    eta: "Considering",
+    name: "iRacing",
+    need: "A subscription",
+    color: "#e2e8f0",
+    desc: "Requested, researched, and ready to start. It's the first title that doesn't broadcast over UDP, so it's a bigger job than the rest — and it needs an account to test against.",
+    ask: "Subscriber who'd help test? Get in touch.",
+    n: 69,
   },
 ];
-
-const statusOrder = ["next", "planned", "considering"];
 ---
 
 <!DOCTYPE html>
@@ -111,8 +61,8 @@ const statusOrder = ["next", "planned", "considering"];
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Roadmap — GridGlow</title>
-  <meta name="description" content="GridGlow is expanding beyond F1 25. See which sim racing titles are coming next — Forza, DiRT, WRC, Assetto Corsa and more." />
+  <title>Help wanted — GridGlow</title>
+  <meta name="description" content="Some GridGlow features are built but unproven, because we don't own the lights, the games, or the hardware to test them. If you do, you can help." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 </head>
 <body>
@@ -125,8 +75,8 @@ const statusOrder = ["next", "planned", "considering"];
         GridGlow
       </a>
       <div class="nav-actions">
-        <a href="/roadmap" class="btn-ghost nav-active">Roadmap</a>
-        <a href="/help-wanted" class="btn-ghost">Help wanted</a>
+        <a href="/roadmap" class="btn-ghost">Roadmap</a>
+        <a href="/help-wanted" class="btn-ghost nav-active">Help wanted</a>
         <a href="/request" class="btn-ghost">Request a title</a>
         <a href={githubUrl} class="btn-ghost" target="_blank" rel="noopener">GitHub</a>
       </div>
@@ -139,42 +89,49 @@ const statusOrder = ["next", "planned", "considering"];
     <div class="hero-glow glow-teal"></div>
 
     <div class="hero-inner">
-      <div class="hero-badge rise" style="--d:.05s">Coming soon</div>
-      <h1 class="rise" style="--d:.14s">More sims.<br/><em>Same immersion.</em></h1>
+      <div class="hero-badge rise" style="--d:.05s">Help wanted</div>
+      <h1 class="rise" style="--d:.14s">Some things<br/><em>we can't test.</em></h1>
       <p class="hero-sub rise" style="--d:.24s">
-        GridGlow started with F1. It won't stop there.<br/>
-        Support for more sim racing titles is in active development — here's what's coming.
+        A few parts of GridGlow are written but unproven — not because they're unfinished,
+        but because we don't own the lights, the games, or the machines to try them on.
+        If you do, you can move them forward faster than we can.
       </p>
-      <a href={issueUrl} class="btn-ghost rise" style="--d:.34s" target="_blank" rel="noopener">
-        Follow development on GitHub →
-      </a>
     </div>
   </section>
 
-  <!-- ═══ ROADMAP GRID ═══ -->
+  <!-- ═══ BLOCKERS ═══ -->
   <section class="section">
     <div class="container">
-      <p class="eyebrow">TITLE SUPPORT</p>
-      <h2>The plan.</h2>
-      <p class="section-sub">GridGlow started with F1 25 and F1 24. Every title below sends live race data while you play — we're bringing the same lighting reactions to each one. Start sequences, flags, fastest laps: the moments that matter, in your room.</p>
+      <p class="eyebrow">WHAT'S BLOCKED</p>
+      <h2>What we're missing.</h2>
+      <p class="section-sub">
+        Each of these is built and waiting. None of them need code from you — just someone
+        with the right kit to say whether it works.
+      </p>
 
       <div class="roadmap-grid">
-        {titles.map(t => (
-          <div class={`roadmap-card status-${t.status}`}>
-            <div class="roadmap-accent" style={`background: linear-gradient(90deg, transparent, ${t.color}, transparent)`}></div>
+        {blockers.map(b => (
+          <a class="roadmap-card" href={issue(b.n)} target="_blank" rel="noopener">
+            <div class="roadmap-accent" style={`background: linear-gradient(90deg, transparent, ${b.color}, transparent)`}></div>
             <div class="roadmap-header">
-              <span class="roadmap-name">{t.name}</span>
-              <span class={`roadmap-badge badge-${t.status}`}>{t.eta}</span>
+              <span class="roadmap-name">{b.name}</span>
+              <span class="roadmap-badge">{b.need}</span>
             </div>
-            <p class="roadmap-desc">{t.desc}</p>
-          </div>
+            <p class="roadmap-desc">{b.desc}</p>
+            <p class="roadmap-ask">{b.ask} <span class="ref">#{b.n} →</span></p>
+          </a>
         ))}
       </div>
 
       <div class="not-listed">
-        <h3>Not on this list?</h3>
-        <p>Some titles — Assetto Corsa Competizione, iRacing, rFactor 2, RaceRoom — use shared memory rather than UDP broadcast and require a different integration path. They're not forgotten; they're a different workstream. Request a title below and we'll track it.</p>
-        <a href="/request" class="btn-ghost">Request a title →</a>
+        <h3>Why this page exists</h3>
+        <p>
+          GridGlow talks to hardware and reads live data out of games. Neither can be
+          faked convincingly — a test can prove the code does what we think, but only a
+          real strip in a real room, or a real car on a real lap, proves it does what you
+          want. Where we can't do that ourselves, we'd rather say so than pretend.
+        </p>
+        <a href={`${githubUrl}/issues`} class="btn-ghost" target="_blank" rel="noopener">Open an issue →</a>
       </div>
     </div>
   </section>
@@ -185,11 +142,11 @@ const statusOrder = ["next", "planned", "considering"];
       <span class="footer-logo">GridGlow</span>
       <div class="footer-links">
         <a href="/">Home</a>
+        <a href="/roadmap">Roadmap</a>
         <a href={githubUrl} target="_blank" rel="noopener">GitHub</a>
         <a href={`${githubUrl}/releases`} target="_blank" rel="noopener">Releases</a>
-        <a href={`${githubUrl}/blob/main/CHANGELOG.md`} target="_blank" rel="noopener">Changelog</a>
       </div>
-      <p class="footer-disclaimer">Not affiliated with Formula 1, FIA, LIFX, Nanoleaf, Codemasters, or any title listed above.</p>
+      <p class="footer-disclaimer">Not affiliated with Formula 1, FIA, LIFX, Nanoleaf, Govee, Philips Hue, Codemasters, or any title listed above.</p>
     </div>
   </footer>
 
@@ -199,26 +156,20 @@ const statusOrder = ["next", "planned", "considering"];
   document.querySelectorAll('.section').forEach(section => {
     section.querySelectorAll(SEL).forEach(el => el.classList.add('rise'));
   });
-
-  const io = new IntersectionObserver((entries, obs) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      entry.target.querySelectorAll('.rise:not(.playing)').forEach((el, i) => {
-        el.style.setProperty('--d', `${i * 0.06}s`);
-        el.classList.add('playing');
-      });
-      obs.unobserve(entry.target);
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (!e.isIntersecting) return;
+      e.target.style.setProperty('--d', (i * 0.05) + 's');
+      e.target.classList.add('playing');
+      io.unobserve(e.target);
     });
-  }, { threshold: 0.08 });
-
-  document.querySelectorAll('.section').forEach(s => io.observe(s));
-}());
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.section .rise').forEach(el => io.observe(el));
+})();
 </script>
-</body>
-</html>
 
 <style is:global>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
     --bg:       #0b1020;
@@ -229,7 +180,6 @@ const statusOrder = ["next", "planned", "considering"];
     --purple-l: #a78bfa;
     --text:     #f3f5f9;
     --muted:    #aab2c5;
-    --red:      #ef4444;
     --teal:     #06b6d4;
     --radius:   18px;
     --radius-s: 10px;
@@ -298,48 +248,43 @@ const statusOrder = ["next", "planned", "considering"];
   h2 { font-size: clamp(28px,4vw,42px); font-weight: 800; letter-spacing: -1px; margin-bottom: 14px; }
   .section-sub { font-size: 15px; color: var(--muted); max-width: 640px; margin-bottom: 48px; line-height: 1.7; }
 
-  /* ── ROADMAP GRID ── */
+  /* ── CARDS ── */
   .roadmap-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 64px; }
-
   .roadmap-card {
-    position: relative;
+    position: relative; display: block;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px 22px;
     overflow: hidden;
-    transition: transform .2s ease, box-shadow .2s ease;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
   }
   .roadmap-card:hover {
     transform: translateX(4px);
     box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+    border-color: rgba(255,255,255,0.18);
   }
-  .roadmap-accent {
-    position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  }
-
+  .roadmap-accent { position: absolute; top: 0; left: 0; right: 0; height: 1px; }
   .roadmap-header {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     margin-bottom: 8px;
   }
   .roadmap-name { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
   .roadmap-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
-
   .roadmap-badge {
     flex-shrink: 0; font-size: 11px; font-weight: 700;
     letter-spacing: 0.06em; text-transform: uppercase;
     padding: 3px 10px; border-radius: 20px; border: 1px solid currentColor;
+    color: var(--purple-l); background: rgba(139,124,246,0.1);
   }
-  .badge-done        { color: #22c55e; background: rgba(34,197,94,0.12); }
-  .badge-next        { color: #f59e0b; background: rgba(245,158,11,0.1); }
-  .badge-planned     { color: var(--purple-l); background: rgba(139,124,246,0.1); }
-  .badge-considering { color: var(--muted); background: rgba(170,178,197,0.08); }
+  /* The one line that says what you'd actually do. */
+  .roadmap-ask {
+    font-size: 13px; color: var(--text); margin-top: 10px;
+    padding-top: 10px; border-top: 1px solid var(--border-s);
+  }
+  .roadmap-ask .ref { color: var(--purple-l); font-weight: 600; white-space: nowrap; }
 
-  .status-done    { border-top-color: rgba(34,197,94,0.35); opacity: 0.85; }
-  .status-next    { border-top-color: rgba(245,158,11,0.3); }
-  .status-planned { border-top-color: rgba(139,124,246,0.25); }
-
-  /* ── NOT LISTED BOX ── */
+  /* ── WHY BOX ── */
   .not-listed {
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--border);
@@ -364,7 +309,8 @@ const statusOrder = ["next", "planned", "considering"];
     .nav-inner { height: auto; min-height: 58px; padding: 12px 16px; flex-wrap: wrap; row-gap: 10px; }
     .nav-actions { gap: 6px; flex-wrap: wrap; }
     .btn-ghost { padding: 7px 10px; font-size: 12px; white-space: nowrap; }
-    .roadmap-header { flex-direction: column; align-items: flex-start; }
-    .not-listed { padding: 24px 20px; }
+    .roadmap-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   }
 </style>
+</body>
+</html>
