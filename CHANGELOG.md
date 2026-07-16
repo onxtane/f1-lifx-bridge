@@ -4,10 +4,20 @@ All notable changes are documented here.
 
 ---
 
-## [Unreleased]
+## [0.10.2] — 2026-07-16
+
+### Added
+- **Advanced mode toggle** — Settings → App. The Advanced category (developer tools, diagnostics, self-tests) could previously only be reached by running from source or setting `GRIDGLOW_DEV=1`, leaving it unreachable from inside the app. Running from source still forces it on. This also gives Nanoleaf Diagnostics an in-app path for the first time. (#74)
+- **Govee card in the setup brand picker** — visibly locked with an "In progress" badge, so the picker shows Govee is coming rather than simply looking unsupported. Tracked in #62. (#75)
+- **F1 effect replay tool** — `tools/replay_f1_effects.py` sends crafted UDP packets to a running bridge so every F1 effect fires on real lights without launching the game. Covers all nine effects plus Black Flag, with Start Lights doing the full five-light build-up. It shares the tests' packet builders, so it can't drift from the real formats. (#70)
+
+### Changed
+- **Errors and warnings now raise a banner** — previously only `[LIFX ERROR]` did, so every other failure was invisible unless you happened to be watching the log. Warnings are visually distinct from errors (amber triangle vs red circle), and the stack is capped at four so an error storm can't bury the UI. (#73)
 
 ### Fixed
 - **A missing WebView2 or .NET runtime now explains itself instead of failing silently** — GridGlow draws its window with WebView2, reached through .NET. Neither is bundled, and when either was absent the app didn't fail usefully: without .NET it exited without a word (the crash landed in a windowed build's non-existent console), and without WebView2 it quietly rendered in Internet Explorer's engine instead, so the UI came up mangled with no clue why. Startup now checks for both first and, if either is missing or too old, shows a plain-language dialog naming what's needed and offering to open Microsoft's download page. (#72)
+- **An error banner could hang on screen forever** — a repeat of the same error cleared the dismiss timer without setting a new one. (#73)
+- **The white-flag effect no longer logs itself as a warning** — `[WARNING] White flashing` was the effect firing, not a fault, and now logs as `[EFFECT]`. (#73)
 
 ---
 
