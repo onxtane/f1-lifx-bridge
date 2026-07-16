@@ -115,9 +115,23 @@ pipeline — no hardware or network required:
 python -m unittest discover -s tests
 ```
 
-When running from source (or with `GRIDGLOW_DEV=1` set), a **Settings → Developer → Run tests**
+When running from source (or with `GRIDGLOW_DEV=1` set), a **Settings → Advanced → Run tests**
 button runs the same suite from inside the app. The `tests/` folder is never bundled into
 release builds.
+
+### Replay tools
+
+Scripts in `tools/` send crafted UDP packets to a running bridge, so you can watch real
+effects on real lights without launching a game. Start GridGlow, pick the title, start the
+bridge, then:
+
+```
+python tools/replay_f1_effects.py      # every F1 effect in order (--list, --effect NAME, --delay, --loop)
+python tools/replay_sector_status.py   # live sector status across the three sectors
+python tools/replay_rpm_meter.py       # the RPM / redline meter
+```
+
+They reuse the same packet builders as the tests, so they can't drift from the real packet formats.
 
 ---
 
