@@ -209,6 +209,120 @@ _EFFECT_CURVE_LABEL = {
 }
 
 
+# ---- RPM meter gradient (#71) -----------------------------------------------
+# The fill runs at 60000 rather than the full 65535 so the redline blink, which
+# does use 65535, reads as brighter than the strip it interrupts. A gradient
+# stop's own value scales *this*, not 65535 — so the default stops below come
+# out at exactly the 60000 the meter has always used, while a stop the user
+# picks dark still renders dark.
+RPM_FILL_BRIGHTNESS = 60000
+RPM_GRADIENT_DEFAULT = ("#00FF00", "#FF0000")   # the classic green -> red ramp
+
+
+def hex_to_hsv(hex_color):
+    """'#00ff00' -> (hue 0-65535, sat 0-65535, value 0.0-1.0), or None if unusable.
+
+    Value stays a fraction rather than a LIFX brightness because what it scales
+    depends on the effect using it (see RPM_FILL_BRIGHTNESS).
+    """
+    if not isinstance(hex_color, str):
+        return None
+    text = hex_color.strip().lstrip('#')
+    if len(text) == 3:                       # #0f0 -> #00ff00
+        text = ''.join(c * 2 for c in text)
+    if len(text) != 6:
+        return None
+    try:
+        r, g, b = (int(text[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+    except ValueError:
+        return None
+    max_c, min_c = max(r, g, b), min(r, g, b)
+    delta = max_c - min_c
+    if delta == 0:
+        h = 0.0
+    elif max_c == r:
+        h = ((g - b) / delta) % 6
+    elif max_c == g:
+        h = (b - r) / delta + 2
+    else:
+        h = (r - g) / delta + 4
+    h = (h / 6.0) % 1.0
+    s = 0.0 if max_c == 0 else delta / max_c
+    return int(h * 65535), int(s * 65535), max_c
+
+
+def parse_rpm_gradient(stops):
+    """Hex stops -> [(hue, sat, value)], falling back to the default ramp.
+
+    Anything unusable — bad hex, a single stop, not a list at all — yields the
+    default rather than raising: a malformed setting must not be able to take
+    down a listener thread (#76).
+    """
+    if not isinstance(stops, (list, tuple)):
+        stops = ()
+    parsed = [hsv for hsv in (hex_to_hsv(s) for s in stops) if hsv is not None]
+    if len(parsed) < 2:
+        parsed = [hex_to_hsv(s) for s in RPM_GRADIENT_DEFAULT]
+    return parsed
+
+
+def _lerp_hsv(a, b, t):
+    h0, s0, v0 = a
+    h1, s1, v1 = b
+    # A white/grey stop has no meaningful hue, so borrow its neighbour's instead
+    # of sweeping the wheel while the colour desaturates — blue -> white has to
+    # pale out, not cycle through cyan on the way.
+    if s0 == 0 and s1 != 0:
+        h0 = h1
+    elif s1 == 0 and s0 != 0:
+        h1 = h0
+    # Shortest way round the wheel: green -> red goes through yellow, not blue.
+    diff = h1 - h0
+    if diff > 32767:
+        diff -= 65536
+    elif diff < -32767:
+        diff += 65536
+    return (int(round(h0 + diff * t)) % 65536,
+            int(round(s0 + (s1 - s0) * t)),
+            v0 + (v1 - v0) * t)
+
+
+def sample_rpm_gradient(stops, t):
+    """Colour at t along evenly-spaced stops (0 = low rev, 1 = redline)."""
+    t = max(0.0, min(1.0, t))
+    segments = len(stops) - 1
+    if segments < 1:
+        return stops[0]
+    pos = t * segments
+    i = min(int(pos), segments - 1)          # t == 1 lands on the last segment
+    return _lerp_hsv(stops[i], stops[i + 1], pos - i)
+
+
+def hsv_to_hex(hue, sat, val):
+    """(hue 0-65535, sat 0-65535, value 0.0-1.0) -> '#rrggbb'. Inverse of hex_to_hsv."""
+    h = (hue / 65535.0) * 6.0
+    s = max(0.0, min(1.0, sat / 65535.0))
+    v = max(0.0, min(1.0, val))
+    i = int(h) % 6
+    f = h - int(h)
+    p, q, t = v * (1 - s), v * (1 - s * f), v * (1 - s * (1 - f))
+    r, g, b = ((v, t, p), (q, v, p), (p, v, t), (p, q, v), (t, p, v), (v, p, q))[i]
+    return "#{:02x}{:02x}{:02x}".format(round(r * 255), round(g * 255), round(b * 255))
+
+
+def rpm_gradient_swatch(stops, samples=24):
+    """The colours the meter would actually paint, for the settings preview.
+
+    Computed with the real gradient code so the swatch can't drift from the
+    lights. The UI can't just hand the stops to a CSS gradient: CSS interpolates
+    in sRGB, so green -> red would show a muddy dark-yellow midpoint, where the
+    strip shows bright yellow.
+    """
+    grad = parse_rpm_gradient(stops)
+    n = max(2, int(samples))
+    return [hsv_to_hex(*sample_rpm_gradient(grad, i / (n - 1))) for i in range(n)]
+
+
 class LocalLifxController:
     def __init__(
         self,
@@ -275,6 +389,9 @@ class LocalLifxController:
         # Bumped each time the redline blink (re)starts; the loop exits when its
         # captured generation is superseded, so overlapping threads can't fight.
         self._rpm_blink_gen = 0
+        # Parsed (hue, sat, value) stops the RPM meter fills along. Set from hex
+        # by BridgeRunner; defaults to the green -> red ramp (#71).
+        self.rpm_gradient = parse_rpm_gradient(RPM_GRADIENT_DEFAULT)
 
         if self.dry_run:
             print("[LIFX] DRY_RUN is enabled. Bulbs will NOT change.")
@@ -932,8 +1049,9 @@ class LocalLifxController:
     def rpm_meter(self, percent):
         """Fill multizone strips proportionally to rev-lights percent (0–100).
 
-        Lit zones grow from the low-rev end, coloured green (low) → red (redline)
-        by position; unlit zones go dark. Like sector_status this is a mode, not a
+        Lit zones grow from the low-rev end, coloured along rpm_gradient by
+        position (green → red by default); unlit zones go dark. Like
+        sector_status this is a mode, not a
         per-effect flash: it paints every multizone strip directly and bypasses
         per-effect light assignment. Direction follows the start-lights setting.
         """
@@ -970,8 +1088,10 @@ class LocalLifxController:
                     zone_idx = pos if ltr else (zc - 1 - pos)
                     if pos < lit:
                         t = pos / max(zc - 1, 1)          # 0 = low rev, 1 = redline
-                        hue = round(21845 * (1.0 - t))     # green → red
-                        color = [hue, 65535, self._scale_brightness(60000), 3500]
+                        hue, sat, val = sample_rpm_gradient(self.rpm_gradient, t)
+                        color = [hue, sat,
+                                 self._scale_brightness(round(val * RPM_FILL_BRIGHTNESS)),
+                                 3500]
                     else:
                         color = dark
                     light.set_zone_color(zone_idx, zone_idx, color, 40, rapid=True)
@@ -1012,7 +1132,13 @@ class LocalLifxController:
         threading.Thread(target=self._rpm_redline_loop, args=(gen,), daemon=True).start()
 
     def _rpm_redline_loop(self, gen):
-        red  = [0, 65535, self._scale_brightness(65535), 3500]
+        # Blink the gradient's top colour, not a hard-coded red: that top stop
+        # *is* the redline colour, so a blue -> white ramp shouldn't suddenly
+        # flash red at the limiter. Full 65535 here (vs the fill's 60000) keeps
+        # the blink brighter than the strip it interrupts. On the default ramp
+        # the top stop is red, so this is unchanged.
+        hue, sat, val = self.rpm_gradient[-1]
+        red  = [hue, sat, self._scale_brightness(round(val * 65535)), 3500]
         dark = [0, 0, self._scale_brightness(120), 3500]
         on = True
         # Schedule toggles against a monotonic clock so the blink stays even no

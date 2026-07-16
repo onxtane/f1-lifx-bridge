@@ -149,6 +149,7 @@ class BridgeRunner:
         self._pending_forwarding = None       # (enabled, host, port)
         self._pending_listen = None           # (ip, port)
         self._pending_mz_startlights = None  # (direction, mode)
+        self._pending_rpm_gradient = None    # parsed [(hue, sat, value)] stops
         self._nanoleaf_diag = False
         self._hue_diag = False
 
@@ -287,6 +288,10 @@ class BridgeRunner:
                 self.bridge.nanoleaf.mz_startlights_direction = direction
                 self.bridge.nanoleaf.mz_startlights_mode = mode
 
+        if self._pending_rpm_gradient is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.rpm_gradient = self._module.parse_rpm_gradient(
+                self._pending_rpm_gradient)
+
         if self._light_assignments and self.bridge.lifx is not None:
             self.bridge.lifx.light_assignments = self._light_assignments
         if self._curves and self.bridge.lifx is not None:
@@ -414,6 +419,30 @@ class BridgeRunner:
         h = (h / 6.0) % 1.0
         s = 0.0 if max_c == 0 else delta / max_c
         return [int(h * 65535), int(s * 65535), int(max_c * 65535), 3500]
+
+    def set_rpm_gradient(self, stops):
+        """Set the RPM meter's colour ramp from a list of hex stops (#71).
+
+        The stops stay hex until a bridge exists, because parsing them means
+        importing bridge_core, and that import is deliberately deferred (it
+        pulls in lifxlan). Once parsed they're cached on the controller: the
+        meter repaints per packet, and re-reading hex for every zone of every
+        frame would be work for nothing. Bad input falls back inside parse.
+        """
+        self._pending_rpm_gradient = list(stops) if isinstance(stops, (list, tuple)) else []
+        if self.bridge is not None and self.bridge.lifx is not None:
+            self.bridge.lifx.rpm_gradient = self._module.parse_rpm_gradient(
+                self._pending_rpm_gradient)
+
+    def rpm_gradient_swatch(self, stops, samples=24):
+        """The colours the meter would paint, for the settings preview.
+
+        Imported here rather than at module scope for the same reason as the
+        rest of bridge_core: it drags in lifxlan, and this can be called before
+        any bridge exists. Python caches the import, so it costs once.
+        """
+        import bridge_core
+        return bridge_core.rpm_gradient_swatch(stops, samples)
 
     def set_mz_startlights(self, direction: str, mode: str):
         """direction: 'ltr' | 'rtl'.  mode: 'sweep' | 'solid'."""

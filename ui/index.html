@@ -1061,6 +1061,39 @@
   .setting-label{ font-size:14px; font-weight:500; }
   .setting-hint{ font-size:12px; color:var(--text-muted); margin-top:2px; }
 
+  /* ---- RPM meter gradient (#71) ---- */
+  .rpm-grad-row{ display:block; }
+  .rpm-grad-presets{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 8px; }
+  .rpm-grad-preset{
+    font-size:11px; padding:5px 10px; border-radius:999px; cursor:pointer;
+    background:var(--glass-fill-strong); border:1px solid var(--glass-border);
+    color:var(--text-muted); transition:color .15s, border-color .15s;
+  }
+  .rpm-grad-preset:hover{ color:var(--text-main); border-color:rgba(255,255,255,0.2); }
+  .rpm-grad-preset.active{ color:var(--purple-l, #8b7cf6); border-color:rgba(139,124,246,0.5); }
+  /* The bar is painted from backend-sampled stops, so it shows what the strip
+     shows — a plain two-stop CSS gradient would interpolate in sRGB and muddy
+     the middle of a green -> red ramp. */
+  .rpm-grad-preview{
+    height:26px; border-radius:7px; border:1px solid var(--glass-border);
+    margin-bottom:10px; background:rgba(0,0,0,0.25);
+  }
+  .rpm-grad-stops{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .rpm-grad-stop{ position:relative; }
+  .rpm-grad-stop input[type=color]{
+    width:44px; height:30px; padding:0; cursor:pointer; border-radius:6px;
+    border:1px solid var(--glass-border); background:transparent;
+  }
+  .rpm-grad-remove{
+    position:absolute; top:-6px; right:-6px; width:16px; height:16px; line-height:14px;
+    border-radius:50%; border:1px solid var(--glass-border); background:var(--bg, #0b1020);
+    color:var(--text-muted); font-size:11px; cursor:pointer; padding:0; text-align:center;
+  }
+  .rpm-grad-remove:hover{ color:var(--red, #ff5c5c); border-color:rgba(255,92,92,0.5); }
+  .rpm-grad-actions{ display:flex; gap:8px; margin-top:12px; }
+  .rpm-grad-ends{ display:flex; justify-content:space-between; font-size:10px;
+                  color:var(--text-muted); opacity:.7; margin-top:-6px; margin-bottom:8px; }
+
   /* ---- effect replays (Advanced) ---- */
   .replay-intro{ font-size:12px; color:var(--text-muted); margin:-6px 0 10px; line-height:1.6; max-width:62ch; }
   /* The prerequisite an individual replay needs on top of the section's own. */
@@ -2169,7 +2202,7 @@
                 <div class="ar-icon" style="color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6"/><path d="M12 9V4M12 20a8 8 0 1 1 8-8"/><path d="M17 12h3"/></svg></div>
                 <div class="ar-info">
                   <div class="ar-name">RPM Meter</div>
-                  <div class="ar-desc">Rev lights across the strip — zones fill green→red as revs climb; multizone strips only, and mutually exclusive with Sector Status</div>
+                  <div class="ar-desc">Rev lights across the strip — zones fill as revs climb, in the gradient set under Settings → Effects → Multizone (green→red by default); multizone strips only, and mutually exclusive with Sector Status</div>
                 </div>
                 <label class="toggle-switch">
                   <input type="checkbox" class="event-toggle" data-event="rpm_meter">
@@ -2623,6 +2656,20 @@
                 <div class="setting-hint">Fills zones green → red in the configured direction</div>
               </div>
               <button class="btn btn-ghost btn-sm" id="testMzBtn">Run Test</button>
+            </div>
+            <div class="setting-row rpm-grad-row">
+              <div style="width:100%;">
+                <div class="setting-label">RPM Meter Gradient</div>
+                <div class="setting-hint">The colours zones fill through as revs climb. The last colour is also what blinks at the redline.</div>
+                <div class="rpm-grad-presets" id="rpmGradPresets"></div>
+                <div class="rpm-grad-preview" id="rpmGradPreview"></div>
+                <div class="rpm-grad-ends"><span>Idle</span><span>Redline</span></div>
+                <div class="rpm-grad-stops" id="rpmGradStops"></div>
+                <div class="rpm-grad-actions">
+                  <button class="btn btn-ghost btn-sm" id="rpmGradAddStop">Add stop</button>
+                  <button class="btn btn-ghost btn-sm" id="rpmGradReset">Reset to default</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -4165,6 +4212,8 @@
     applyMzStartlightsToBackend();
     updateMzDirectionRowVisibility();
 
+    rpmGradInit(settings.rpm_gradient);
+
     // Apply saved game mode so the right bridge class is used on start.
     if (settings.last_game) {
       callApi('set_game_mode', settings.last_game);
@@ -4429,6 +4478,142 @@
     const mode = document.getElementById('settingMzSweep').checked ? 'sweep' : 'solid';
     callApi('set_mz_startlights', _mzDirection, mode);
   }
+
+  // ---- RPM meter gradient (#71) ----
+  // Stops are hex and evenly spaced; the backend interpolates them in HSB, so
+  // the preview bar is painted from colours it samples rather than from a CSS
+  // gradient (which would interpolate in sRGB and lie about the middle).
+  const RPM_GRAD_DEFAULT = ['#00ff00', '#ff0000'];
+  const RPM_GRAD_PRESETS = [
+    { name: 'Classic',   stops: ['#00ff00', '#ff0000'] },
+    { name: 'Blue → white', stops: ['#0000ff', '#ffffff'] },
+    { name: 'Intensity', stops: ['#330000', '#ff0000'] },
+    { name: 'Traffic',   stops: ['#00ff00', '#ffff00', '#ff0000'] },
+  ];
+  const RPM_GRAD_MAX_STOPS = 6;
+  let _rpmGradStops = RPM_GRAD_DEFAULT.slice();
+
+  function rpmGradNormalize(stops) {
+    const ok = (stops || []).filter(s => /^#[0-9a-f]{6}$/i.test(s || ''));
+    return ok.length >= 2 ? ok : RPM_GRAD_DEFAULT.slice();
+  }
+
+  async function rpmGradRenderPreview() {
+    const bar = document.getElementById('rpmGradPreview');
+    if (!bar) return;
+    const swatch = await callApi('rpm_gradient_swatch', _rpmGradStops, 24);
+    // No backend (browser preview): fall back to a plain CSS ramp rather than
+    // showing nothing. It's less faithful, which is why it isn't the norm.
+    const colors = (swatch && swatch.length) ? swatch : _rpmGradStops;
+    bar.style.background = 'linear-gradient(to right, ' + colors.join(', ') + ')';
+  }
+
+  function rpmGradRenderStops() {
+    const wrap = document.getElementById('rpmGradStops');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    _rpmGradStops.forEach((hex, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'rpm-grad-stop';
+
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.value = hex;
+      input.title = i === 0 ? 'Idle end'
+                  : i === _rpmGradStops.length - 1 ? 'Redline end'
+                  : 'Stop ' + (i + 1);
+      // input fires while the picker moves (live preview); change fires on
+      // commit, which is when it's worth persisting and telling the bridge.
+      input.addEventListener('input', () => {
+        _rpmGradStops[i] = input.value;
+        rpmGradRenderPreview();
+        rpmGradMarkActivePreset();
+      });
+      input.addEventListener('change', () => {
+        _rpmGradStops[i] = input.value;
+        rpmGradSave();
+      });
+      cell.append(input);
+
+      // Two stops is the minimum a gradient can mean anything with.
+      if (_rpmGradStops.length > 2) {
+        const del = document.createElement('button');
+        del.className = 'rpm-grad-remove';
+        del.textContent = '×';
+        del.title = 'Remove this stop';
+        del.addEventListener('click', () => {
+          _rpmGradStops.splice(i, 1);
+          rpmGradRenderStops();
+          rpmGradSave();
+        });
+        cell.append(del);
+      }
+      wrap.append(cell);
+    });
+    document.getElementById('rpmGradAddStop').disabled =
+      _rpmGradStops.length >= RPM_GRAD_MAX_STOPS;
+    rpmGradRenderPreview();
+    rpmGradMarkActivePreset();
+  }
+
+  function rpmGradMarkActivePreset() {
+    const mine = _rpmGradStops.join(',').toLowerCase();
+    document.querySelectorAll('.rpm-grad-preset').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.stops === mine);
+    });
+  }
+
+  function rpmGradRenderPresets() {
+    const wrap = document.getElementById('rpmGradPresets');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    RPM_GRAD_PRESETS.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'rpm-grad-preset';
+      btn.textContent = p.name;
+      btn.dataset.stops = p.stops.join(',').toLowerCase();
+      btn.addEventListener('click', () => {
+        _rpmGradStops = p.stops.slice();
+        rpmGradRenderStops();
+        rpmGradSave();
+      });
+      wrap.append(btn);
+    });
+  }
+
+  function rpmGradSave() {
+    _rpmGradStops = rpmGradNormalize(_rpmGradStops);
+    callApi('save_gui_settings', { rpm_gradient: _rpmGradStops });
+    callApi('set_rpm_gradient', _rpmGradStops);
+    rpmGradRenderPreview();
+    rpmGradMarkActivePreset();
+  }
+
+  function rpmGradInit(saved) {
+    _rpmGradStops = rpmGradNormalize(saved);
+    rpmGradRenderPresets();
+    rpmGradRenderStops();
+    callApi('set_rpm_gradient', _rpmGradStops);
+  }
+
+  (function () {
+    const add = document.getElementById('rpmGradAddStop');
+    const reset = document.getElementById('rpmGradReset');
+    if (!add || !reset) return;
+    add.addEventListener('click', () => {
+      if (_rpmGradStops.length >= RPM_GRAD_MAX_STOPS) return;
+      // Insert before the redline end so the last stop stays the redline colour.
+      _rpmGradStops.splice(_rpmGradStops.length - 1, 0,
+                           _rpmGradStops[_rpmGradStops.length - 1]);
+      rpmGradRenderStops();
+      rpmGradSave();
+    });
+    reset.addEventListener('click', () => {
+      _rpmGradStops = RPM_GRAD_DEFAULT.slice();
+      rpmGradRenderStops();
+      rpmGradSave();
+    });
+  })();
 
   function updateMzDirectionRowVisibility() {
     const sweepOn = document.getElementById('settingMzSweep').checked;

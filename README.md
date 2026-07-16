@@ -26,7 +26,7 @@ F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, and EA SPORTS WRC broadcast 
 - Chequered flag
 - White warning / penalty
 - Track clear / neutral return
-- RPM meter — multizone strips fill with live engine revs and blink at the redline
+- RPM meter — multizone strips fill with live engine revs and blink at the redline; the colour ramp is yours to set (Settings → Effects → Multizone), with presets or up to six custom stops
 
 **DiRT Rally 2.0 Stage Events**
 - Stage start — green flash when the stage begins
@@ -222,7 +222,7 @@ Created automatically on first run. Not tracked in git.
 
 | File | Contents |
 |---|---|
-| `f1lifx_gui_settings.json` | Port, IP, brightness, stagger, idle colour, enabled events, profiles |
+| `f1lifx_gui_settings.json` | Port, IP, brightness, stagger, idle colour, RPM gradient, enabled events, profiles |
 | `lifx_groups.json` | Saved light groups |
 | `nanoleaf_settings.json` | Nanoleaf IP, auth token, panel layout *(gitignored — contains credentials)* |
 | `hue_settings.json` | Hue bridge IP, application key *(gitignored — contains credentials)* |

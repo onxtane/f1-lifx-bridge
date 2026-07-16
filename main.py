@@ -174,6 +174,13 @@ class Api:
         self.runner.set_mz_startlights(direction, mode)
         return {"ok": True}
 
+    def set_rpm_gradient(self, stops: list):
+        self.runner.set_rpm_gradient(stops)
+        return {"ok": True}
+
+    def rpm_gradient_swatch(self, stops: list, samples: int = 24):
+        return self.runner.rpm_gradient_swatch(stops, samples)
+
     def set_debug_timing(self, enabled: bool):
         self.runner.set_debug_timing(enabled)
         return {"ok": True}
