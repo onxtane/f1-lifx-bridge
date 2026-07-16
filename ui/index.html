@@ -1060,6 +1060,19 @@
   .setting-row:last-child{ border-bottom:none; }
   .setting-label{ font-size:14px; font-weight:500; }
   .setting-hint{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+  /* ---- effect replays (Advanced) ---- */
+  .replay-intro{ font-size:12px; color:var(--text-muted); margin:-6px 0 10px; line-height:1.6; max-width:62ch; }
+  /* The prerequisite an individual replay needs on top of the section's own. */
+  .replay-needs{ font-size:11px; color:var(--text-muted); opacity:.75; margin-top:3px; }
+  .replay-status{
+    font-size:12px; color:var(--text-muted); padding:10px 12px; border-radius:8px;
+    background:rgba(0,0,0,0.28); border:1px solid var(--glass-border); line-height:1.5;
+  }
+  .replay-status.err{ color:var(--red, #ff5c5c); border-color:rgba(255,92,92,0.35); }
+  .replay-status.busy{ color:var(--text-main); }
+  /* Only the running replay shows Stop; the rest just go quiet until it ends. */
+  .replay-row.is-running .setting-label{ color:var(--purple-l, #8b7cf6); }
   .setting-control input[type=text],
   .setting-control input[type=number]{
     background:rgba(0,0,0,0.25); border:1px solid var(--glass-border);
@@ -2665,6 +2678,20 @@
               <div style="width:100%;">
                 <div id="selfTestBadge" style="font-size:13px;font-weight:600;margin-bottom:6px;"></div>
                 <pre id="selfTestOutput" style="max-height:220px;overflow:auto;margin:0;padding:10px;border-radius:8px;background:rgba(0,0,0,0.35);font-size:11px;line-height:1.45;white-space:pre-wrap;color:var(--text-muted);"></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section" id="replaySection" data-cat="advanced">
+            <h3>Effect Replays</h3>
+            <div class="replay-intro">
+              Send crafted F1 packets to the bridge so effects fire on your real lights
+              without launching the game. Needs an F1 title selected and the bridge running.
+            </div>
+            <div id="replayRows"></div>
+            <div class="setting-row" id="replayStatusRow" style="display:none;">
+              <div style="width:100%;">
+                <div id="replayStatus" class="replay-status"></div>
               </div>
             </div>
           </div>
@@ -6879,6 +6906,102 @@
         btn.textContent = 'Run tests';
       }
     });
+  })();
+
+  // ---- effect replays (live inside the Advanced category) ----
+  // The rows are built from list_replays() rather than written out here, so
+  // replay.py stays the single owner of what replays exist.
+  (function () {
+    const rows      = document.getElementById('replayRows');
+    const statusRow = document.getElementById('replayStatusRow');
+    const status    = document.getElementById('replayStatus');
+    if (!rows) return;
+
+    let runningKey = null;
+    const buttons  = new Map();   // key -> button
+
+    function setStatus(text, kind) {
+      statusRow.style.display = text ? '' : 'none';
+      status.textContent = text || '';
+      status.className = 'replay-status' + (kind ? ' ' + kind : '');
+    }
+
+    function render(replays) {
+      rows.innerHTML = '';
+      buttons.clear();
+      for (const r of replays) {
+        const row = document.createElement('div');
+        row.className = 'setting-row replay-row';
+        row.dataset.key = r.key;
+
+        const left = document.createElement('div');
+        const label = document.createElement('div');
+        label.className = 'setting-label';
+        label.textContent = r.label;
+        const hint = document.createElement('div');
+        hint.className = 'setting-hint';
+        hint.textContent = r.blurb + ' (about ' + r.seconds + 's)';
+        left.append(label, hint);
+        if (r.needs) {
+          const needs = document.createElement('div');
+          needs.className = 'replay-needs';
+          needs.textContent = 'Needs ' + r.needs + ' turned on.';
+          left.append(needs);
+        }
+
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-ghost btn-sm';
+        btn.textContent = 'Run';
+        btn.addEventListener('click', () => onClick(r));
+        buttons.set(r.key, btn);
+
+        row.append(left, btn);
+        rows.append(row);
+      }
+    }
+
+    async function onClick(r) {
+      // The same button stops the replay it started — no separate Stop to hunt for.
+      if (runningKey === r.key) { callApi('stop_replay'); return; }
+      if (runningKey) return;
+      setStatus('Starting ' + r.label + '…', 'busy');
+      const res = await callApi('run_replay', r.key);
+      if (!res) { setStatus('Open via main.py to run replays.', null); return; }
+      if (!res.ok) {
+        setStatus(res.error, 'err');
+        window.showToast && window.showToast(res.error, 'error', 3600);
+        return;
+      }
+      // Claim the running state here rather than waiting for Python's own
+      // setReplayRunning to come back around the 250ms poller: for that whole
+      // window the button would still read "Run", and a second click would fire
+      // a second replay only to be rejected server-side. Python's message is the
+      // authority for when a replay *ends*, and re-asserting true is harmless.
+      window.setReplayRunning(true, r.key);
+      setStatus(r.label + ' running — watch your lights. Progress is in the log.', 'busy');
+    }
+
+    // Python drives this: the replay ends on its own thread, and the row has to
+    // settle back whether it finished, was stopped, or threw.
+    window.setReplayRunning = function (running, key) {
+      runningKey = running ? key : null;
+      for (const [k, btn] of buttons) {
+        const isMe = running && k === key;
+        btn.textContent = isMe ? 'Stop' : 'Run';
+        btn.disabled = running && !isMe;
+        const row = rows.querySelector('.replay-row[data-key="' + k + '"]');
+        if (row) row.classList.toggle('is-running', !!isMe);
+      }
+      if (!running) setStatus('', null);
+    };
+
+    (async function load() {
+      const list = await callApi('list_replays');
+      render(list || []);
+      // A replay survives a settings-page revisit, so re-sync on load.
+      const st = await callApi('get_replay_state');
+      if (st && st.running) window.setReplayRunning(true, st.key);
+    })();
   })();
 </script>
 

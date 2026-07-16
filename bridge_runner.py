@@ -170,6 +170,25 @@ class BridgeRunner:
     def is_running(self) -> bool:
         return self.bridge is not None and self.bridge.running
 
+    def get_replay_target(self) -> dict:
+        """Where an effect replay should aim, or why it would be pointless.
+
+        The replays send F1 packets into the listener, so they only mean anything
+        with an F1 title selected and the bridge actually listening. A bridge
+        bound to 0.0.0.0 is reachable on loopback; one pinned to a specific IP
+        has to be addressed on that IP or the packets go nowhere.
+        """
+        if not self.is_running():
+            return {"ready": False, "reason": "Start the bridge first — a replay "
+                                              "sends packets to the listener."}
+        if self._game_mode != 'f1_25':
+            return {"ready": False, "reason": "Replays send F1 packets. Select an "
+                                              "F1 title to use them."}
+        ip = self.bridge.udp_ip
+        return {"ready": True,
+                "host": "127.0.0.1" if ip in ("", "0.0.0.0") else ip,
+                "port": int(self.bridge.udp_port)}
+
     # ---- module / bridge bootstrapping ----
 
     def _ensure_bridge(self) -> bool:

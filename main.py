@@ -32,6 +32,7 @@ import webview
 
 from bridge_runner import BridgeRunner
 
+import replay
 import runtime_check
 from app_paths import BUNDLE_DIR, USER_DATA_DIR
 
@@ -52,6 +53,11 @@ class Api:
         self._window: webview.Window | None = None
         self._queue: list = []
         self._queue_lock = threading.Lock()
+
+        # A replay runs for ~20-35s on its own thread so the UI stays live.
+        self._replay_thread: threading.Thread | None = None
+        self._replay_stop = threading.Event()
+        self._replay_key: str | None = None
 
         self.runner = BridgeRunner(
             on_log=self._push_log,
@@ -327,6 +333,51 @@ class Api:
         except Exception as exc:
             return {"ok": False, "total": 0, "failures": 0, "errors": 0,
                     "output": f"{buf.getvalue()}\n\nRunner error: {exc}"}
+
+    # ---- effect replays (Settings -> Advanced) ----
+
+    def list_replays(self) -> list:
+        """The replays on offer. replay.py owns the list so the UI can't drift."""
+        return [{"key": r.key, "label": r.label, "blurb": r.blurb,
+                 "needs": r.needs, "seconds": r.seconds} for r in replay.REPLAYS]
+
+    def get_replay_state(self) -> dict:
+        running = self._replay_thread is not None and self._replay_thread.is_alive()
+        return {"running": running, "key": self._replay_key if running else None}
+
+    def run_replay(self, key: str) -> dict:
+        """Start one replay on a background thread. Returns why not, if not."""
+        if key not in replay.BY_KEY:
+            return {"ok": False, "error": f"Unknown replay: {key}"}
+        if self.get_replay_state()["running"]:
+            return {"ok": False, "error": "A replay is already running."}
+
+        target = self.runner.get_replay_target()
+        if not target.get("ready"):
+            return {"ok": False, "error": target.get("reason", "Not ready.")}
+
+        self._replay_stop.clear()
+        self._replay_key = key
+
+        def worker():
+            try:
+                replay.run(key, target["host"], target["port"],
+                           self._push_log, self._replay_stop.is_set)
+            except Exception as exc:
+                # Surfaces as an error banner (#73) rather than dying quietly on
+                # a thread nobody is watching.
+                self._push_log(f"[REPLAY ERROR] {replay.BY_KEY[key].label}: {exc}")
+            finally:
+                self._enqueue("setReplayRunning", False, key)
+
+        self._replay_thread = threading.Thread(target=worker, daemon=True)
+        self._replay_thread.start()
+        self._enqueue("setReplayRunning", True, key)
+        return {"ok": True, "seconds": replay.BY_KEY[key].seconds}
+
+    def stop_replay(self) -> dict:
+        self._replay_stop.set()
+        return {"ok": True}
 
     def set_light_assignments(self, data: dict):
         self.runner.set_light_assignments(data)

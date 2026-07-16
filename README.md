@@ -126,17 +126,20 @@ release builds.
 
 ### Replay tools
 
-Scripts in `tools/` send crafted UDP packets to a running bridge, so you can watch real
-effects on real lights without launching a game. Start GridGlow, pick the title, start the
-bridge, then:
+The replays send crafted UDP packets to a running bridge, so you can watch real effects on
+real lights without launching a game. They're built into the app under **Settings → Advanced
+→ Effect Replays** (turn on Advanced mode in Settings → App), and also available from a
+terminal. Start GridGlow, pick an F1 title, start the bridge, then:
 
 ```
 python tools/replay_f1_effects.py      # every F1 effect in order (--list, --effect NAME, --delay, --loop)
 python tools/replay_sector_status.py   # live sector status across the three sectors
-python tools/replay_rpm_meter.py       # the RPM / redline meter
+python tools/replay_rpm_meter.py       # the RPM / redline meter (--speed)
 ```
 
-They reuse the same packet builders as the tests, so they can't drift from the real packet formats.
+The CLI and the in-app buttons are two front-ends over the same `replay.py`, and its packets
+come from `replay_packets.py` — which the dispatch tests also build with, so a replay can't
+drift from the real packet format.
 
 ---
 
@@ -198,6 +201,8 @@ f1_lifx_app/
 ├── bridge_runner.py         # threading wrapper, settings dispatch, game switching
 ├── bridge_core.py           # F1 UDP listener, packet parsing, all lighting effects
 ├── runtime_check.py         # startup gate: WebView2 / .NET present, or explain why not
+├── replay.py                # effect replays, shared by Settings -> Advanced and tools/
+├── replay_packets.py        # byte-accurate F1 packet builders (replays + tests)
 ├── dr2_bridge.py            # DiRT Rally 2.0 UDP listener (extends bridge_core)
 ├── forza_bridge.py          # Forza Data Out UDP listener (extends bridge_core)
 ├── wrc_bridge.py            # EA SPORTS WRC UDP listener (extends bridge_core)
