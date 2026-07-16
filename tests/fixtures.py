@@ -44,14 +44,22 @@ def dr2_packet(lap_time=0.0, speed=0.0, g_lat=0.0, g_lon=0.0,
 
 # ── Forza "Data Out" (FH5 / FH6 / Forza Motorsport, little-endian) ───────────
 # Sled offsets: IsRaceOn @0 (s32), EngineMaxRpm @8 (f32), CurrentRpm @16 (f32).
-# FH6 adds SmashableVelDiff @236 (f32). FH6 packets are >= 323 bytes; a 232-byte
-# packet is the Sled-only (FH5/FM) format with no crash field.
+# Sizes: 232 = Sled (all titles), 311 = Car Dash (Horizon 5 / Motorsport),
+# 323–339 = Horizon 6 Car Dash.
+#
+# Offset 236 is the whole reason the sizes matter: in FH6 it's SmashableVelDiff
+# (a collision delta that rests at 0), and in the 311-byte Car Dash it's
+# PositionY (a world coordinate that is routinely far above the crash
+# threshold). `position_y` exists so tests can prove a Horizon 5 packet can't be
+# mistaken for a crash.
 def forza_packet(is_race_on=1, current_rpm=4000.0, max_rpm=7000.0,
-                 smash_veldiff=0.0, size=339):
+                 smash_veldiff=0.0, position_y=0.0, size=339):
     buf = bytearray(size)
     struct.pack_into('<i', buf, 0, int(is_race_on))
     struct.pack_into('<f', buf, 8, float(max_rpm))
     struct.pack_into('<f', buf, 16, float(current_rpm))
     if size >= 323:                                  # FH6 SmashableVelDiff field
         struct.pack_into('<f', buf, 236, float(smash_veldiff))
+    elif size >= 240:                                # Car Dash: 236 is PositionY
+        struct.pack_into('<f', buf, 236, float(position_y))
     return bytes(buf)

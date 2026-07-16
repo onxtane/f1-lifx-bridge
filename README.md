@@ -2,13 +2,13 @@
 
 Sync your LIFX, Nanoleaf, and Philips Hue lights to live sim racing events. Start lights sweep red zone by zone, yellow flags pulse amber, fastest laps go purple — every moment on track reflected in your room.
 
-Supports **F1 25, F1 24, F1 2023, F1 2022, F1 2021**, **DiRT Rally 2.0**, **Forza Horizon 6**, and **EA SPORTS WRC** via UDP telemetry. More titles coming.
+Supports **F1 25, F1 24, F1 2023, F1 2022, F1 2021**, **DiRT Rally 2.0**, **Forza Horizon 6, Forza Horizon 5, Forza Motorsport**, and **EA SPORTS WRC** via UDP telemetry. More titles coming.
 
 ---
 
 ## How it works
 
-F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, and EA SPORTS WRC broadcast telemetry over UDP on your local network. GridGlow listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX, Nanoleaf, and Hue devices over LAN — no cloud, no API keys, sub-second latency.
+F1 25/24/23/22/21, DiRT Rally 2.0, the Forza titles, and EA SPORTS WRC broadcast telemetry over UDP on your local network. GridGlow listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX, Nanoleaf, and Hue devices over LAN — no cloud, no API keys, sub-second latency.
 
 ![Data flow diagram](docs/data_flow.png)
 
@@ -35,10 +35,10 @@ F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, and EA SPORTS WRC broadcast 
 - Crash — sharp white impact flash on collision (G-force + speed-drop detection)
 - Service park — warm return to idle on exit from stage
 
-**Forza Horizon 6 Events**
+**Forza Events** *(Horizon 6, Horizon 5, Motorsport)*
 - Race start — green flash when the race begins
 - Return to menus — warm return to idle
-- Crash — sharp white impact flash on hard collisions (FH6)
+- Crash — sharp white impact flash on hard collisions. **Horizon 6 only** — Horizon 5 and Motorsport don't send the collision field this needs, so they get race start and return-to-menus.
 
 **EA SPORTS WRC Stage Events**
 - Stage start — green flash when the stage begins
@@ -61,7 +61,7 @@ F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, and EA SPORTS WRC broadcast 
 - Idle mode — custom colour with optional slow pulse
 
 **App**
-- Game selector — switch between F1 25–21, DiRT Rally 2.0, Forza Horizon 6, and EA SPORTS WRC; "Remember my choice" skips the screen next time
+- Game selector — switch between F1 25–21, DiRT Rally 2.0, Forza (Horizon 6 / 5 / Motorsport), and EA SPORTS WRC; "Remember my choice" skips the screen next time
 - Mini mode — compact 380×100 always-on-top window
 - Profiles — save and switch complete configurations
 - UDP forwarding — relay packets to a second destination (sim dashboard, second PC)
@@ -78,7 +78,8 @@ F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, and EA SPORTS WRC broadcast 
 | F1® 24 | ✅ Supported |
 | F1® 2021–2023 | ✅ Supported |
 | Forza Horizon 6 | ✅ Supported |
-| Forza Horizon 5 / Motorsport | 🔜 Planned — [#52](https://github.com/onxtane/f1-lifx-bridge/issues/52) / [#54](https://github.com/onxtane/f1-lifx-bridge/issues/54) |
+| Forza Horizon 5 | ✅ Supported *(race events; no crash — [#52](https://github.com/onxtane/f1-lifx-bridge/issues/52))* |
+| Forza Motorsport | ✅ Supported *(race events; no crash — [#54](https://github.com/onxtane/f1-lifx-bridge/issues/54))* |
 | DiRT Rally 2.0 | ✅ Supported |
 | EA SPORTS WRC | ✅ Supported |
 | Assetto Corsa | 🔜 Planned — [#49](https://github.com/onxtane/f1-lifx-bridge/issues/49) |
@@ -91,7 +92,7 @@ See the full roadmap at [f1-lifx-bridge.pages.dev/roadmap](https://f1-lifx-bridg
 ## Requirements
 
 - Windows 10/11 *(macOS support in development — [#45](https://github.com/onxtane/f1-lifx-bridge/issues/45))*
-- F1 25/24/23/22/21, DiRT Rally 2.0, Forza Horizon 6, or EA SPORTS WRC on PC with UDP telemetry enabled
+- F1 25/24/23/22/21, DiRT Rally 2.0, Forza (Horizon 6 / 5 / Motorsport), or EA SPORTS WRC on PC with UDP telemetry enabled
 - LIFX, Nanoleaf, or Philips Hue device on the same LAN
 
 GridGlow draws its window using the **Microsoft Edge WebView2 runtime** and **.NET Framework 4.6.2+**.
@@ -167,7 +168,7 @@ drift from the real packet format.
 | Port | `20777` (default) |
 | extradata | `3` |
 
-**Forza Horizon 6** — Settings → HUD and Gameplay → DATA OUT
+**Forza Horizon 6 / Horizon 5 / Motorsport** — Settings → HUD and Gameplay → DATA OUT
 
 | Setting | Value |
 |---|---|

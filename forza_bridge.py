@@ -6,9 +6,20 @@ from bridge_core import F1LifxBridgeCore
 
 # Forza "Data Out" UDP telemetry (little-endian). The Sled section (bytes 0–231)
 # is byte-for-byte identical across Forza Horizon 5, Forza Horizon 6, and Forza
-# Motorsport. FH6 inserts 3 fields at bytes 232–243, shifting the Dash by +12.
+# Motorsport, so race start / return-to-menus work on all three. FH6 inserts 3
+# fields at bytes 232–243, shifting the Dash by +12, and only FH6 carries the
+# collision field the crash effect needs.
 #
 # Enable in-game: Settings → HUD and Gameplay → DATA OUT = ON, port 5300.
+#
+# CAVEAT (#52 / #54): the sizes below come from the published spec, not from a
+# packet anyone here has actually seen. If FH5 turns out to emit a 324-byte Dash
+# (the Horizon family is documented elsewhere as inserting its 12 bytes too),
+# it would land inside the FH6 window and offset 236 would be read as a
+# collision delta when it is really a position coordinate. The heartbeat logs
+# the observed size for exactly this reason — anyone running a Forza title can
+# report what their game really sends. _looks_like_impact() keeps the failure
+# survivable in the meantime.
 
 _FORZA_PORT = 5300
 
@@ -23,10 +34,12 @@ _F_FH6_SMASH_VELDIFF = 236  # f32 — collision velocity delta (m/s); spikes on 
 # ── Packet-size detection ────────────────────────────────────────────────────
 _SLED_SIZE = 232    # minimum valid packet (Sled only)
 _FH6_MIN   = 323    # FH6 packets are 323–339 bytes (some builds pad to 324)
+_FH6_MAX   = 339    # anything larger isn't a layout we know; don't guess at it
 
 # Crash detection (FH6 SmashableVelDiff)
 _CRASH_VELDIFF_THRESHOLD = 8.0   # m/s collision delta to count as a crash impact
 _CRASH_COOLDOWN_S        = 3.0
+_CRASH_VELDIFF_SANE_MAX  = 200.0  # ~720 km/h of delta: not a collision, a misread
 
 
 class ForzaBridgeCore(F1LifxBridgeCore):
@@ -50,6 +63,8 @@ class ForzaBridgeCore(F1LifxBridgeCore):
             self.udp_port = _FORZA_PORT
         self._forza_race_on = False
         self._forza_crash_cooldown = 0.0
+        self._forza_prev_veldiff = 0.0
+        self._forza_logged_size = None
 
     def listener_loop(self):
         self.log("===================================================")
@@ -99,6 +114,15 @@ class ForzaBridgeCore(F1LifxBridgeCore):
 
         race_on = is_race_on != 0
 
+        # Which Forza layout is actually on the wire. Logged once per size seen,
+        # because the FH5 / FH6 split is decided purely by length and nobody has
+        # yet confirmed it against a running game (#52 / #54) — a user reporting
+        # this line is what settles it.
+        if len(data) != self._forza_logged_size:
+            self._forza_logged_size = len(data)
+            self.log(f"[FORZA] Packet size {len(data)} bytes -> "
+                     f"{self._describe_layout(len(data))}")
+
         if self.total_packets % 500 == 0:
             try:
                 rpm = struct.unpack_from('<f', data, _F_CURRENT_RPM)[0]
@@ -106,7 +130,7 @@ class ForzaBridgeCore(F1LifxBridgeCore):
                 rpm = 0.0
             self.log(
                 f"[FORZA HEARTBEAT] packets={self.total_packets}, "
-                f"race_on={int(race_on)}, rpm={rpm:.0f}"
+                f"race_on={int(race_on)}, rpm={rpm:.0f}, bytes={len(data)}"
             )
 
         # ── Race start ───────────────────────────────────────────────────────
@@ -125,16 +149,41 @@ class ForzaBridgeCore(F1LifxBridgeCore):
         self._forza_race_on = race_on
 
         # ── Crash impact (FH6 only — needs the SmashableVelDiff field) ───────
-        if race_on and len(data) >= _FH6_MIN:
+        if race_on and _FH6_MIN <= len(data) <= _FH6_MAX:
             try:
                 veldiff = struct.unpack_from('<f', data, _F_FH6_SMASH_VELDIFF)[0]
             except struct.error:
                 veldiff = 0.0
-            now = time.time()
-            if (veldiff > _CRASH_VELDIFF_THRESHOLD
-                    and now - self._forza_crash_cooldown > _CRASH_COOLDOWN_S):
+            if self._looks_like_impact(veldiff):
                 self.log(f"[FORZA] Crash - dV={veldiff:.1f} m/s")
-                self._forza_crash_cooldown = now
+                self._forza_crash_cooldown = time.time()
                 if self.is_event_enabled("crash"):
                     self._clear_bridge_effect()
                     self._fire("crash")
+            self._forza_prev_veldiff = veldiff
+
+    @staticmethod
+    def _describe_layout(size: int) -> str:
+        """Name the layout a packet size implies, in the user's terms."""
+        if size == _SLED_SIZE:
+            return "Sled (all Forza titles) - race start/end only"
+        if size < _FH6_MIN:
+            return "Car Dash (Horizon 5 / Motorsport) - race start/end only"
+        if size <= _FH6_MAX:
+            return "Horizon 6 Car Dash - race start/end + crash"
+        return "unrecognised - please report this size (#52)"
+
+    def _looks_like_impact(self, veldiff: float) -> bool:
+        """True if this reads like a real collision rather than a misread field.
+
+        A collision delta rests at ~0 and spikes for a frame; a coordinate sits
+        persistently high. Requiring the *previous* sample to be below the
+        threshold turns this into an edge detector, so if we ever have the
+        layout wrong and 236 is really a position, a car sitting 50 m up a hill
+        flashes once rather than every cooldown forever (#52).
+        """
+        if not (_CRASH_VELDIFF_THRESHOLD < veldiff < _CRASH_VELDIFF_SANE_MAX):
+            return False                                   # noise, NaN, or nonsense
+        if self._forza_prev_veldiff > _CRASH_VELDIFF_THRESHOLD:
+            return False                                   # already high: not an edge
+        return time.time() - self._forza_crash_cooldown > _CRASH_COOLDOWN_S

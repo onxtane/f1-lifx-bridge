@@ -1644,7 +1644,8 @@
         <div class="game-card-sub">Codemasters · Port 20777</div>
       </div>
 
-      <!-- Forza Horizon 6 -->
+      <!-- Forza — one card per protocol family, like the F1 card: the Sled
+           section is byte-identical across Horizon 5 / 6 / Motorsport. -->
       <div class="game-card" id="gameForza" data-game="forza">
         <div class="game-card-icon-area">
           <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1656,8 +1657,8 @@
             <circle cx="42" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
           </svg>
         </div>
-        <div class="game-card-name">Forza Horizon 6</div>
-        <div class="game-card-sub">Data Out · Port 5300</div>
+        <div class="game-card-name">Forza</div>
+        <div class="game-card-sub">Horizon 6 / 5 · Motorsport</div>
       </div>
 
       <!-- EA SPORTS WRC -->
@@ -3904,10 +3905,10 @@
       ],
     },
     forza: {
-      label: 'Forza Horizon 6',
+      label: 'Forza',
       accent: '#2dd4bf',
       sectorStrip: false,
-      rcSub: 'Driving telemetry and lighting triggers',
+      rcSub: 'Horizon 6 / 5 and Motorsport — driving telemetry and lighting triggers',
       rcWaiting: 'Waiting for Forza Data Out packets...',
       arSub: 'Which Forza events trigger your lights',
       events: ['lights_out','neutral','crash'],
@@ -3918,7 +3919,7 @@
       descs: {
         lights_out: 'Green flash when the race starts',
         neutral:    'Warm white when you return to the menus',
-        crash:      'Sharp white flash on a hard impact',
+        crash:      'Sharp white flash on a hard impact — Horizon 6 only; Horizon 5 and Motorsport do not send the collision data this needs',
       },
       qeEffects: [
         { trigger: 'Lights Out', label: 'Race Start',       cls: 'green' },
