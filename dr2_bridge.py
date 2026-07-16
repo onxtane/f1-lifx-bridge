@@ -54,7 +54,7 @@ class DR2BridgeCore(F1LifxBridgeCore):
         self.log("===================================================")
         self.log(f"UDP listener: {self.udp_ip}:{self.udp_port}")
         self.log("DRY_RUN: " + str(self.dry_run))
-        self.log("In-game: Options → Accessibility → UDP Telemetry → Enabled")
+        self.log("In-game: Options -> Accessibility -> UDP Telemetry -> Enabled")
         self.log(f"         IP: 127.0.0.1 (or this PC's LAN IP), Port: {self.udp_port}")
         self.log(f"         extradata = 3")
         self.log("===================================================")
@@ -146,8 +146,8 @@ class DR2BridgeCore(F1LifxBridgeCore):
                     and speed < self._dr2_last_speed - _CRASH_SPEED_DROP
                     and now - self._dr2_crash_cooldown > _CRASH_COOLDOWN_S):
                 self.log(
-                    f"[DR2] Crash — G={g_combined:.1f}, "
-                    f"Δspeed={self._dr2_last_speed - speed:.1f} m/s"
+                    f"[DR2] Crash - G={g_combined:.1f}, "
+                    f"d_speed={self._dr2_last_speed - speed:.1f} m/s"
                 )
                 self._dr2_crash_cooldown = now
                 if self.is_event_enabled("crash"):

@@ -57,7 +57,7 @@ class ForzaBridgeCore(F1LifxBridgeCore):
         self.log("===================================================")
         self.log(f"UDP listener: {self.udp_ip}:{self.udp_port}")
         self.log("DRY_RUN: " + str(self.dry_run))
-        self.log("In-game: Settings → HUD and Gameplay → DATA OUT = ON")
+        self.log("In-game: Settings -> HUD and Gameplay -> DATA OUT = ON")
         self.log(f"         IP: this PC's LAN IP, Port: {self.udp_port}")
         self.log("===================================================")
         self.log("Waiting for Forza UDP packets...")
@@ -133,7 +133,7 @@ class ForzaBridgeCore(F1LifxBridgeCore):
             now = time.time()
             if (veldiff > _CRASH_VELDIFF_THRESHOLD
                     and now - self._forza_crash_cooldown > _CRASH_COOLDOWN_S):
-                self.log(f"[FORZA] Crash — ΔV={veldiff:.1f} m/s")
+                self.log(f"[FORZA] Crash - dV={veldiff:.1f} m/s")
                 self._forza_crash_cooldown = now
                 if self.is_event_enabled("crash"):
                     self._clear_bridge_effect()

@@ -1684,7 +1684,13 @@ class F1LifxBridgeCore:
         return self._sector_status_active() or self._rpm_meter_active()
 
     def log(self, message):
-        print(message)
+        # A failing print must never take down a listener thread. stdout can be a
+        # cp1252 console (which raises UnicodeEncodeError on any character it
+        # can't map), a closed pipe, or absent entirely in a windowed build (#76).
+        try:
+            print(message)
+        except Exception:
+            pass
         if self.log_callback:
             self.log_callback(message)
 

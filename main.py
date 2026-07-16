@@ -4,6 +4,17 @@ import sys
 import threading
 from pathlib import Path
 
+# Console output must not depend on the OS codepage. A cp1252 stdout raises
+# UnicodeEncodeError on any character it can't map (an arrow in a setup hint was
+# enough to kill the bridge thread — #76), so force UTF-8 and never fail on an
+# unmappable character. Silently skipped when the stream can't be reconfigured
+# (e.g. no stdout in a windowed build).
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # On Windows, use the WebView2 (edgechromium) backend — it renders via the OS's
 # auto-updating WebView2 runtime, so the build ships no bundled Chromium (~15 MB
 # vs ~210 MB on Qt). WebView2 is Chromium under the hood, so the same flags keep
