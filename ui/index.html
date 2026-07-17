@@ -3646,6 +3646,18 @@
       RDFL: ['flag-red',   'flag',    'Red flag'],
     };
 
+    // Assetto Corsa / Competizione log "Flag -> <effect_key>"; map each to a
+    // feed entry. Same effect keys the bridges fire (ac_bridge / acc_bridge).
+    const AC_FLAG_EVENTS = {
+      yellow_flag:    ['flag-yellow', 'flag',    'Yellow flag'],
+      blue_flag:      ['flag-blue',   'flag',    'Blue flag'],
+      red_flag:       ['flag-red',    'flag',    'Red flag'],
+      white_warning:  ['info',        'penalty', 'Penalty'],
+      black_flag:     ['info',        'flag',    'Black flag'],
+      chequered_flag: ['info',        'flag',    'Chequered flag'],
+      neutral:        ['flag-green',  'flag',    'Track clear'],
+    };
+
     window._pwIngest = function (line) {
       if (line.startsWith('[SECTOR STATUS]')) {
         const m = line.match(/\[\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\]/);
@@ -3699,6 +3711,28 @@
       if ((line.startsWith('[DR2]') || line.startsWith('[FORZA]') || line.startsWith('[WRC]')) && !line.includes('Listener loop')) {
         addEvent('info', line.startsWith('[FORZA]') ? 'forza' : 'stage',
           line.slice(line.indexOf(']') + 1).trim());
+        return;
+      }
+      // Assetto Corsa / Competizione. [AC HEARTBEAT]/[ACC HEARTBEAT] start with
+      // a space after the tag, so they don't match these and stay out of the
+      // feed. The remaining diagnostic lines are filtered by message.
+      if (line.startsWith('[AC]') || line.startsWith('[ACC]')) {
+        const msg = line.slice(line.indexOf(']') + 1).trim();
+        if (/^(layout:|Joined:|Attached|Lost |Listener loop)/.test(msg)) return;
+        const fm = msg.match(/^Flag -> (\w+)/);
+        if (fm) {
+          const def = AC_FLAG_EVENTS[fm[1]];
+          if (def) addEvent(def[0], def[1], def[2]);
+        } else if (msg.startsWith('Race start')) {
+          addEvent('flag-green', 'start', 'Race start');
+        } else if (msg.startsWith('Crash')) {
+          addEvent('flag-red', 'crash', 'Crash');
+        } else if (msg.startsWith('Personal best')) {
+          addEvent('lap', 'lap', 'Personal best');
+        } else if (msg.startsWith('Session left')) {
+          addEvent('info', 'session', 'Session ended');
+        }
+        return;
       }
     };
 
