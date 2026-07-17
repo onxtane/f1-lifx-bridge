@@ -42,6 +42,25 @@ def dr2_packet(lap_time=0.0, speed=0.0, g_lat=0.0, g_lon=0.0,
     return struct.pack(_DR2_FMT, *f)
 
 
+# ── Assetto Corsa shared memory (#49) ────────────────────────────────────────
+# Built as the real ctypes structs rather than hand-packed bytes: the graphics
+# layout has wchar_t arrays that force compiler padding, so hand-packing would
+# bake in the very offset mistake ac_bridge.py uses ctypes to avoid.
+def ac_physics(rpms=4000, speed_kmh=120.0, gear=3):
+    from ac_bridge import ACPhysics
+    return ACPhysics(packetId=1, gear=gear, rpms=int(rpms), speedKmh=float(speed_kmh))
+
+
+def ac_graphics(status=2, session=2, flag=0, completed_laps=1, penalty_time=0.0):
+    """status/session/flag default to a live race under no flag.
+
+    See ac_bridge for the enums: status 2 = AC_LIVE, session 2 = AC_RACE.
+    """
+    from ac_bridge import ACGraphics
+    return ACGraphics(packetId=1, status=status, session=session, flag=flag,
+                      completedLaps=completed_laps, penaltyTime=float(penalty_time))
+
+
 # ── Forza "Data Out" (FH5 / FH6 / Forza Motorsport, little-endian) ───────────
 # Sled offsets: IsRaceOn @0 (s32), EngineMaxRpm @8 (f32), CurrentRpm @16 (f32).
 # Sizes: 232 = Sled (all titles), 311 = Car Dash (Horizon 5 / Motorsport),

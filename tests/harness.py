@@ -15,6 +15,7 @@ from bridge_core import F1LifxBridgeCore   # noqa: E402
 from dr2_bridge import DR2BridgeCore        # noqa: E402
 from wrc_bridge import WRCBridgeCore        # noqa: E402
 from forza_bridge import ForzaBridgeCore    # noqa: E402
+from ac_bridge import ACBridgeCore          # noqa: E402
 
 
 class RecordingF1Bridge(F1LifxBridgeCore):
@@ -81,6 +82,37 @@ class RecordingForzaBridge(ForzaBridgeCore):
         super().__init__(dry_run=True)
         self.dispatches = []
         self.enabled_events = None
+
+    def reset(self):
+        self.dispatches.clear()
+        return self
+
+    def _fire(self, method, *args):
+        self.dispatches.append((method, args))
+
+    def neutral_bridge(self):
+        self.dispatches.append(("neutral", ()))
+
+    def log(self, message):
+        pass
+
+
+class RecordingACBridge(ACBridgeCore):
+    """Assetto Corsa bridge that records dispatches the same way.
+
+    Feeds go through _handle_ac(physics, graphics) rather than a packet, since
+    AC reads shared memory rather than a socket — but the shape is the same, so
+    dispatch is tested exactly like every other title.
+    """
+
+    def __init__(self, max_rpm=8000):
+        super().__init__(dry_run=True)
+        self.dispatches = []
+        self.enabled_events = None
+        # Normally read from acpmf_static on the first sample; the tests aren't
+        # attached to any map, so stand it in and skip the one-shot layout log.
+        self._ac_max_rpm = max_rpm
+        self._ac_logged_layout = True
 
     def reset(self):
         self.dispatches.clear()

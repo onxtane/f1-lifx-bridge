@@ -2192,7 +2192,17 @@ class F1LifxBridgeCore:
         if telem is None:
             return
         rev_pct, rpm = telem
+        self.dispatch_rpm_percent(rev_pct, rpm)
 
+    def dispatch_rpm_percent(self, rev_pct, rpm):
+        """Drive the RPM meter from a 0-100 rev percent.
+
+        Shared by every title with revs and a redline — F1 reads the game's own
+        rev-lights percent, Assetto Corsa derives one from rpms/maxRpm (#49).
+        The throttle is the point of having this in one place: telemetry arrives
+        at 60 Hz, and repainting a strip that often would flood the LAN, so only
+        a change in quantised level paints.
+        """
         bucket = round(rev_pct / 100.0 * RPM_UPDATE_STEPS)
         if bucket == self._last_rpm_bucket:
             return
