@@ -248,6 +248,15 @@ class BridgeRunner:
                     dry_run=self._module.DRY_RUN,
                     log_callback=self.on_log,
                 )
+            elif self._game_mode == 'ac':
+                import ac_bridge as _ac
+                # Reads shared memory, so it takes no listen address — the
+                # udp_ip/udp_port it inherits go unused (#49).
+                self.bridge = _ac.ACBridgeCore(
+                    bulb_count=self._module.LIFX_BULB_COUNT,
+                    dry_run=self._module.DRY_RUN,
+                    log_callback=self.on_log,
+                )
             else:
                 self.bridge = self._module.F1LifxBridgeCore(
                     udp_ip=listen_ip,
@@ -763,8 +772,8 @@ class BridgeRunner:
             return {"ok": False, "error": str(exc)}
 
     def set_game_mode(self, mode: str):
-        """Switch game mode ('f1_25', 'dr2', 'forza', 'wrc').  Restarts the bridge if running."""
-        if mode not in ('f1_25', 'dr2', 'forza', 'wrc'):
+        """Switch game mode ('f1_25', 'dr2', 'forza', 'wrc', 'ac').  Restarts the bridge if running."""
+        if mode not in ('f1_25', 'dr2', 'forza', 'wrc', 'ac'):
             return
         self._game_mode = mode
         if self.is_running():

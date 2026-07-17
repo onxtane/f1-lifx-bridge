@@ -1661,6 +1661,23 @@
         <div class="game-card-sub">Horizon 6 / 5 · Motorsport</div>
       </div>
 
+      <!-- Assetto Corsa — reads shared memory, so no port and no in-game setup -->
+      <div class="game-card" id="gameAC" data-game="ac">
+        <div class="game-card-icon-area">
+          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 22 Q9 13 18 12 L38 12 Q47 13 49 18 L51 22 L49 24 L6 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M20 12 Q25 7 28 7 Q31 7 36 12" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M12 17 L44 17" stroke="#a78bfa" stroke-width="0.8" opacity="0.5"/>
+            <circle cx="15" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="15" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
+            <circle cx="41" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
+            <circle cx="41" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
+          </svg>
+        </div>
+        <div class="game-card-name">Assetto Corsa</div>
+        <div class="game-card-sub">Shared memory · No setup</div>
+      </div>
+
       <!-- EA SPORTS WRC -->
       <div class="game-card" id="gameWRC" data-game="wrc">
         <div class="game-card-icon-area">
@@ -2368,7 +2385,7 @@
             </div>
           </div>
 
-          <div class="settings-section" data-cat="connection">
+          <div class="settings-section" data-cat="connection" id="udpConnectionSection">
             <h3>UDP Connection</h3>
             <div class="setting-row">
               <div>
@@ -2415,7 +2432,7 @@
             </div>
           </div>
 
-          <div class="settings-section" data-cat="connection">
+          <div class="settings-section" data-cat="connection" id="udpForwardingSection">
             <h3>UDP Forwarding</h3>
             <div class="setting-row">
               <div>
@@ -2439,6 +2456,25 @@
               </div>
               <input type="number" id="settingFwdPort" value="20778" min="1024" max="65535"
                 style="width:90px;background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:10px;padding:7px 12px;color:var(--text-main);font-size:13px;font-family:inherit;">
+            </div>
+          </div>
+
+          <!-- Stands in for UDP Connection when Assetto Corsa is selected: it
+               reads shared memory, so there is nothing to configure — but an
+               empty Connection page would read as something missing. -->
+          <div class="settings-section" data-cat="connection" id="acConnectionSection" style="display:none;">
+            <h3>Assetto Corsa</h3>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Nothing to set up</div>
+                <div class="setting-hint">Assetto Corsa publishes telemetry to shared memory whenever it's running. There's no port to choose and nothing to enable in-game — start the bridge and GridGlow picks the game up when you launch it.</div>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Same PC only</div>
+                <div class="setting-hint">Shared memory is local to one machine, so unlike the other titles GridGlow has to run on the PC you're racing on. UDP forwarding doesn't apply for the same reason.</div>
+              </div>
             </div>
           </div>
 
@@ -3978,6 +4014,57 @@
         { label: 'Service Park',     animKey: 'Neutral'     },
       ],
     },
+    ac: {
+      label: 'Assetto Corsa',
+      accent: '#f43f5e',
+      sectorStrip: false,
+      rcSub: 'Race flags, revs and session state',
+      rcWaiting: 'Waiting for Assetto Corsa...',
+      arSub: 'Which Assetto Corsa events trigger your lights',
+      // AC's flag enum has no red flag, and the game exposes no start-light
+      // sequence to read — so red_flag and start_lights have no source here.
+      events: ['lights_out','yellow_flag','blue_flag','white_warning',
+               'black_flag','chequered_flag','neutral','rpm_meter'],
+      names: {
+        lights_out:    'Race Start',
+        white_warning: 'Penalty',
+        neutral:       'Track Clear',
+      },
+      descs: {
+        lights_out:    'Green flash on the first lap of a race',
+        yellow_flag:   'Amber while a yellow flag is out',
+        blue_flag:     'Blue pulse when you are being lapped',
+        white_warning: 'White flash on a penalty',
+        black_flag:    'Black flag — you have been disqualified',
+        chequered_flag:'Celebration flash at the end of the session',
+        neutral:       'Returns to your idle colour when the flag clears',
+      },
+      qeEffects: [
+        { trigger: 'Lights Out',     label: 'Race Start',     cls: 'green'  },
+        { trigger: 'Yellow Flag',    label: 'Yellow Flag',    cls: 'amber'  },
+        { trigger: 'Blue Flag',      label: 'Blue Flag',      cls: 'blue'   },
+        { trigger: 'Chequered Flag', label: 'Chequered Flag', cls: 'white'  },
+        { trigger: 'Neutral',        label: 'Track Clear',    cls: 'amber'  },
+      ],
+      laEffects: [
+        { key: 'lights_out',     label: 'Race Start',     icon: '🟢' },
+        { key: 'yellow_flag',    label: 'Yellow Flag',    icon: '🟡' },
+        { key: 'blue_flag',      label: 'Blue Flag',      icon: '🔵' },
+        { key: 'white_warning',  label: 'Penalty',        icon: '⚪' },
+        { key: 'black_flag',     label: 'Black Flag',     icon: '🏴' },
+        { key: 'chequered_flag', label: 'Chequered Flag', icon: '🏁' },
+        { key: 'neutral',        label: 'Track Clear',    icon: '💡' },
+        { key: 'rpm_meter',      label: 'RPM Meter',      icon: '📊' },
+      ],
+      lpPills: [
+        { label: 'Idle',         animKey: 'Idle'         },
+        { label: 'Race Start',   animKey: 'Lights Out'   },
+        { label: 'Yellow Flag',  animKey: 'Yellow Flag'  },
+        { label: 'Blue Flag',    animKey: 'Blue Flag'    },
+        { label: 'Chequered',    animKey: 'Chequered'    },
+        { label: 'Track Clear',  animKey: 'Neutral'      },
+      ],
+    },
   };
 
   // Apply per-game names stored before this block so ar-rows/cards get renamed once.
@@ -4021,6 +4108,17 @@
     // EA WRC needs a telemetry config file installed; its setup helper shows for WRC only.
     const wrcSetup = document.getElementById('wrcSetupSection');
     if (wrcSetup) wrcSetup.style.display = (game === 'wrc') ? '' : 'none';
+
+    // Assetto Corsa reads shared memory, so there's no port to listen on and
+    // nothing to forward. Leaving those controls up would invite people to
+    // "fix" a connection that was never used (#49).
+    const usesUdp = game !== 'ac';
+    const udpConn = document.getElementById('udpConnectionSection');
+    const udpFwd  = document.getElementById('udpForwardingSection');
+    if (udpConn) udpConn.style.display = usesUdp ? '' : 'none';
+    if (udpFwd)  udpFwd.style.display  = usesUdp ? '' : 'none';
+    const acConn = document.getElementById('acConnectionSection');
+    if (acConn) acConn.style.display = usesUdp ? 'none' : '';
 
     // Auto-Response subtitle
     const arSub = document.getElementById('arSub');

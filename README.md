@@ -2,13 +2,15 @@
 
 Sync your LIFX, Nanoleaf, and Philips Hue lights to live sim racing events. Start lights sweep red zone by zone, yellow flags pulse amber, fastest laps go purple — every moment on track reflected in your room.
 
-Supports **F1 25, F1 24, F1 2023, F1 2022, F1 2021**, **DiRT Rally 2.0**, **Forza Horizon 6, Forza Horizon 5, Forza Motorsport**, and **EA SPORTS WRC** via UDP telemetry. More titles coming.
+Supports **F1 25, F1 24, F1 2023, F1 2022, F1 2021**, **DiRT Rally 2.0**, **Forza Horizon 6, Forza Horizon 5, Forza Motorsport**, **EA SPORTS WRC**, and **Assetto Corsa**. More titles coming.
 
 ---
 
 ## How it works
 
 F1 25/24/23/22/21, DiRT Rally 2.0, the Forza titles, and EA SPORTS WRC broadcast telemetry over UDP on your local network. GridGlow listens for those packets, parses the event data, and sends the corresponding lighting effect to your LIFX, Nanoleaf, and Hue devices over LAN — no cloud, no API keys, sub-second latency.
+
+Assetto Corsa doesn't broadcast; it publishes to shared memory instead, which GridGlow reads directly. Same effects, no setup — but it means GridGlow has to run on the same PC as the game.
 
 ![Data flow diagram](docs/data_flow.png)
 
@@ -40,6 +42,13 @@ F1 25/24/23/22/21, DiRT Rally 2.0, the Forza titles, and EA SPORTS WRC broadcast
 - Return to menus — warm return to idle
 - Crash — sharp white impact flash on hard collisions. **Horizon 6 only** — Horizon 5 and Motorsport don't send the collision field this needs, so they get race start and return-to-menus.
 
+**Assetto Corsa Race Events**
+- Race start — green flash on the first lap of a race
+- Yellow / blue / black / chequered flags — straight from AC's own flag state
+- Penalty — white flash
+- Track clear — returns to your idle colour
+- RPM meter — revs against the car's own rev ceiling
+
 **EA SPORTS WRC Stage Events**
 - Stage start — green flash when the stage begins
 - Split checkpoint — purple flash at each third of the stage
@@ -61,7 +70,7 @@ F1 25/24/23/22/21, DiRT Rally 2.0, the Forza titles, and EA SPORTS WRC broadcast
 - Idle mode — custom colour with optional slow pulse
 
 **App**
-- Game selector — switch between F1 25–21, DiRT Rally 2.0, Forza (Horizon 6 / 5 / Motorsport), and EA SPORTS WRC; "Remember my choice" skips the screen next time
+- Game selector — switch between F1 25–21, DiRT Rally 2.0, Forza (Horizon 6 / 5 / Motorsport), EA SPORTS WRC, and Assetto Corsa; "Remember my choice" skips the screen next time
 - Mini mode — compact 380×100 always-on-top window
 - Profiles — save and switch complete configurations
 - UDP forwarding — relay packets to a second destination (sim dashboard, second PC)
@@ -82,7 +91,7 @@ F1 25/24/23/22/21, DiRT Rally 2.0, the Forza titles, and EA SPORTS WRC broadcast
 | Forza Motorsport | ✅ Supported *(race events; no crash — [#54](https://github.com/onxtane/f1-lifx-bridge/issues/54))* |
 | DiRT Rally 2.0 | ✅ Supported |
 | EA SPORTS WRC | ✅ Supported |
-| Assetto Corsa | 🔜 Planned — [#49](https://github.com/onxtane/f1-lifx-bridge/issues/49) |
+| Assetto Corsa | ✅ Supported *(unvalidated — [#49](https://github.com/onxtane/f1-lifx-bridge/issues/49))* |
 | Project CARS 2 | 🔜 Planned — [#50](https://github.com/onxtane/f1-lifx-bridge/issues/50) |
 
 See the full roadmap at [gridglow.titanstowers.net/roadmap](https://gridglow.titanstowers.net/roadmap) or [#31](https://github.com/onxtane/f1-lifx-bridge/issues/31).
@@ -92,7 +101,7 @@ See the full roadmap at [gridglow.titanstowers.net/roadmap](https://gridglow.tit
 ## Requirements
 
 - Windows 10/11 *(macOS support in development — [#45](https://github.com/onxtane/f1-lifx-bridge/issues/45))*
-- F1 25/24/23/22/21, DiRT Rally 2.0, Forza (Horizon 6 / 5 / Motorsport), or EA SPORTS WRC on PC with UDP telemetry enabled
+- F1 25/24/23/22/21, DiRT Rally 2.0, Forza (Horizon 6 / 5 / Motorsport), EA SPORTS WRC, or Assetto Corsa on PC
 - LIFX, Nanoleaf, or Philips Hue device on the same LAN
 
 GridGlow draws its window using the **Microsoft Edge WebView2 runtime** and **.NET Framework 4.6.2+**.
@@ -146,7 +155,7 @@ drift from the real packet format.
 
 ## Setup
 
-**1. Enable UDP telemetry in your game**
+**1. Enable telemetry in your game** *(every title except Assetto Corsa, which needs none)*
 
 **F1 25 / F1 24 / F1 2023 / F1 2022 / F1 2021** — Settings → Telemetry Settings
 
@@ -175,6 +184,8 @@ drift from the real packet format.
 | Data Out | On |
 | Data Out IP Address | `127.0.0.1` (or your PC's LAN IP) |
 | Data Out Port | `5300` |
+
+**Assetto Corsa** — nothing to enable. AC publishes telemetry to shared memory whenever it's running, so just pick it in the game selector and start the bridge. Because shared memory is local to one machine, GridGlow must run on the PC you're racing on — unlike the UDP titles, which can send to a second PC.
 
 **EA SPORTS WRC** — WRC configures telemetry with a JSON file, so GridGlow installs it for you. Pick EA SPORTS WRC in the game selector, then go to **Settings → Connection → Install WRC telemetry config**. (Manual steps are in [`assets/wrc/README.md`](assets/wrc/README.md).)
 
@@ -207,6 +218,8 @@ f1_lifx_app/
 ├── dr2_bridge.py            # DiRT Rally 2.0 UDP listener (extends bridge_core)
 ├── forza_bridge.py          # Forza Data Out UDP listener (extends bridge_core)
 ├── wrc_bridge.py            # EA SPORTS WRC UDP listener (extends bridge_core)
+├── ac_bridge.py             # Assetto Corsa shared-memory listener (extends bridge_core)
+├── shared_memory.py         # read-only Windows named shared memory (AC; iRacing later)
 ├── app_paths.py             # cross-platform resource / user-data paths
 ├── nanoleaf_controller.py   # Nanoleaf local REST API
 ├── hue_controller.py        # Philips Hue CLIP v2 local API
