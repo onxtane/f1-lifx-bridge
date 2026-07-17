@@ -88,6 +88,20 @@ def _feed(bridge, physics=None, graphics=None):
     return bridge.dispatches
 
 
+def _primed(bridge=None):
+    """A bridge past its first sample, with dispatches cleared.
+
+    The first sample legitimately fires neutral — flag goes from "unknown" to
+    AC_NO_FLAG, which is the bridge setting your lights to idle on attach — and
+    speed needs a baseline before a drop can be measured. Priming means a test
+    sees only the thing it's testing.
+    """
+    bridge = bridge or RecordingACBridge()
+    _feed(bridge, physics=fx.ac_physics(speed_kmh=200.0))
+    bridge.reset()
+    return bridge
+
+
 class FlagTests(unittest.TestCase):
     """AC exposes a real flag enum — the thing GridGlow is built around."""
 
@@ -175,6 +189,86 @@ class RaceStartTests(unittest.TestCase):
         bridge.reset()
         _feed(bridge, graphics=fx.ac_graphics(completed_laps=4))
         self.assertEqual(bridge.dispatches, [])
+
+
+class FastestLapTests(unittest.TestCase):
+    """iBestTime improving is AC's equivalent of F1's FTLP."""
+
+    def setUp(self):
+        self.bridge = _primed()
+
+    def test_a_first_valid_lap_is_a_personal_best(self):
+        fired = [e for e, _a in _feed(self.bridge,
+                                      graphics=fx.ac_graphics(best_time_ms=88500))]
+        self.assertEqual(fired, ["fastest_lap"])
+
+    def test_beating_your_best_fires_again(self):
+        _feed(self.bridge, graphics=fx.ac_graphics(best_time_ms=88500))
+        self.bridge.reset()
+        fired = [e for e, _a in _feed(self.bridge,
+                                      graphics=fx.ac_graphics(best_time_ms=87200))]
+        self.assertEqual(fired, ["fastest_lap"])
+
+    def test_a_slower_lap_is_not_a_best(self):
+        _feed(self.bridge, graphics=fx.ac_graphics(best_time_ms=88500))
+        self.bridge.reset()
+        _feed(self.bridge, graphics=fx.ac_graphics(best_time_ms=91000))
+        self.assertEqual(self.bridge.dispatches, [])
+
+    def test_holding_the_same_best_does_not_re_fire(self):
+        """iBestTime is in every sample, not an event."""
+        _feed(self.bridge, graphics=fx.ac_graphics(best_time_ms=88500))
+        self.bridge.reset()
+        for _ in range(30):
+            _feed(self.bridge, graphics=fx.ac_graphics(best_time_ms=88500))
+        self.assertEqual(self.bridge.dispatches, [])
+
+    def test_the_no_lap_sentinel_is_not_a_lap_time(self):
+        """AC parks iBestTime on a sentinel before you set one. 0 and a huge
+        int are both reported in the wild, so neither may count."""
+        for sentinel in (0, 2147483647, 99999999):
+            bridge = _primed()
+            with self.subTest(sentinel=sentinel):
+                self.assertEqual(
+                    _feed(bridge, graphics=fx.ac_graphics(best_time_ms=sentinel)), [])
+
+
+class CrashTests(unittest.TestCase):
+    """A G spike *and* speed genuinely lost — the same two-signal test DiRT
+    Rally uses, because G alone fires on kerbs and hard cornering."""
+
+    def setUp(self):
+        self.bridge = _primed()          # 200 km/h baseline to fall from
+
+    def test_a_hard_impact_fires_crash(self):
+        fired = [e for e, _a in _feed(self.bridge, physics=fx.ac_physics(
+            speed_kmh=150.0, g_lat=4.0, g_lon=3.0))]
+        self.assertEqual(fired, ["crash"])
+
+    def test_hard_cornering_is_not_a_crash(self):
+        """High G while carrying speed is just a fast corner."""
+        self.assertEqual(_feed(self.bridge, physics=fx.ac_physics(
+            speed_kmh=199.0, g_lat=4.5, g_lon=0.0)), [])
+
+    def test_braking_is_not_a_crash(self):
+        """Losing a lot of speed under braking, without the G spike."""
+        self.assertEqual(_feed(self.bridge, physics=fx.ac_physics(
+            speed_kmh=120.0, g_lat=0.2, g_lon=1.5)), [])
+
+    def test_a_kerb_is_not_a_crash(self):
+        """Vertical G is bumps and kerbs — it must not count toward the spike."""
+        p = fx.ac_physics(speed_kmh=150.0)
+        p.accG[1] = 9.0                      # a big vertical hit
+        self.assertEqual(_feed(self.bridge, physics=p), [])
+
+    def test_crashes_are_rate_limited(self):
+        """One impact spans many samples at 60 Hz."""
+        _feed(self.bridge, physics=fx.ac_physics(speed_kmh=150.0, g_lat=4.0, g_lon=3.0))
+        self.bridge.reset()
+        for speed in (140.0, 120.0, 100.0):
+            _feed(self.bridge, physics=fx.ac_physics(
+                speed_kmh=speed, g_lat=4.0, g_lon=3.0))
+        self.assertEqual(self.bridge.dispatches, [])
 
 
 class RpmTests(unittest.TestCase):

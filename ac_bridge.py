@@ -23,6 +23,7 @@ documentation-derived: nobody here owns the game. `[AC] layout` logs what the
 maps actually contain so a user with AC can confirm them in one paste.
 """
 import ctypes
+import math
 import time
 
 from bridge_core import F1LifxBridgeCore
@@ -31,6 +32,18 @@ from shared_memory import SharedMemoryMap
 _PHYSICS_TAG  = "Local\\acpmf_physics"
 _GRAPHICS_TAG = "Local\\acpmf_graphics"
 _STATIC_TAG   = "Local\\acpmf_static"
+
+# Lap times are milliseconds. Before you set one, AC parks iBestTime on a
+# sentinel — reported variously as 0 or a huge int depending on version — so
+# rather than guess which, treat anything outside a plausible lap as "no time".
+_LAP_TIME_MAX_MS = 60 * 60 * 1000     # an hour; no circuit lap comes close
+
+# Crash detection, mirroring the DiRT Rally thresholds — same idea, and AC's
+# accG is in the same units. AC reports speed in km/h where DR2 uses m/s, so
+# the drop is converted rather than reused blind.
+_CRASH_G_THRESHOLD     = 3.5          # combined lateral + longitudinal G
+_CRASH_SPEED_DROP_KMH  = 14.0         # ~4 m/s lost between samples
+_CRASH_COOLDOWN_S      = 3.0
 
 # How often to sample. The game writes far faster; the RPM meter only repaints
 # on a quantised level change, so 60 Hz is plenty and costs nothing to poll.
@@ -165,8 +178,13 @@ class ACBridgeCore(F1LifxBridgeCore):
     Yellow / blue / white / black / chequered flag -> the matching effect
     Penalty (flag or penaltyTime)                  -> white_warning
     Race start (session RACE, first lap)           -> lights_out
+    Personal best (iBestTime improves)             -> fastest_lap
+    Hard impact (G spike + speed lost)             -> crash
     Flag cleared                                   -> neutral
     Engine revs vs maxRpm                          -> rpm_meter / redline
+
+    No red flag and no start-light sequence: AC's flag enum has neither, so
+    those two effects have no source here.
 
     Nothing fires unless status is AC_LIVE: the maps stay populated in menus,
     replays and pause, so without that gate a replay would drive the lights.
@@ -185,6 +203,9 @@ class ACBridgeCore(F1LifxBridgeCore):
         self._ac_last_flag  = None
         self._ac_last_status = None
         self._ac_last_laps  = None
+        self._ac_best_time  = None
+        self._ac_last_speed = None
+        self._ac_crash_cooldown = 0.0
         self._ac_logged_layout = False
 
     # ── lifecycle ────────────────────────────────────────────────────────────
@@ -267,7 +288,9 @@ class ACBridgeCore(F1LifxBridgeCore):
                      f"rpm={physics.rpms}")
 
         self._ac_race_start(graphics)
+        self._ac_fastest_lap(graphics)
         self._ac_flags(graphics)
+        self._ac_crash(physics)
         self._ac_rpm(physics)
 
     def _ac_race_start(self, graphics):
@@ -281,6 +304,52 @@ class ACBridgeCore(F1LifxBridgeCore):
                 self._clear_bridge_effect()
                 self._fire("lights_out")
         self._ac_last_laps = laps
+
+    def _ac_fastest_lap(self, graphics):
+        """iBestTime improving is a personal best — AC's equivalent of F1's FTLP.
+
+        AC is single-player at heart, so your best lap *is* the session's best,
+        which makes this the same event F1 fires on. The first valid lap counts:
+        it's your best by definition, and the sentinel it replaces isn't a time.
+        """
+        best = graphics.iBestTime
+        if not (0 < best < _LAP_TIME_MAX_MS):
+            return                                   # no lap set yet
+        if best == self._ac_best_time:
+            return
+        improved = self._ac_best_time is None or best < self._ac_best_time
+        self._ac_best_time = best
+        if not improved:
+            return                                   # session reset, not a PB
+        self.log(f"[AC] Personal best - {best / 1000:.3f}s")
+        if self.is_event_enabled("fastest_lap"):
+            self._clear_bridge_effect()
+            self._fire("fastest_lap")
+
+    def _ac_crash(self, physics):
+        """Hard impact: a G-force spike *and* speed actually lost.
+
+        Same two-signal test DiRT Rally uses — G alone fires on kerbs and hard
+        cornering, so requiring the car to genuinely lose speed is what keeps a
+        fast lap from strobing.
+        """
+        speed = physics.speedKmh
+        last = self._ac_last_speed
+        self._ac_last_speed = speed
+        if last is None:
+            return
+        # accG is (lateral, vertical, longitudinal); vertical is kerbs and
+        # bumps, which is exactly what shouldn't count as a crash.
+        g = math.sqrt(physics.accG[0] ** 2 + physics.accG[2] ** 2)
+        now = time.time()
+        if (g > _CRASH_G_THRESHOLD
+                and speed < last - _CRASH_SPEED_DROP_KMH
+                and now - self._ac_crash_cooldown > _CRASH_COOLDOWN_S):
+            self.log(f"[AC] Crash - G={g:.1f}, dV={last - speed:.1f} km/h")
+            self._ac_crash_cooldown = now
+            if self.is_event_enabled("crash"):
+                self._clear_bridge_effect()
+                self._fire("crash")
 
     def _ac_flags(self, graphics):
         """Fire on the edge only — the flag field holds its value every frame."""

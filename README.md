@@ -45,9 +45,13 @@ Assetto Corsa doesn't broadcast; it publishes to shared memory instead, which Gr
 **Assetto Corsa Race Events**
 - Race start — green flash on the first lap of a race
 - Yellow / blue / black / chequered flags — straight from AC's own flag state
+- Personal best — purple flash when you beat your best lap
 - Penalty — white flash
+- Crash — sharp white impact flash (G-force + speed-drop detection)
 - Track clear — returns to your idle colour
 - RPM meter — revs against the car's own rev ceiling
+
+*No start lights or red flag: AC's flag state has neither.*
 
 **EA SPORTS WRC Stage Events**
 - Stage start — green flash when the stage begins
