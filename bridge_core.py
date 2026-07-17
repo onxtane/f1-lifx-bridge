@@ -1855,31 +1855,32 @@ class F1LifxBridgeCore:
 
         Both controllers are started in parallel so time-based animations
         (sleep loops in lights_out, fastest_lap, etc.) run simultaneously.
+
+        A controller that simply doesn't have the effect is skipped quietly.
+        Not every brand implements every effect — crash is LIFX-only — and that
+        is a difference in capability, not a fault. Reporting it as an error
+        raised a banner (#73) at Nanoleaf and Hue owners on every DiRT Rally
+        and Forza crash, for something they could do nothing about.
         """
+        def _call(ctrl, label):
+            fn = getattr(ctrl, method, None)
+            if fn is None:
+                return                      # this brand doesn't do this effect
+            try:
+                fn(*args)
+            except Exception as exc:
+                self.log(f"[{label} ERROR] {method}: {exc}")
+
         threads = []
         if self.lifx is not None:
-            def _lifx_call(ctrl=self.lifx):
-                try:
-                    getattr(ctrl, method)(*args)
-                except Exception as exc:
-                    self.log(f"[LIFX ERROR] {method}: {exc}")
-            t = threading.Thread(target=_lifx_call, daemon=True)
+            t = threading.Thread(target=_call, args=(self.lifx, "LIFX"), daemon=True)
             t.start()
             threads.append(t)
         if self.nanoleaf is not None:
-            def _nl_call(ctrl=self.nanoleaf):
-                try:
-                    getattr(ctrl, method)(*args)
-                except Exception as exc:
-                    self.log(f"[NANOLEAF ERROR] {method}: {exc}")
-            threading.Thread(target=_nl_call, daemon=True).start()
+            threading.Thread(target=_call, args=(self.nanoleaf, "NANOLEAF"),
+                             daemon=True).start()
         if self.hue is not None:
-            def _hue_call(ctrl=self.hue):
-                try:
-                    getattr(ctrl, method)(*args)
-                except Exception as exc:
-                    self.log(f"[HUE ERROR] {method}: {exc}")
-            threading.Thread(target=_hue_call, daemon=True).start()
+            threading.Thread(target=_call, args=(self.hue, "HUE"), daemon=True).start()
         # Wait for LIFX to finish so the caller's timing is preserved.
         for t in threads:
             t.join()

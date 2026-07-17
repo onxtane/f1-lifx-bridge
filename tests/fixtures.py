@@ -56,16 +56,18 @@ def ac_physics(rpms=4000, speed_kmh=120.0, gear=3, g_lat=0.0, g_lon=0.0):
 
 
 def ac_graphics(status=2, session=2, flag=0, completed_laps=1, penalty_time=0.0,
-                best_time_ms=0):
+                best_time_ms=0, current_time_ms=1):
     """status/session/flag default to a live race under no flag.
 
     See ac_bridge for the enums: status 2 = AC_LIVE, session 2 = AC_RACE.
-    best_time_ms 0 is AC's "no lap set yet" sentinel.
+    best_time_ms 0 is AC's "no lap set yet" sentinel. current_time_ms is the
+    running lap timer — 0 means stopped, which is what the grid countdown looks
+    like and is how the race start is detected.
     """
     from ac_bridge import ACGraphics
     return ACGraphics(packetId=1, status=status, session=session, flag=flag,
                       completedLaps=completed_laps, penaltyTime=float(penalty_time),
-                      iBestTime=int(best_time_ms))
+                      iBestTime=int(best_time_ms), iCurrentTime=int(current_time_ms))
 
 
 # ── Forza "Data Out" (FH5 / FH6 / Forza Motorsport, little-endian) ───────────

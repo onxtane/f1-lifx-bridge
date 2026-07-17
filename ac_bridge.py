@@ -202,11 +202,12 @@ class ACBridgeCore(F1LifxBridgeCore):
         self._ac_max_rpm    = 0
         self._ac_last_flag  = None
         self._ac_last_status = None
-        self._ac_last_laps  = None
         self._ac_best_time  = None
         self._ac_last_speed = None
+        self._ac_race_started = False
         self._ac_crash_cooldown = 0.0
         self._ac_logged_layout = False
+        self._ac_primed = False
 
     # ── lifecycle ────────────────────────────────────────────────────────────
 
@@ -221,8 +222,14 @@ class ACBridgeCore(F1LifxBridgeCore):
         for m in (self._physics, self._graphics, self._static):
             m.close()
         self._ac_attached = False
-        self._ac_last_flag = self._ac_last_status = self._ac_last_laps = None
+        # Forget everything: on the next attach the game may be in a completely
+        # different session, and stale state would fire effects for things that
+        # happened while we weren't watching.
+        self._ac_last_flag = self._ac_last_status = None
+        self._ac_best_time = self._ac_last_speed = None
+        self._ac_race_started = False
         self._ac_logged_layout = False
+        self._ac_primed = False
 
     def listener_loop(self):
         self.log("===================================================")
@@ -282,6 +289,15 @@ class ACBridgeCore(F1LifxBridgeCore):
             return
         self._ac_last_status = AC_LIVE
 
+        # The maps hold whatever the game was already doing before we attached:
+        # a lap time from an earlier session, a chequered flag from a race that
+        # finished before GridGlow even started. The first live sample learns
+        # that state instead of announcing it (#49).
+        if not self._ac_primed:
+            self._ac_primed = True
+            self._ac_seed(physics, graphics)
+            return
+
         if self.total_packets % 600 == 0:
             self.log(f"[AC HEARTBEAT] samples={self.total_packets}, "
                      f"flag={graphics.flag}, lap={graphics.completedLaps}, "
@@ -290,20 +306,46 @@ class ACBridgeCore(F1LifxBridgeCore):
         self._ac_race_start(graphics)
         self._ac_fastest_lap(graphics)
         self._ac_flags(graphics)
-        self._ac_crash(physics)
+        self._ac_crash(physics, graphics)
         self._ac_rpm(physics)
 
     def _ac_race_start(self, graphics):
-        """AC has no start-light sequence to read, so the first completed lap of
-        a race is the closest honest signal for lights out."""
-        laps = graphics.completedLaps
-        if (self._ac_last_laps is not None and laps > self._ac_last_laps
-                and graphics.session == AC_RACE and self._ac_last_laps == 0):
-            self.log("[AC] Race underway")
-            if self.is_event_enabled("lights_out"):
-                self._clear_bridge_effect()
-                self._fire("lights_out")
-        self._ac_last_laps = laps
+        """Lights out = the lap timer starting on lap one of a race.
+
+        This used to fire on the first *completed* lap, which is the end of lap
+        one — a whole lap late, and it read as firing every time you crossed
+        the line. AC exposes no start-light sequence, but iCurrentTime sits at
+        0 through the grid countdown and starts the moment you're released,
+        which is the same signal WRC's stage start uses.
+        """
+        on_lap_one = graphics.session == AC_RACE and graphics.completedLaps == 0
+        if on_lap_one and graphics.iCurrentTime > 0:
+            if not self._ac_race_started:
+                self._ac_race_started = True
+                self.log("[AC] Race start")
+                if self.is_event_enabled("lights_out"):
+                    self._clear_bridge_effect()
+                    self._fire("lights_out")
+        elif on_lap_one:
+            # Back on the grid with the timer at zero: arm for the next start.
+            self._ac_race_started = False
+
+    def _ac_seed(self, physics, graphics):
+        """Adopt the game's current state without firing anything for it.
+
+        Everything here is an edge detector, and an edge against `None` reads
+        every pre-existing value as though it just happened.
+        """
+        self._ac_last_flag = graphics.flag
+        self._ac_last_speed = physics.speedKmh
+        best = graphics.iBestTime
+        self._ac_best_time = best if 0 < best < _LAP_TIME_MAX_MS else None
+        # If the timer's already running we joined a race in progress; don't
+        # announce a start that happened before we were watching.
+        self._ac_race_started = (graphics.session == AC_RACE
+                                 and graphics.iCurrentTime > 0)
+        self.log(f"[AC] Joined: flag={graphics.flag} lap={graphics.completedLaps}"
+                 + (f" best={best / 1000:.3f}s" if self._ac_best_time else ""))
 
     def _ac_fastest_lap(self, graphics):
         """iBestTime improving is a personal best — AC's equivalent of F1's FTLP.
@@ -326,7 +368,7 @@ class ACBridgeCore(F1LifxBridgeCore):
             self._clear_bridge_effect()
             self._fire("fastest_lap")
 
-    def _ac_crash(self, physics):
+    def _ac_crash(self, physics, graphics):
         """Hard impact: a G-force spike *and* speed actually lost.
 
         Same two-signal test DiRT Rally uses — G alone fires on kerbs and hard
@@ -337,6 +379,11 @@ class ACBridgeCore(F1LifxBridgeCore):
         last = self._ac_last_speed
         self._ac_last_speed = speed
         if last is None:
+            return
+        # Once the chequered flag is out the session is over and AC resets the
+        # car, which reads as a huge G spike. That isn't a crash — it's the
+        # game tidying up, and flashing for it after the race is just noise.
+        if graphics.flag == AC_CHECKERED_FLAG:
             return
         # accG is (lateral, vertical, longitudinal); vertical is kerbs and
         # bumps, which is exactly what shouldn't count as a crash.

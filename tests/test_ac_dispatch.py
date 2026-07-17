@@ -106,7 +106,7 @@ class FlagTests(unittest.TestCase):
     """AC exposes a real flag enum — the thing GridGlow is built around."""
 
     def setUp(self):
-        self.bridge = RecordingACBridge()
+        self.bridge = _primed()
 
     def test_each_flag_fires_its_effect(self):
         for flag, effect in ((AC_YELLOW_FLAG, "yellow_flag"),
@@ -115,7 +115,7 @@ class FlagTests(unittest.TestCase):
                              (AC_BLACK_FLAG, "black_flag"),
                              (AC_CHECKERED_FLAG, "chequered_flag"),
                              (AC_PENALTY_FLAG, "white_warning")):
-            bridge = RecordingACBridge()
+            bridge = _primed()
             with self.subTest(flag=flag):
                 fired = [e for e, _a in _feed(bridge, graphics=fx.ac_graphics(flag=flag))]
                 self.assertIn(effect, fired)
@@ -173,22 +173,121 @@ class StatusGateTests(unittest.TestCase):
 
 
 class RaceStartTests(unittest.TestCase):
-    def test_first_lap_of_a_race_fires_lights_out(self):
-        """AC has no start-light sequence to read, so the race's first lap
-        transition is the closest honest signal."""
+    """Regression: this fired on the first *completed* lap — the end of lap
+    one, a whole lap late, and it read as firing every time you crossed the
+    line. iCurrentTime sits at 0 through the grid countdown and starts the
+    instant you're released, which is the actual moment.
+    """
+
+    def test_the_lap_timer_starting_is_the_race_start(self):
         bridge = RecordingACBridge()
-        _feed(bridge, graphics=fx.ac_graphics(session=AC_RACE, completed_laps=0))
+        _feed(bridge, graphics=fx.ac_graphics(session=AC_RACE, completed_laps=0,
+                                              current_time_ms=0))   # countdown
         bridge.reset()
         fired = [e for e, _a in _feed(bridge, graphics=fx.ac_graphics(
-            session=AC_RACE, completed_laps=1))]
-        self.assertIn("lights_out", fired)
+            session=AC_RACE, completed_laps=0, current_time_ms=120))]
+        self.assertEqual(fired, ["lights_out"])
 
-    def test_later_laps_do_not_re_fire(self):
+    def test_it_does_not_wait_for_the_first_lap_to_complete(self):
+        """The bug: nothing should be pending by the time you cross the line."""
         bridge = RecordingACBridge()
-        _feed(bridge, graphics=fx.ac_graphics(completed_laps=3))
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=0))
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=500))
         bridge.reset()
-        _feed(bridge, graphics=fx.ac_graphics(completed_laps=4))
+        # Crossing the line to start lap 2 must not fire a race start.
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=1, current_time_ms=100))
         self.assertEqual(bridge.dispatches, [])
+
+    def test_it_fires_once_not_every_sample_of_lap_one(self):
+        bridge = RecordingACBridge()
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=0))
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=100))
+        bridge.reset()
+        for t in (200, 300, 400, 500):
+            _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=t))
+        self.assertEqual(bridge.dispatches, [])
+
+    def test_crossing_the_line_on_later_laps_never_fires(self):
+        bridge = _primed()
+        for laps in (1, 2, 3, 4):
+            _feed(bridge, graphics=fx.ac_graphics(completed_laps=laps,
+                                                  current_time_ms=100))
+        self.assertEqual([e for e, _a in bridge.dispatches if e == "lights_out"], [])
+
+    def test_a_new_race_re_arms_the_start(self):
+        bridge = RecordingACBridge()
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=0))
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=100))
+        # Back to the grid for a new race.
+        _feed(bridge, graphics=fx.ac_graphics(completed_laps=0, current_time_ms=0))
+        bridge.reset()
+        fired = [e for e, _a in _feed(bridge, graphics=fx.ac_graphics(
+            completed_laps=0, current_time_ms=90))]
+        self.assertEqual(fired, ["lights_out"])
+
+    def test_a_practice_session_is_not_a_race_start(self):
+        bridge = RecordingACBridge()
+        _feed(bridge, graphics=fx.ac_graphics(session=0, completed_laps=0,
+                                              current_time_ms=0))
+        bridge.reset()
+        _feed(bridge, graphics=fx.ac_graphics(session=0, completed_laps=0,
+                                              current_time_ms=500))
+        self.assertEqual([e for e, _a in bridge.dispatches if e == "lights_out"], [])
+
+
+class JoinInProgressTests(unittest.TestCase):
+    """Regression: attaching mid-session announced whatever was already there.
+
+    The real log showed a personal best from a previous session and a chequered
+    flag from a race that finished before GridGlow started — both fired the
+    instant it attached.
+    """
+
+    def test_a_stale_best_lap_is_adopted_not_announced(self):
+        bridge = RecordingACBridge()
+        fired = _feed(bridge, graphics=fx.ac_graphics(best_time_ms=89678))
+        self.assertEqual(fired, [], "announced a lap set before we were watching")
+
+    def test_a_stale_chequered_flag_is_adopted_not_announced(self):
+        bridge = RecordingACBridge()
+        fired = _feed(bridge, graphics=fx.ac_graphics(flag=AC_CHECKERED_FLAG))
+        self.assertEqual(fired, [])
+
+    def test_joining_a_race_already_underway_does_not_fire_a_start(self):
+        bridge = RecordingACBridge()
+        fired = _feed(bridge, graphics=fx.ac_graphics(session=AC_RACE,
+                                                      completed_laps=0,
+                                                      current_time_ms=45000))
+        self.assertEqual(fired, [])
+
+    def test_the_adopted_best_still_gates_later_laps(self):
+        """Seeding must set the baseline, not just skip the first sample."""
+        bridge = RecordingACBridge()
+        _feed(bridge, graphics=fx.ac_graphics(best_time_ms=89678))
+        bridge.reset()
+        _feed(bridge, graphics=fx.ac_graphics(best_time_ms=91000))   # slower
+        self.assertEqual(bridge.dispatches, [])
+        fired = [e for e, _a in _feed(bridge, graphics=fx.ac_graphics(best_time_ms=87149))]
+        self.assertEqual(fired, ["fastest_lap"])
+
+    def test_a_flag_change_after_joining_still_fires(self):
+        bridge = RecordingACBridge()
+        _feed(bridge, graphics=fx.ac_graphics(flag=AC_CHECKERED_FLAG))
+        bridge.reset()
+        fired = [e for e, _a in _feed(bridge, graphics=fx.ac_graphics(flag=AC_NO_FLAG))]
+        self.assertEqual(fired, ["neutral"])
+
+    def test_reattaching_forgets_the_old_session(self):
+        bridge = RecordingACBridge()
+        _feed(bridge, graphics=fx.ac_graphics(best_time_ms=87149))
+        bridge._ac_detach()          # game closed
+        bridge.reset()
+        # New session, slower car: the old best must not suppress it.
+        fired = _feed(bridge, graphics=fx.ac_graphics(best_time_ms=95000))
+        self.assertEqual(fired, [], "should adopt, not announce")
+        bridge.reset()
+        fired = [e for e, _a in _feed(bridge, graphics=fx.ac_graphics(best_time_ms=94000))]
+        self.assertEqual(fired, ["fastest_lap"])
 
 
 class FastestLapTests(unittest.TestCase):
@@ -276,7 +375,7 @@ class RpmTests(unittest.TestCase):
     same dispatcher, so the throttle behaves identically."""
 
     def setUp(self):
-        self.bridge = RecordingACBridge(max_rpm=8000)
+        self.bridge = _primed(RecordingACBridge(max_rpm=8000))
         self.bridge.enabled_events = frozenset({"rpm_meter"})
 
     def test_revs_drive_the_meter_as_a_percent_of_max(self):
