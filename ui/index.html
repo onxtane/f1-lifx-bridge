@@ -1139,50 +1139,144 @@
   #gameSelector{
     position:fixed; inset:0; z-index:9995;
     background:#0b1020;
-    backdrop-filter:blur(28px) saturate(1.4);
-    -webkit-backdrop-filter:blur(28px) saturate(1.4);
-    display:flex; align-items:center; justify-content:center;
+    display:flex; flex-direction:column;
     opacity:0; pointer-events:none;
     transition:opacity .5s ease;
   }
   #gameSelector.visible{ opacity:1; pointer-events:auto; }
   #gameSelector.hiding { opacity:0; pointer-events:none; }
-  #gameSelectorInner{
-    display:flex; flex-direction:column; align-items:center;
-    width:min(660px,92vw);
-  }
-  #gameCards{ display:flex; gap:20px; flex-wrap:wrap; justify-content:center; width:100%; margin-bottom:32px; }
-  .game-card{
-    width:180px; padding:30px 20px 24px;
-    border-radius:20px;
-    background:rgba(255,255,255,0.07);
-    border:1px solid rgba(255,255,255,0.14);
-    cursor:pointer; text-align:center;
-    position:relative; overflow:hidden;
-    transition:transform .15s ease, border-color .2s ease,
-               background .2s ease, box-shadow .2s ease;
-  }
-  .game-card:hover{ transform:translateY(-4px); border-color:var(--purple); background:rgba(139,124,246,0.10); box-shadow:0 12px 36px rgba(139,124,246,0.20); }
-  .game-card-selected{ border-color:var(--purple) !important; background:rgba(139,124,246,0.14) !important; box-shadow:0 8px 32px rgba(139,124,246,0.28) !important; }
-  .game-card-locked{ opacity:0.32; cursor:not-allowed; pointer-events:none; }
-  .game-card-icon-area{ margin:0 auto 16px; }
-  .game-card-name{ font-size:15px; font-weight:700; color:var(--text-main); margin-bottom:4px; }
-  .game-card-sub{ font-size:11px; color:var(--text-muted); line-height:1.5; }
-  .game-soon-badge{
-    position:absolute; top:12px; right:12px;
-    font-size:10px; font-weight:600; letter-spacing:.4px;
-    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.16);
-    border-radius:99px; padding:2px 9px; color:var(--text-muted);
-  }
-  .game-card::before{
-    content:''; position:absolute; inset:0;
-    background:radial-gradient(circle at var(--sx,50%) var(--sy,50%), rgba(255,255,255,0.09) 0%, transparent 65%);
-    opacity:0; transition:opacity .25s ease; pointer-events:none; border-radius:inherit;
-  }
-  .game-card:hover::before{ opacity:1; }
-  .game-card > *{ position:relative; z-index:1; }
-  #gameSelectorRememberRow{ display:flex; align-items:center; justify-content:center; margin-bottom:24px; }
-  #gameSelectorRememberRow label{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-muted); cursor:pointer; user-select:none; }
+
+  #gsShell{ flex:1; min-height:0; display:grid; grid-template-columns:64px 1fr 340px; }
+
+  /* ---- left icon rail ---- */
+  #gsRail{ display:flex; flex-direction:column; justify-content:space-between; align-items:center;
+           padding:20px 0; border-right:1px solid var(--glass-border); }
+  .gs-rail-group{ display:flex; flex-direction:column; gap:10px; }
+  .gs-rail-btn{ width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+                background:transparent; border:1px solid transparent; color:var(--text-muted); cursor:pointer;
+                transition:background .15s, color .15s, border-color .15s; }
+  .gs-rail-btn svg{ width:20px; height:20px; }
+  .gs-rail-btn:hover{ background:rgba(255,255,255,0.06); color:var(--text-main); }
+  .gs-rail-active{ background:rgba(139,124,246,0.14); color:var(--purple-l); border-color:rgba(139,124,246,0.4); }
+  .gs-rail-active:hover{ background:rgba(139,124,246,0.14); color:var(--purple-l); }
+  /* stats/settings aren't reachable until a game is launched */
+  .gs-rail-soft{ opacity:.4; cursor:default; }
+  .gs-rail-soft:hover{ background:transparent; color:var(--text-muted); }
+
+  /* ---- main column ---- */
+  #gsMain{ display:flex; flex-direction:column; min-height:0; padding:36px 40px 0; }
+  .gs-header h2{ font-size:clamp(26px,3vw,34px); font-weight:800; letter-spacing:-1px; margin:0 0 8px; color:var(--text-main); }
+  .gs-header p{ font-size:14px; color:var(--text-muted); margin:0 0 24px; }
+
+  .gs-toolbar{ display:flex; gap:12px; align-items:center; margin-bottom:22px; }
+  .gs-search{ position:relative; flex:1; max-width:340px; }
+  .gs-search svg{ position:absolute; left:14px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--text-muted); pointer-events:none; }
+  .gs-search input{ width:100%; padding:11px 14px 11px 40px; border-radius:12px; background:rgba(255,255,255,0.05);
+                    border:1px solid var(--glass-border); color:var(--text-main); font-size:14px; font-family:inherit; }
+  .gs-search input:focus{ outline:none; border-color:rgba(139,124,246,0.5); background:rgba(255,255,255,0.07); }
+  .gs-filter{ padding:11px 34px 11px 14px; border-radius:12px; border:1px solid var(--glass-border);
+              color:var(--text-main); font-size:13px; font-family:inherit; cursor:pointer;
+              -webkit-appearance:none; appearance:none;
+              background:rgba(255,255,255,0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23aab2c5' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 12px center; }
+  .gs-filter:focus{ outline:none; border-color:rgba(139,124,246,0.5); }
+  .gs-filter option{ background:#141a2e; color:var(--text-main); }
+  .gs-view-toggle{ display:flex; gap:2px; margin-left:auto; padding:3px; border-radius:12px;
+                   background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); }
+  .gs-view-btn{ width:34px; height:32px; border-radius:9px; border:none; background:transparent; color:var(--text-muted);
+                cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, color .15s; }
+  .gs-view-btn svg{ width:16px; height:16px; }
+  .gs-view-active{ background:rgba(139,124,246,0.18); color:var(--purple-l); }
+
+  /* ---- body / grid ---- */
+  .gs-body{ flex:1; overflow-y:auto; padding-bottom:24px; min-height:0; }
+  .gs-section-label{ font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--purple); margin:6px 0 14px; }
+  #gsComingLabel{ margin-top:28px; }
+  .gs-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(196px, 1fr)); gap:14px; }
+
+  /* card (grid mode) */
+  .gs-card{ position:relative; padding:20px 18px; border-radius:16px; background:rgba(255,255,255,0.05);
+            border:1px solid var(--glass-border); cursor:pointer;
+            transition:transform .15s, border-color .2s, background .2s, box-shadow .2s; }
+  .gs-card:hover{ transform:translateY(-3px); border-color:var(--purple); background:rgba(139,124,246,0.08); }
+  .gs-card.gs-selected{ border-color:var(--purple); background:rgba(139,124,246,0.12); box-shadow:0 8px 28px rgba(139,124,246,0.25); }
+  .gs-card-icon{ height:38px; display:flex; align-items:center; margin-bottom:14px; }
+  .gs-card-icon svg{ height:32px; width:auto; }
+  .gs-card-name{ font-size:15px; font-weight:700; color:var(--text-main); margin-bottom:3px; padding-right:22px; }
+  .gs-card-dev{ font-size:11px; color:var(--text-muted); margin-bottom:12px; }
+  .gs-badge{ display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:600; letter-spacing:.2px;
+             padding:4px 9px; border-radius:99px; background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); color:var(--text-muted); }
+  .gs-badge svg{ width:11px; height:11px; }
+  .gs-star{ position:absolute; top:14px; right:14px; width:26px; height:26px; border:none; background:transparent;
+            color:var(--text-muted); cursor:pointer; padding:0; opacity:.45; transition:opacity .15s, color .15s; display:flex; align-items:center; justify-content:center; }
+  .gs-star svg{ width:17px; height:17px; }
+  .gs-star:hover{ opacity:1; color:#f5b02e; }
+  .gs-star.gs-fav{ opacity:1; color:#f5b02e; }
+  .gs-check{ position:absolute; top:14px; right:14px; width:22px; height:22px; border-radius:50%; background:var(--purple);
+             display:none; align-items:center; justify-content:center; color:#fff; }
+  .gs-check svg{ width:12px; height:12px; }
+  .gs-card.gs-selected .gs-check{ display:flex; }
+  .gs-card.gs-selected .gs-star{ right:42px; }
+
+  /* coming soon (inert) */
+  .gs-card-coming{ cursor:default; opacity:.5; }
+  .gs-card-coming:hover{ transform:none; border-color:var(--glass-border); background:rgba(255,255,255,0.05); box-shadow:none; }
+  .gs-lock{ position:absolute; top:14px; right:14px; color:var(--text-muted); opacity:.6; }
+  .gs-lock svg{ width:15px; height:15px; }
+
+  /* list view */
+  .gs-grid-list{ display:flex; flex-direction:column; gap:8px; }
+  .gs-grid-list .gs-card{ display:flex; align-items:center; gap:16px; padding:12px 18px; }
+  .gs-grid-list .gs-card:hover{ transform:none; }
+  .gs-grid-list .gs-card-icon{ height:auto; width:44px; flex-shrink:0; margin:0; }
+  .gs-grid-list .gs-card-icon svg{ height:26px; }
+  .gs-grid-list .gs-card-body{ flex:1; min-width:0; }
+  .gs-grid-list .gs-card-name{ margin-bottom:2px; padding-right:0; }
+  .gs-grid-list .gs-card-dev{ margin-bottom:0; }
+  .gs-grid-list .gs-badge{ margin-left:auto; flex-shrink:0; }
+  /* in list mode the star/check sit inline at the far right, not absolute */
+  .gs-grid-list .gs-star, .gs-grid-list .gs-check{ position:static; top:auto; right:auto; flex-shrink:0; }
+  .gs-grid-list .gs-card.gs-selected .gs-star{ right:auto; }
+  .gs-grid-list .gs-lock{ position:static; }
+
+  /* ---- right detail panel ---- */
+  #gsDetail{ display:flex; flex-direction:column; padding:36px 28px 24px; border-left:1px solid var(--glass-border); background:rgba(255,255,255,0.02); }
+  .gs-detail-label{ font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--purple); margin-bottom:20px; }
+  .gs-detail-empty{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:var(--text-muted); gap:14px; }
+  .gs-detail-empty svg{ width:40px; height:40px; opacity:.35; }
+  .gs-detail-empty p{ font-size:13px; max-width:200px; line-height:1.5; }
+  #gsDetailCard{ flex:1; }
+  .gs-detail-head{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+  .gs-detail-icon{ width:52px; height:52px; border-radius:14px; background:rgba(139,124,246,0.12); border:1px solid rgba(139,124,246,0.28);
+                   display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .gs-detail-icon svg{ height:30px; width:auto; }
+  .gs-detail-name{ font-size:19px; font-weight:800; color:var(--text-main); margin-bottom:7px; line-height:1.2; }
+  .gs-detail-pill{ display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--purple-l);
+                   background:rgba(139,124,246,0.14); border:1px solid rgba(139,124,246,0.35); padding:2px 9px; border-radius:99px; }
+  .gs-detail-pill svg{ width:11px; height:11px; }
+  .gs-detail-desc{ font-size:13px; color:var(--text-muted); line-height:1.65; margin:0 0 20px; }
+  .gs-detail-meta{ display:flex; flex-direction:column; }
+  .gs-meta-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0;
+                border-bottom:1px solid rgba(255,255,255,0.06); font-size:13px; }
+  .gs-meta-row:last-child{ border-bottom:none; }
+  .gs-meta-label{ color:var(--text-muted); display:flex; align-items:center; gap:9px; }
+  .gs-meta-label svg{ width:15px; height:15px; opacity:.7; flex-shrink:0; }
+  .gs-meta-val{ color:var(--text-main); font-weight:500; text-align:right; }
+  .gs-detail-foot{ margin-top:20px; }
+  .gs-detail-foot .btn-primary{ width:100%; padding:13px; font-size:15px; display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:16px; }
+  .gs-detail-foot .btn-primary svg{ width:16px; height:16px; }
+  .gs-remember{ display:flex; align-items:flex-start; gap:10px; font-size:13px; color:var(--text-muted); cursor:pointer; user-select:none; line-height:1.45; }
+  .gs-remember small{ display:block; color:var(--text-muted); opacity:.65; font-size:11px; margin-top:2px; }
+
+  /* ---- status bar ---- */
+  #gsStatusBar{ flex-shrink:0; height:38px; display:flex; align-items:center; justify-content:space-between;
+                padding:0 20px; border-top:1px solid var(--glass-border); font-size:12px; color:var(--text-muted); }
+  .gs-status-left{ display:flex; align-items:center; gap:8px; }
+  .gs-status-dot{ width:8px; height:8px; border-radius:50%; background:#2ecc71; box-shadow:0 0 8px rgba(46,204,113,0.6); }
+  .gs-status-help{ background:transparent; border:1px solid var(--glass-border); border-radius:8px; padding:5px 12px;
+                   color:var(--text-muted); font-size:12px; cursor:pointer; transition:color .15s, border-color .15s; }
+  .gs-status-help:hover{ color:var(--text-main); border-color:rgba(255,255,255,0.2); }
+  .gs-no-results{ text-align:center; color:var(--text-muted); font-size:14px; padding:44px 0; }
+
   .gs-checkbox{ position:relative; display:inline-flex; flex-shrink:0; }
   .gs-checkbox input{ opacity:0; width:0; height:0; position:absolute; }
   .gs-checkbox-box{
@@ -1199,27 +1293,6 @@
   }
   .gs-checkbox-box svg{ opacity:0; transition:opacity .15s ease; }
   .gs-checkbox input:checked ~ .gs-checkbox-box svg{ opacity:1; }
-  .gs-coming-section{ width:100%; margin-bottom:28px; }
-  .gs-coming-label{
-    font-size:10px; font-weight:600; letter-spacing:3px; text-transform:uppercase;
-    color:var(--text-muted); margin-bottom:14px; text-align:center;
-  }
-  .gs-coming-scroll{
-    display:flex; gap:12px; overflow-x:auto; padding-bottom:10px;
-    scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none;
-    mask-image:linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-    -webkit-mask-image:linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-  }
-  .gs-coming-scroll::-webkit-scrollbar{ display:none; }
-  .gs-mini-card{
-    flex-shrink:0; width:128px; padding:16px 12px 14px;
-    border-radius:14px; opacity:0.30; cursor:not-allowed;
-    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.10);
-    text-align:center; scroll-snap-align:start;
-  }
-  .gs-mini-card-icon{ margin:0 auto 10px; }
-  .gs-mini-card-name{ font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:2px; }
-  .gs-mini-card-sub{ font-size:10px; color:var(--text-muted); line-height:1.4; }
 
   /* ---- mini mode ---- */
   body.mini-mode .scene,
@@ -1601,188 +1674,105 @@
 </div>
 
 <div id="gameSelector">
-  <div id="gameSelectorInner">
-    <div style="text-align:center;margin-bottom:48px;">
-      <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--purple);font-weight:600;margin-bottom:18px;">GridGlow</div>
-      <h2 style="font-size:30px;font-weight:700;margin:0 0 10px;color:var(--text-main);">What are you playing tonight?</h2>
-      <p style="font-size:14px;color:var(--text-muted);margin:0;">Select your title to load the right effects</p>
-    </div>
-
-    <div id="gameCards">
-
-      <!-- F1 25 / 24 — active -->
-      <div class="game-card" id="gameF125" data-game="f1_25">
-        <div class="game-card-icon-area">
-          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 22 Q11 13 20 12 L36 12 Q46 12 48 18 L50 22 L48 24 L6 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M22 12 Q26 7 28 7 Q30 7 34 12" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M46 19 L53 19 L53 22 L48 22" fill="rgba(139,124,246,0.45)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M8 17 L4 17 L4 22 L8 22" fill="rgba(139,124,246,0.45)" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="14" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
-            <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="42" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
-          </svg>
-        </div>
-        <div class="game-card-name">F1® 25 – F1® 21</div>
-        <div class="game-card-sub">EA Sports · Codemasters</div>
+  <div id="gsShell">
+    <!-- left icon rail (chrome; games is the active screen) -->
+    <div id="gsRail">
+      <div class="gs-rail-group">
+        <button class="gs-rail-btn gs-rail-active" title="Games" aria-label="Games">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><line x1="7" y1="12" x2="9" y2="12"/><line x1="8" y1="11" x2="8" y2="13"/><circle cx="16" cy="11" r=".6" fill="currentColor"/><circle cx="18" cy="13" r=".6" fill="currentColor"/></svg>
+        </button>
+        <button class="gs-rail-btn gs-rail-soft" id="gsRailStats" title="Stats — opens after launch" aria-label="Stats">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/></svg>
+        </button>
+        <button class="gs-rail-btn gs-rail-soft" id="gsRailSettings" title="Settings — opens after launch" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
       </div>
-
-      <!-- DiRT Rally 2.0 — active -->
-      <div class="game-card" id="gameDR2" data-game="dr2">
-        <div class="game-card-icon-area">
-          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M7 22 Q9 12 17 11 L37 11 Q45 12 47 17 L49 22 L47 24 L7 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M22 11 L22 7 L33 7 L33 11" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="14" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="14" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
-            <circle cx="40" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="40" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
-          </svg>
-        </div>
-        <div class="game-card-name">DiRT Rally 2.0</div>
-        <div class="game-card-sub">Codemasters · Port 20777</div>
-      </div>
-
-      <!-- Forza — one card per protocol family, like the F1 card: the Sled
-           section is byte-identical across Horizon 5 / 6 / Motorsport. -->
-      <div class="game-card" id="gameForza" data-game="forza">
-        <div class="game-card-icon-area">
-          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 22 Q7 14 16 13 L40 13 Q48 13 50 18 L51 22 L49 24 L5 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M18 13 Q23 9 28 9 Q33 9 38 13" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="14" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="14" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
-            <circle cx="42" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="42" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
-          </svg>
-        </div>
-        <div class="game-card-name">Forza</div>
-        <div class="game-card-sub">Horizon 6 / 5 · Motorsport</div>
-      </div>
-
-      <!-- Assetto Corsa — reads shared memory, so no port and no in-game setup -->
-      <div class="game-card" id="gameAC" data-game="ac">
-        <div class="game-card-icon-area">
-          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 22 Q9 13 18 12 L38 12 Q47 13 49 18 L51 22 L49 24 L6 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M20 12 Q25 7 28 7 Q31 7 36 12" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M12 17 L44 17" stroke="#a78bfa" stroke-width="0.8" opacity="0.5"/>
-            <circle cx="15" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="15" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
-            <circle cx="41" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="41" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
-          </svg>
-        </div>
-        <div class="game-card-name">Assetto Corsa</div>
-        <div class="game-card-sub">Shared memory · No setup</div>
-      </div>
-
-      <!-- Assetto Corsa Competizione — same shared memory, its own flag layout -->
-      <div class="game-card" id="gameACC" data-game="acc">
-        <div class="game-card-icon-area">
-          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 22 Q9 13 18 12 L38 12 Q47 13 49 18 L51 22 L49 24 L6 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M20 12 Q25 7 28 7 Q31 7 36 12" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M12 17 L44 17" stroke="#a78bfa" stroke-width="0.8" opacity="0.5"/>
-            <rect x="24" y="19" width="8" height="3" rx="1" fill="#a78bfa" opacity="0.7"/>
-            <circle cx="15" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="15" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
-            <circle cx="41" cy="24" r="4.5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="41" cy="24" r="2" fill="rgba(139,124,246,0.5)"/>
-          </svg>
-        </div>
-        <div class="game-card-name">Assetto Corsa Comp.</div>
-        <div class="game-card-sub">Shared memory · No setup</div>
-      </div>
-
-      <!-- EA SPORTS WRC -->
-      <div class="game-card" id="gameWRC" data-game="wrc">
-        <div class="game-card-icon-area">
-          <svg width="56" height="32" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 22 Q8 13 17 12 L38 12 Q46 13 48 18 L50 22 L48 24 L6 24 Z" fill="rgba(139,124,246,0.55)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M21 12 L23 8 L34 8 L35 12" fill="rgba(139,124,246,0.25)" stroke="#a78bfa" stroke-width="1"/>
-            <path d="M27 8 L29 5 L33 5" stroke="#a78bfa" stroke-width="1" stroke-linecap="round"/>
-            <circle cx="15" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="15" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
-            <circle cx="41" cy="24" r="5" fill="#0b1020" stroke="#a78bfa" stroke-width="1"/>
-            <circle cx="41" cy="24" r="2.5" fill="rgba(139,124,246,0.5)"/>
-          </svg>
-        </div>
-        <div class="game-card-name">EA SPORTS WRC</div>
-        <div class="game-card-sub">JSON telemetry · Port 20777</div>
-      </div>
-
-    </div>
-
-    <!-- Coming soon strip -->
-    <div class="gs-coming-section">
-      <div class="gs-coming-label">Coming soon</div>
-      <div class="gs-coming-scroll">
-
-        <!-- Assetto Corsa -->
-        <div class="gs-mini-card">
-          <div class="gs-mini-card-icon">
-            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 22 Q10 14 18 13 L36 13 Q44 13 46 18 L48 22 L46 24 L8 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <path d="M20 13 Q25 9 28 9 Q31 9 36 13" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <line x1="38" y1="13" x2="38" y2="10" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <line x1="34" y1="10" x2="48" y2="10" stroke="rgba(255,255,255,0.32)" stroke-width="1.5" stroke-linecap="round"/>
-              <circle cx="14" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <circle cx="42" cy="24" r="4.5" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="gs-mini-card-name">Assetto Corsa</div>
-          <div class="gs-mini-card-sub">Kunos Simulazioni</div>
-        </div>
-
-        <!-- Project CARS 2 -->
-        <div class="gs-mini-card">
-          <div class="gs-mini-card-icon">
-            <svg width="48" height="28" viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 22 Q5 17 14 16 L42 16 Q50 17 53 21 L53 24 L3 24 Z" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <path d="M21 16 Q24 12 28 12 Q32 12 35 16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <path d="M3 22 L0 22 L0 23 L3 23" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <path d="M53 21 L56 21 L56 23 L53 23" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <circle cx="13" cy="24" r="4" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <circle cx="43" cy="24" r="4" fill="#0b1020" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="gs-mini-card-name">Project CARS 2</div>
-          <div class="gs-mini-card-sub">Slightly Mad Studios</div>
-        </div>
-
-        <!-- F1 Manager -->
-        <div class="gs-mini-card">
-          <div class="gs-mini-card-icon">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="3" y="13" width="4" height="8" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <rect x="10" y="9" width="4" height="12" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-              <rect x="17" y="5" width="4" height="16" rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.28)" stroke-width="1"/>
-            </svg>
-          </div>
-          <div class="gs-mini-card-name">F1® Manager</div>
-          <div class="gs-mini-card-sub">Frontier Developments</div>
-        </div>
-
+      <div class="gs-rail-group">
+        <button class="gs-rail-btn" id="gsRailHelp" title="Help" aria-label="Help">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+        <button class="gs-rail-btn" id="gsRailDiscord" title="Discord" aria-label="Discord">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.9A19 19 0 0 0 15.6 3.4l-.2.5a17.6 17.6 0 0 1 4.2 1.4A17.9 17.9 0 0 0 4.4 5.3 17.5 17.5 0 0 1 8.6 3.9l-.3-.5A19 19 0 0 0 3.7 4.9 20.4 20.4 0 0 0 .2 18.6a19.2 19.2 0 0 0 5.8 2.9l.7-1.2a12.5 12.5 0 0 1-2-1l.5-.4a13.7 13.7 0 0 0 11.6 0l.5.4a12.5 12.5 0 0 1-2 1l.7 1.2a19.2 19.2 0 0 0 5.8-2.9A20.3 20.3 0 0 0 20.3 4.9zM8.3 15.5c-1.1 0-2-1-2-2.3s.9-2.3 2-2.3 2 1 2 2.3-.9 2.3-2 2.3zm7.4 0c-1.1 0-2-1-2-2.3s.9-2.3 2-2.3 2 1 2 2.3-.9 2.3-2 2.3z"/></svg>
+        </button>
       </div>
     </div>
 
-    <div id="gameSelectorRememberRow">
-      <label>
-        <span class="gs-checkbox">
-          <input type="checkbox" id="gameSelectorRemember">
-          <span class="gs-checkbox-box">
-            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-              <polyline points="1,4.5 4,7.5 10,1" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+    <!-- main column -->
+    <div id="gsMain">
+      <div class="gs-header">
+        <h2>Choose your game</h2>
+        <p>Select a title to load the right effects and telemetry for your experience.</p>
+      </div>
+
+      <div class="gs-toolbar">
+        <div class="gs-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="gsSearch" placeholder="Search games..." autocomplete="off" spellcheck="false">
+        </div>
+        <select id="gsFilter" class="gs-filter" aria-label="Filter by connection method">
+          <option value="All">All Games</option>
+        </select>
+        <div class="gs-view-toggle">
+          <button id="gsViewGrid" class="gs-view-btn gs-view-active" title="Grid view" aria-label="Grid view">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button id="gsViewList" class="gs-view-btn" title="List view" aria-label="List view">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="gs-body" id="gsBody">
+        <div class="gs-section-label" id="gsSupportedLabel">Supported Games</div>
+        <div id="gsSupportedGrid" class="gs-grid"></div>
+        <div class="gs-section-label" id="gsComingLabel">Coming Soon</div>
+        <div id="gsComingGrid" class="gs-grid gs-grid-coming"></div>
+        <div id="gsNoResults" class="gs-no-results" style="display:none;">No games match your search.</div>
+      </div>
+    </div>
+
+    <!-- right detail panel -->
+    <div id="gsDetail">
+      <div class="gs-detail-label">Selected Game</div>
+      <div id="gsDetailEmpty" class="gs-detail-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+        <p>Select a game to see its details and launch.</p>
+      </div>
+      <div id="gsDetailCard" style="display:none;">
+        <div class="gs-detail-head">
+          <div class="gs-detail-icon" id="gsDetailIcon"></div>
+          <div>
+            <div class="gs-detail-name" id="gsDetailName"></div>
+            <span class="gs-detail-pill">Selected
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg>
+            </span>
+          </div>
+        </div>
+        <p class="gs-detail-desc" id="gsDetailDesc"></p>
+        <div class="gs-detail-meta" id="gsDetailMeta"></div>
+      </div>
+      <div class="gs-detail-foot">
+        <button class="btn btn-primary" id="gameSelectorLaunch" disabled>
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;margin-right:2px;vertical-align:-3px;"><polygon points="6,4 20,12 6,20"/></svg>
+          Launch
+        </button>
+        <label class="gs-remember">
+          <span class="gs-checkbox">
+            <input type="checkbox" id="gameSelectorRemember">
+            <span class="gs-checkbox-box">
+              <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><polyline points="1,4.5 4,7.5 10,1" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
           </span>
-        </span>
-        Remember my choice and skip this screen
-      </label>
+          <span>Remember my choice and skip this screen<br><small>You can change this anytime in Settings.</small></span>
+        </label>
+      </div>
     </div>
+  </div>
 
-    <button class="btn btn-primary" id="gameSelectorLaunch" style="width:100%;max-width:280px;" disabled>Launch</button>
+  <div id="gsStatusBar">
+    <span class="gs-status-left"><span class="gs-status-dot"></span> Ready to race</span>
+    <button class="gs-status-help" id="gsStatusHelp">Need help?</button>
   </div>
 </div>
 
@@ -6564,23 +6554,200 @@
     }
   }
 
+  // ---- game switcher (launcher redesign, #81) ----
+  // Connection methods, in the order the filter dropdown lists them.
+  const GS_METHODS = ['UDP', 'JSON', 'Shared Memory'];
+
+  // One car glyph, tinted per game — keeps the grid consistent without leaning
+  // on brand logos.
+  function gsIcon(accent) {
+    return '<svg viewBox="0 0 56 32" fill="none" xmlns="http://www.w3.org/2000/svg">'
+      + '<path d="M6 22 Q9 13 18 12 L38 12 Q47 13 49 18 L51 22 L49 24 L6 24 Z" fill="' + accent + '30" stroke="' + accent + '" stroke-width="1.2"/>'
+      + '<path d="M20 12 Q25 7 28 7 Q31 7 36 12" fill="' + accent + '1f" stroke="' + accent + '" stroke-width="1.2"/>'
+      + '<circle cx="15" cy="24" r="4.5" fill="#0b1020" stroke="' + accent + '" stroke-width="1.2"/>'
+      + '<circle cx="41" cy="24" r="4.5" fill="#0b1020" stroke="' + accent + '" stroke-width="1.2"/></svg>';
+  }
+
+  // Presentation catalogue for the switcher. Supported ids match the game-mode
+  // ids in _GAME_DEFS; coming-soon entries have no mode and are inert.
+  const GS_CATALOG = [
+    { id:'f1_25', name:'F1 25 – F1 21', dev:'EA Sports · Codemasters', method:'UDP', channel:'Port 20777', setup:'Enable UDP telemetry', accent:'#e10600', supported:true },
+    { id:'dr2',   name:'DiRT Rally 2.0', dev:'Codemasters', method:'UDP', channel:'Port 20777', setup:'Enable UDP telemetry', accent:'#f5b02e', supported:true },
+    { id:'forza', name:'Forza Horizon / Motorsport', dev:'Playground · Turn 10', method:'UDP', channel:'Port 5300', setup:'Turn on Data Out', accent:'#2dd4bf', supported:true },
+    { id:'ac',    name:'Assetto Corsa', dev:'Kunos Simulazioni', method:'Shared Memory', channel:'N/A', setup:'No extra setup', accent:'#f43f5e', supported:true },
+    { id:'acc',   name:'Assetto Corsa Competizione', dev:'Kunos Simulazioni', method:'Shared Memory', channel:'N/A', setup:'No extra setup', accent:'#f43f5e', supported:true },
+    { id:'wrc',   name:'EA SPORTS WRC', dev:'Codemasters', method:'JSON', channel:'Port 20777', setup:'Install config (1 click)', accent:'#4f8ef7', supported:true },
+    { id:'pcars2',    name:'Project CARS 2', dev:'Slightly Mad Studios', method:'UDP', supported:false },
+    { id:'ams2',      name:'Automobilista 2', dev:'Reiza Studios', method:'UDP', supported:false },
+    { id:'f1manager', name:'F1 Manager', dev:'Frontier Developments', method:'—', supported:false },
+  ];
+  const GS_BY_ID = Object.fromEntries(GS_CATALOG.map(g => [g.id, g]));
+  const GS_COMPAT = 'Windows 10/11 (64-bit)';
+
+  const GS_METHOD_ICON = {
+    'UDP': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="18.5" r="1" fill="currentColor" stroke="none"/></svg>',
+    'JSON': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2"/><path d="M16 3a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2"/></svg>',
+    'Shared Memory': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>',
+  };
+  function gsBadge(method) {
+    const icon = GS_METHOD_ICON[method] || '';
+    const label = method === 'UDP' ? 'UDP Telemetry'
+                : method === 'JSON' ? 'JSON Telemetry'
+                : method === 'Shared Memory' ? 'Shared Memory' : method;
+    return '<span class="gs-badge">' + icon + escHtml(label) + '</span>';
+  }
+
+  // switcher state
+  let _gsSearch = '', _gsFilter = 'All', _gsView = 'grid', _gsSelected = null;
+  let _gsFav = new Set();
+
+  function gsStateLoad() {
+    const st = window._loadedSettings || {};
+    _gsFav = new Set(Array.isArray(st.game_favorites) ? st.game_favorites : []);
+    _gsView = st.game_switcher_view === 'list' ? 'list' : 'grid';
+  }
+  function gsSave(patch) {
+    if (!window._loadedSettings) window._loadedSettings = {};
+    Object.assign(window._loadedSettings, patch);
+    callApi('save_gui_settings', patch);
+  }
+
+  function gsCompute() {
+    const q = _gsSearch.trim().toLowerCase();
+    const mq = g => !q || g.name.toLowerCase().includes(q);
+    const mm = g => _gsFilter === 'All' || g.method === _gsFilter;
+    const sup = GS_CATALOG.filter(g => g.supported && mq(g) && mm(g));
+    const com = GS_CATALOG.filter(g => !g.supported && mq(g) && mm(g));
+    const fav = sup.filter(g => _gsFav.has(g.id));
+    const rest = sup.filter(g => !_gsFav.has(g.id));
+    return { supported: fav.concat(rest), coming: com };
+  }
+
+  function gsBuildCard(g, coming) {
+    const card = document.createElement('div');
+    const listMode = _gsView === 'list';
+    card.className = 'gs-card' + (coming ? ' gs-card-coming' : '')
+      + (!coming && _gsSelected === g.id ? ' gs-selected' : '');
+    card.dataset.game = g.id;
+
+    const iconHtml = '<div class="gs-card-icon">' + gsIcon(g.accent || '#8b7cf6') + '</div>';
+    const corner = coming
+      ? '<span class="gs-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>'
+      : '<button class="gs-star' + (_gsFav.has(g.id) ? ' gs-fav' : '') + '" title="Favourite" aria-label="Favourite">'
+        + '<svg viewBox="0 0 24 24" fill="' + (_gsFav.has(g.id) ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="12,2 15,9 22,9.3 16.5,14 18.5,21 12,17 5.5,21 7.5,14 2,9.3 9,9"/></svg></button>'
+        + '<span class="gs-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>';
+
+    if (listMode) {
+      card.innerHTML = iconHtml
+        + '<div class="gs-card-body"><div class="gs-card-name">' + escHtml(g.name) + '</div></div>'
+        + gsBadge(g.method) + corner;
+    } else {
+      card.innerHTML = iconHtml
+        + '<div class="gs-card-name">' + escHtml(g.name) + '</div>'
+        + '<div class="gs-card-dev">' + escHtml(g.dev) + '</div>'
+        + gsBadge(g.method) + corner;
+    }
+
+    if (!coming) {
+      card.addEventListener('click', e => {
+        if (e.target.closest('.gs-star')) return;   // star handled below
+        gsSelect(g.id);
+      });
+      const star = card.querySelector('.gs-star');
+      if (star) star.addEventListener('click', e => {
+        e.stopPropagation();
+        if (_gsFav.has(g.id)) _gsFav.delete(g.id); else _gsFav.add(g.id);
+        gsSave({ game_favorites: [..._gsFav] });
+        gsRender();                                   // re-sort: favourites float up
+      });
+    }
+    return card;
+  }
+
+  function gsRender() {
+    const { supported, coming } = gsCompute();
+    const supGrid = document.getElementById('gsSupportedGrid');
+    const comGrid = document.getElementById('gsComingGrid');
+    if (!supGrid) return;
+    const listCls = _gsView === 'list' ? ' gs-grid-list' : '';
+    supGrid.className = 'gs-grid' + listCls;
+    comGrid.className = 'gs-grid gs-grid-coming' + listCls;
+    supGrid.innerHTML = '';
+    comGrid.innerHTML = '';
+    supported.forEach(g => supGrid.appendChild(gsBuildCard(g, false)));
+    coming.forEach(g => comGrid.appendChild(gsBuildCard(g, true)));
+
+    // Section labels + empty state.
+    document.getElementById('gsSupportedLabel').style.display = supported.length ? '' : 'none';
+    document.getElementById('gsComingLabel').style.display = coming.length ? '' : 'none';
+    document.getElementById('gsNoResults').style.display =
+      (supported.length || coming.length) ? 'none' : '';
+  }
+
+  const GS_META_ICON = {
+    tel:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12a8 8 0 0 1 8-8"/><path d="M4 12a8 8 0 0 0 8 8"/><circle cx="12" cy="12" r="2"/></svg>',
+    setup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.7 6.3 3 3M3 21l3.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z"/></svg>',
+    port: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>',
+    compat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    dev:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  };
+  function gsMetaRow(icon, label, val) {
+    return '<div class="gs-meta-row"><span class="gs-meta-label">' + GS_META_ICON[icon]
+      + escHtml(label) + '</span><span class="gs-meta-val">' + escHtml(val) + '</span></div>';
+  }
+
+  function gsSelect(id) {
+    const g = GS_BY_ID[id];
+    if (!g || !g.supported) return;
+    _gsSelected = id;
+    document.querySelectorAll('#gsSupportedGrid .gs-card').forEach(c =>
+      c.classList.toggle('gs-selected', c.dataset.game === id));
+
+    document.getElementById('gsDetailEmpty').style.display = 'none';
+    document.getElementById('gsDetailCard').style.display = '';
+    document.getElementById('gsDetailIcon').innerHTML = gsIcon(g.accent);
+    document.getElementById('gsDetailName').textContent = g.name;
+    document.getElementById('gsDetailDesc').textContent =
+      g.method === 'Shared Memory'
+        ? 'Shared memory telemetry. No extra network setup required.'
+        : g.method === 'JSON'
+        ? 'JSON telemetry config — GridGlow installs it for you in one click.'
+        : 'UDP telemetry over your local network. Enable it in the game once.';
+    document.getElementById('gsDetailMeta').innerHTML =
+        gsMetaRow('tel', 'Telemetry Type', g.method)
+      + gsMetaRow('setup', 'Setup', g.setup)
+      + gsMetaRow('port', 'Port / Channel', g.channel)
+      + gsMetaRow('compat', 'Compatibility', GS_COMPAT)
+      + gsMetaRow('dev', 'Developer', g.dev);
+    document.getElementById('gameSelectorLaunch').disabled = false;
+  }
+
   function showGameSelector(fromSetup) {
     const gs = document.getElementById('gameSelector');
     if (!gs) { enterApp(fromSetup); return; }
     gs.style.display = '';
-    // Pre-select last_game if saved
+    gsStateLoad();
+
+    // Reflect persisted view + reset transient search/filter.
+    _gsSearch = ''; _gsFilter = 'All'; _gsSelected = null;
+    const searchEl = document.getElementById('gsSearch');
+    if (searchEl) searchEl.value = '';
+    const filterEl = document.getElementById('gsFilter');
+    if (filterEl) filterEl.value = 'All';
+    document.querySelectorAll('.gs-view-btn').forEach(b => b.classList.remove('gs-view-active'));
+    document.getElementById(_gsView === 'list' ? 'gsViewList' : 'gsViewGrid').classList.add('gs-view-active');
+
+    gsRender();
+
+    // Empty detail until a pick; pre-select last_game if it's a real title.
+    document.getElementById('gsDetailEmpty').style.display = '';
+    document.getElementById('gsDetailCard').style.display = 'none';
+    document.getElementById('gameSelectorLaunch').disabled = true;
     const last = (window._loadedSettings || {}).last_game;
-    if (last) {
-      document.querySelectorAll('.game-card[data-game]').forEach(c => {
-        c.classList.toggle('game-card-selected', c.dataset.game === last);
-      });
-      document.getElementById('gameSelectorLaunch').disabled = false;
-    } else {
-      document.querySelectorAll('.game-card').forEach(c => c.classList.remove('game-card-selected'));
-      document.getElementById('gameSelectorLaunch').disabled = true;
-    }
-    const rem = (window._loadedSettings || {}).skip_game_selector;
-    document.getElementById('gameSelectorRemember').checked = !!rem;
+    if (last && GS_BY_ID[last] && GS_BY_ID[last].supported) gsSelect(last);
+
+    document.getElementById('gameSelectorRemember').checked =
+      !!(window._loadedSettings || {}).skip_game_selector;
     gs._fromSetup = fromSetup;
     requestAnimationFrame(() => gs.classList.add('visible'));
   }
@@ -6598,43 +6765,61 @@
   }
 
   (function () {
-    // Game tile selection
-    document.querySelectorAll('.game-card[data-game]').forEach(card => {
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.game-card').forEach(c => c.classList.remove('game-card-selected'));
-        card.classList.add('game-card-selected');
-        document.getElementById('gameSelectorLaunch').disabled = false;
+    // Populate the filter dropdown from the method list.
+    const filterEl = document.getElementById('gsFilter');
+    if (filterEl) {
+      GS_METHODS.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m; o.textContent = m;
+        filterEl.appendChild(o);
       });
+      filterEl.addEventListener('change', () => { _gsFilter = filterEl.value; gsRender(); });
+    }
 
-      // Cursor spotlight
-      card.addEventListener('mousemove', e => {
-        const r = card.getBoundingClientRect();
-        card.style.setProperty('--sx', `${e.clientX - r.left}px`);
-        card.style.setProperty('--sy', `${e.clientY - r.top}px`);
-      });
-    });
+    const searchEl = document.getElementById('gsSearch');
+    if (searchEl) searchEl.addEventListener('input', () => { _gsSearch = searchEl.value; gsRender(); });
 
-    // Launch
+    function setView(view) {
+      _gsView = view;
+      document.getElementById('gsViewGrid').classList.toggle('gs-view-active', view === 'grid');
+      document.getElementById('gsViewList').classList.toggle('gs-view-active', view === 'list');
+      gsSave({ game_switcher_view: view });
+      gsRender();
+    }
+    const vg = document.getElementById('gsViewGrid');
+    const vl = document.getElementById('gsViewList');
+    if (vg) vg.addEventListener('click', () => setView('grid'));
+    if (vl) vl.addEventListener('click', () => setView('list'));
+
+    // Launch — unchanged flow: persist, set mode, apply effects, enter app.
     document.getElementById('gameSelectorLaunch').addEventListener('click', () => {
-      const selected = document.querySelector('.game-card-selected[data-game]');
-      if (!selected) return;
-      const game = selected.dataset.game;
+      if (!_gsSelected) return;
+      const game = _gsSelected;
       const skip = document.getElementById('gameSelectorRemember').checked;
-      if (!window._loadedSettings) window._loadedSettings = {};
-      window._loadedSettings.last_game       = game;
-      window._loadedSettings.skip_game_selector = skip;
-      callApi('save_gui_settings', { last_game: game, skip_game_selector: skip });
+      gsSave({ last_game: game, skip_game_selector: skip });
       callApi('set_game_mode', game);
       window._applyGameEffects(game);
       const fromSetup = document.getElementById('gameSelector')._fromSetup;
       hideGameSelector(() => enterApp(fromSetup));
     });
 
-    // Remember checkbox — save immediately so it persists if user closes without launching
     document.getElementById('gameSelectorRemember').addEventListener('change', function () {
-      if (!window._loadedSettings) window._loadedSettings = {};
-      window._loadedSettings.skip_game_selector = this.checked;
-      callApi('save_gui_settings', { skip_game_selector: this.checked });
+      gsSave({ skip_game_selector: this.checked });
+    });
+
+    // Rail + status chrome. Help shows a hint (guarded — no in-app tour exists
+    // before launch); Discord is a best-effort external open.
+    const help = () => {
+      if (window.showToast)
+        window.showToast('Pick a game, then hit Launch. Telemetry setup lives in Settings.', 'info', 4200);
+    };
+    const helpBtn = document.getElementById('gsRailHelp');
+    const statusHelp = document.getElementById('gsStatusHelp');
+    if (helpBtn) helpBtn.addEventListener('click', help);
+    if (statusHelp) statusHelp.addEventListener('click', help);
+    const discord = document.getElementById('gsRailDiscord');
+    if (discord) discord.addEventListener('click', () => {
+      try { window.open('https://discord.gg/gridglow', '_blank'); } catch (_) {}
     });
   })();
 
