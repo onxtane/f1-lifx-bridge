@@ -282,6 +282,13 @@ class ACBridgeCore(F1LifxBridgeCore):
                 self.log(f"[{self._TAG}] Session left — returning to idle.")
                 if self.is_event_enabled("neutral"):
                     self.neutral_bridge()
+                # Re-prime on the next live sample. A fresh session (or an
+                # unpause) can start with flags already set — ACC asserts
+                # globalRed all through formation, before a wheel turns — and
+                # that state has to be adopted silently, not announced. Priming
+                # runs once per attach, so without this every session after the
+                # first fired its formation red as a real red flag (#79).
+                self._ac_primed = False
             self._ac_last_status = graphics.status
             return
         self._ac_last_status = AC_LIVE

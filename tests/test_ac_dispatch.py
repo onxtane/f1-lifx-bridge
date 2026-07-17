@@ -415,6 +415,33 @@ class CrashTests(unittest.TestCase):
         self.assertEqual(self.bridge.dispatches, [])
 
 
+class SessionReentryTests(unittest.TestCase):
+    """Leaving and re-entering a live session must re-adopt flag state silently.
+
+    Priming runs once per attach, so a second session that started with a flag
+    already set announced it. ACC's formation globalRed is the real-world case;
+    the mechanism is shared, so it's tested here with AC's enum too.
+    """
+
+    def test_a_flag_set_at_the_next_session_start_is_adopted_not_fired(self):
+        bridge = _primed()
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_OFF))     # session ends
+        bridge.reset()
+        # New session already showing a flag (like ACC's formation red).
+        fired = _feed(bridge, graphics=fx.ac_graphics(status=AC_LIVE,
+                                                      flag=AC_YELLOW_FLAG))
+        self.assertEqual(fired, [], "announced a flag the new session started with")
+
+    def test_a_flag_that_changes_after_re_entry_still_fires(self):
+        bridge = _primed()
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_OFF))
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_LIVE, flag=AC_YELLOW_FLAG))  # adopt
+        bridge.reset()
+        fired = [e for e, _a in _feed(bridge, graphics=fx.ac_graphics(
+            status=AC_LIVE, flag=AC_NO_FLAG))]
+        self.assertEqual(fired, ["neutral"])
+
+
 class RpmTests(unittest.TestCase):
     """AC gives raw revs + a ceiling; F1 gives a percent. Both go through the
     same dispatcher, so the throttle behaves identically."""

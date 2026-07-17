@@ -152,6 +152,24 @@ class JoinInProgressTests(unittest.TestCase):
         fired = [e for e, _a in _feed(bridge, graphics=fx.acc_graphics())]
         self.assertEqual(fired, ["neutral"])
 
+    def test_formation_red_on_a_second_session_is_not_a_red_flag(self):
+        """The real bug from the ACC run: ACC asserts globalRed all through
+        formation. The first session adopts it; every session after must too,
+        rather than strobing red as you load onto track."""
+        from ac_bridge import AC_OFF
+        bridge = _primed()                                    # first session, racing
+        _feed(bridge, graphics=fx.acc_graphics(status=AC_OFF))  # leave to menu
+        bridge.reset()
+        # New session loads with formation red already up.
+        fired = _feed(bridge, graphics=fx.acc_graphics(g_red=1))
+        self.assertEqual(fired, [], "strobed red for a formation state")
+
+    def test_a_genuine_mid_session_red_still_fires(self):
+        """Re-priming must not swallow a real red flag during racing."""
+        bridge = _primed()
+        fired = [e for e, _a in _feed(bridge, graphics=fx.acc_graphics(g_red=1))]
+        self.assertEqual(fired, ["red_flag"])
+
 
 class InheritedFromACTests(unittest.TestCase):
     """Spot-check that the reused AC dispatch still works through ACC — same
