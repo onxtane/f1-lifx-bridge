@@ -275,19 +275,6 @@ class ACBridgeCore(F1LifxBridgeCore):
     def _handle_ac(self, physics, graphics):
         self.total_packets += 1
 
-        # Documentation-derived offsets: log once what the maps actually hold so
-        # a user with the game can confirm the layout in a single paste (#49).
-        if not self._ac_logged_layout:
-            self._ac_logged_layout = True
-            static = _parse(ACStatic, self._static.read())
-            self._ac_max_rpm = static.maxRpm if static else 0
-            self.log(f"[{self._TAG}] layout: status={graphics.status} "
-                     f"session={graphics.session} {self._layout_flags(graphics)} "
-                     f"rpms={physics.rpms} maxRpm={self._ac_max_rpm} "
-                     f"speed={physics.speedKmh:.0f}km/h "
-                     f"car={static.carModel if static else '?'} "
-                     f"track={static.track if static else '?'}")
-
         # The maps stay live in menus, replays and pause. Without this gate a
         # replay would drive the lights.
         if graphics.status != AC_LIVE:
@@ -298,6 +285,23 @@ class ACBridgeCore(F1LifxBridgeCore):
             self._ac_last_status = graphics.status
             return
         self._ac_last_status = AC_LIVE
+
+        # Read the static map and log the layout on the first LIVE sample, not
+        # the first sample of any kind. From the menu the static map is empty:
+        # car/track blank and — the real bite — maxRpm reads 0, which then
+        # caches and the RPM meter never runs all session. (Manifested on ACC
+        # attaching from the menu; latent on AC, which happened to attach in a
+        # session.) The layout line only confirms offsets if it's read live.
+        if not self._ac_logged_layout:
+            self._ac_logged_layout = True
+            static = _parse(ACStatic, self._static.read())
+            self._ac_max_rpm = static.maxRpm if static else 0
+            self.log(f"[{self._TAG}] layout: status={graphics.status} "
+                     f"session={graphics.session} {self._layout_flags(graphics)} "
+                     f"rpms={physics.rpms} maxRpm={self._ac_max_rpm} "
+                     f"speed={physics.speedKmh:.0f}km/h "
+                     f"car={static.carModel if static else '?'} "
+                     f"track={static.track if static else '?'}")
 
         # The maps hold whatever the game was already doing before we attached:
         # a lap time from an earlier session, a chequered flag from a race that

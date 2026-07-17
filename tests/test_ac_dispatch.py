@@ -172,6 +172,51 @@ class StatusGateTests(unittest.TestCase):
         self.assertEqual(fired, [])
 
 
+class LayoutTimingTests(unittest.TestCase):
+    """maxRpm and the layout line must be read on the first LIVE sample.
+
+    Found on ACC: attaching from the menu read the static map while empty, so
+    maxRpm cached as 0 and the RPM meter was dead for the whole session, and
+    the layout line logged useless zeros. Latent on AC too — it just happened
+    to attach in a session. Base-class fix, so tested here.
+    """
+
+    def _bridge_reading_static(self, max_rpm):
+        from ac_bridge import ACStatic
+        bridge = RecordingACBridge()
+        bridge._ac_logged_layout = False        # let the layout fire
+        bridge._ac_max_rpm = 0
+        self.logs = []
+        bridge.log = self.logs.append
+        static = ACStatic(maxRpm=max_rpm)
+        bridge._static.read = lambda: bytes(static)
+        return bridge
+
+    def test_a_menu_sample_does_not_read_static(self):
+        bridge = self._bridge_reading_static(7800)
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_OFF))
+        self.assertEqual(bridge._ac_max_rpm, 0, "read static before the session was live")
+        self.assertFalse(any("layout" in l for l in self.logs))
+
+    def test_the_first_live_sample_reads_maxrpm(self):
+        bridge = self._bridge_reading_static(7800)
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_OFF))     # menu
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_LIVE))    # session loads
+        self.assertEqual(bridge._ac_max_rpm, 7800)
+        self.assertTrue(any("layout" in l for l in self.logs))
+
+    def test_the_rpm_meter_works_after_a_menu_then_live_attach(self):
+        """The end-to-end symptom: revs must drive the meter once live."""
+        bridge = self._bridge_reading_static(8000)
+        bridge.enabled_events = frozenset({"rpm_meter"})
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_OFF))
+        _feed(bridge, graphics=fx.ac_graphics(status=AC_LIVE))   # seeds
+        bridge.reset()
+        fired = _feed(bridge, physics=fx.ac_physics(rpms=4000),
+                      graphics=fx.ac_graphics(status=AC_LIVE))
+        self.assertEqual(fired, [("rpm_meter", (50,))])
+
+
 class RaceStartTests(unittest.TestCase):
     """Regression: this fired on the first *completed* lap — the end of lap
     one, a whole lap late, and it read as firing every time you crossed the
