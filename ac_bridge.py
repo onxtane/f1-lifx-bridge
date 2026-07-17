@@ -193,10 +193,19 @@ class ACBridgeCore(F1LifxBridgeCore):
     lights_out fires off the race/lap transition instead.
     """
 
+    # Overridable by ACC, which shares the physics/static layout and every
+    # dispatch rule below but has its own, much larger graphics struct and its
+    # own flag handling (#79). Everything the shared dispatch reads —
+    # status, session, completedLaps, iCurrentTime, iBestTime — is in the
+    # first 252 bytes, which are byte-identical between AC and ACC.
+    _GRAPHICS_STRUCT = ACGraphics
+    _TAG = "AC"                       # log prefix: [AC] ... / [ACC] ...
+    _GAME_NAME = "Assetto Corsa"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._physics  = SharedMemoryMap(_PHYSICS_TAG,  ctypes.sizeof(ACPhysics))
-        self._graphics = SharedMemoryMap(_GRAPHICS_TAG, ctypes.sizeof(ACGraphics))
+        self._graphics = SharedMemoryMap(_GRAPHICS_TAG, ctypes.sizeof(self._GRAPHICS_STRUCT))
         self._static   = SharedMemoryMap(_STATIC_TAG,   ctypes.sizeof(ACStatic))
         self._ac_attached   = False
         self._ac_max_rpm    = 0
@@ -233,12 +242,12 @@ class ACBridgeCore(F1LifxBridgeCore):
 
     def listener_loop(self):
         self.log("===================================================")
-        self.log("GridGlow — Assetto Corsa")
+        self.log(f"GridGlow — {self._GAME_NAME}")
         self.log("===================================================")
         self.log("Reading shared memory (no in-game setup needed).")
         self.log("GridGlow must run on the same PC as the game.")
         self.log("===================================================")
-        self.log("Waiting for Assetto Corsa...")
+        self.log(f"Waiting for {self._GAME_NAME}...")
 
         while self.running:
             if not self._ac_attached:
@@ -246,12 +255,12 @@ class ACBridgeCore(F1LifxBridgeCore):
                     time.sleep(_RETRY_S)      # game isn't up; keep waiting
                     continue
                 self._ac_attached = True
-                self.log("[AC] Attached to Assetto Corsa.")
+                self.log(f"[{self._TAG}] Attached to {self._GAME_NAME}.")
 
             physics  = _parse(ACPhysics,  self._physics.read())
-            graphics = _parse(ACGraphics, self._graphics.read())
+            graphics = _parse(self._GRAPHICS_STRUCT, self._graphics.read())
             if physics is None or graphics is None:
-                self.log("[AC] Lost Assetto Corsa — waiting for it to come back.")
+                self.log(f"[{self._TAG}] Lost {self._GAME_NAME} — waiting for it to come back.")
                 self._ac_detach()
                 continue
 
@@ -259,7 +268,7 @@ class ACBridgeCore(F1LifxBridgeCore):
             time.sleep(_POLL_S)
 
         self._ac_detach()
-        self.log("[AC] Listener loop ended.")
+        self.log(f"[{self._TAG}] Listener loop ended.")
 
     # ── dispatch ─────────────────────────────────────────────────────────────
 
@@ -272,8 +281,9 @@ class ACBridgeCore(F1LifxBridgeCore):
             self._ac_logged_layout = True
             static = _parse(ACStatic, self._static.read())
             self._ac_max_rpm = static.maxRpm if static else 0
-            self.log(f"[AC] layout: status={graphics.status} session={graphics.session} "
-                     f"flag={graphics.flag} rpms={physics.rpms} maxRpm={self._ac_max_rpm} "
+            self.log(f"[{self._TAG}] layout: status={graphics.status} "
+                     f"session={graphics.session} {self._layout_flags(graphics)} "
+                     f"rpms={physics.rpms} maxRpm={self._ac_max_rpm} "
                      f"speed={physics.speedKmh:.0f}km/h "
                      f"car={static.carModel if static else '?'} "
                      f"track={static.track if static else '?'}")
@@ -282,7 +292,7 @@ class ACBridgeCore(F1LifxBridgeCore):
         # replay would drive the lights.
         if graphics.status != AC_LIVE:
             if self._ac_last_status == AC_LIVE:
-                self.log("[AC] Session left — returning to idle.")
+                self.log(f"[{self._TAG}] Session left — returning to idle.")
                 if self.is_event_enabled("neutral"):
                     self.neutral_bridge()
             self._ac_last_status = graphics.status
@@ -299,8 +309,8 @@ class ACBridgeCore(F1LifxBridgeCore):
             return
 
         if self.total_packets % 600 == 0:
-            self.log(f"[AC HEARTBEAT] samples={self.total_packets}, "
-                     f"flag={graphics.flag}, lap={graphics.completedLaps}, "
+            self.log(f"[{self._TAG} HEARTBEAT] samples={self.total_packets}, "
+                     f"{self._layout_flags(graphics)}, lap={graphics.completedLaps}, "
                      f"rpm={physics.rpms}")
 
         self._ac_race_start(graphics)
@@ -308,6 +318,21 @@ class ACBridgeCore(F1LifxBridgeCore):
         self._ac_flags(graphics)
         self._ac_crash(physics, graphics)
         self._ac_rpm(physics)
+
+    # ── overridable by ACC (#79) ─────────────────────────────────────────────
+
+    def _layout_flags(self, graphics):
+        """The flag portion of the layout/heartbeat log. ACC adds its globals."""
+        return f"flag={graphics.flag}"
+
+    def _seed_flags(self, graphics):
+        """Adopt current flag state without firing. ACC seeds its globals too."""
+        self._ac_last_flag = graphics.flag
+
+    def _session_finished(self, graphics) -> bool:
+        """True once the chequered flag is out — AC reads its flag enum, ACC
+        reads globalChequered. Used to disarm the crash flash at race end."""
+        return graphics.flag == AC_CHECKERED_FLAG
 
     def _ac_race_start(self, graphics):
         """Lights out = the lap timer starting on lap one of a race.
@@ -322,7 +347,7 @@ class ACBridgeCore(F1LifxBridgeCore):
         if on_lap_one and graphics.iCurrentTime > 0:
             if not self._ac_race_started:
                 self._ac_race_started = True
-                self.log("[AC] Race start")
+                self.log(f"[{self._TAG}] Race start")
                 if self.is_event_enabled("lights_out"):
                     self._clear_bridge_effect()
                     self._fire("lights_out")
@@ -336,7 +361,7 @@ class ACBridgeCore(F1LifxBridgeCore):
         Everything here is an edge detector, and an edge against `None` reads
         every pre-existing value as though it just happened.
         """
-        self._ac_last_flag = graphics.flag
+        self._seed_flags(graphics)
         self._ac_last_speed = physics.speedKmh
         best = graphics.iBestTime
         self._ac_best_time = best if 0 < best < _LAP_TIME_MAX_MS else None
@@ -344,7 +369,8 @@ class ACBridgeCore(F1LifxBridgeCore):
         # announce a start that happened before we were watching.
         self._ac_race_started = (graphics.session == AC_RACE
                                  and graphics.iCurrentTime > 0)
-        self.log(f"[AC] Joined: flag={graphics.flag} lap={graphics.completedLaps}"
+        self.log(f"[{self._TAG}] Joined: {self._layout_flags(graphics)} "
+                 f"lap={graphics.completedLaps}"
                  + (f" best={best / 1000:.3f}s" if self._ac_best_time else ""))
 
     def _ac_fastest_lap(self, graphics):
@@ -363,7 +389,7 @@ class ACBridgeCore(F1LifxBridgeCore):
         self._ac_best_time = best
         if not improved:
             return                                   # session reset, not a PB
-        self.log(f"[AC] Personal best - {best / 1000:.3f}s")
+        self.log(f"[{self._TAG}] Personal best - {best / 1000:.3f}s")
         if self.is_event_enabled("fastest_lap"):
             self._clear_bridge_effect()
             self._fire("fastest_lap")
@@ -383,7 +409,7 @@ class ACBridgeCore(F1LifxBridgeCore):
         # Once the chequered flag is out the session is over and AC resets the
         # car, which reads as a huge G spike. That isn't a crash — it's the
         # game tidying up, and flashing for it after the race is just noise.
-        if graphics.flag == AC_CHECKERED_FLAG:
+        if self._session_finished(graphics):
             return
         # accG is (lateral, vertical, longitudinal); vertical is kerbs and
         # bumps, which is exactly what shouldn't count as a crash.
@@ -392,7 +418,7 @@ class ACBridgeCore(F1LifxBridgeCore):
         if (g > _CRASH_G_THRESHOLD
                 and speed < last - _CRASH_SPEED_DROP_KMH
                 and now - self._ac_crash_cooldown > _CRASH_COOLDOWN_S):
-            self.log(f"[AC] Crash - G={g:.1f}, dV={last - speed:.1f} km/h")
+            self.log(f"[{self._TAG}] Crash - G={g:.1f}, dV={last - speed:.1f} km/h")
             self._ac_crash_cooldown = now
             if self.is_event_enabled("crash"):
                 self._clear_bridge_effect()
@@ -408,7 +434,7 @@ class ACBridgeCore(F1LifxBridgeCore):
         effect = _FLAG_EFFECT.get(flag)
         if effect is None:
             return
-        self.log(f"[AC] Flag -> {effect}")
+        self.log(f"[{self._TAG}] Flag -> {effect}")
         if not self.is_event_enabled(effect):
             return
         if effect == "neutral":

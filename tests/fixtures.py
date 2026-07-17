@@ -70,6 +70,24 @@ def ac_graphics(status=2, session=2, flag=0, completed_laps=1, penalty_time=0.0,
                       iBestTime=int(best_time_ms), iCurrentTime=int(current_time_ms))
 
 
+# ── Assetto Corsa Competizione shared memory (#79) ───────────────────────────
+# ACC shares AC's physics/static structs, so ac_physics() serves both. Only the
+# graphics struct differs — ACC exposes global flag fields rather than a single
+# enum. Built as the real ctypes struct for the same reason as AC.
+def acc_graphics(status=2, session=2, flag=0, completed_laps=1,
+                 current_time_ms=1, best_time_ms=0,
+                 g_yellow=0, g_yellow1=0, g_yellow2=0, g_yellow3=0,
+                 g_white=0, g_red=0, g_chequered=0):
+    from acc_bridge import ACCGraphics
+    return ACCGraphics(
+        packetId=1, status=status, session=session, flag=flag,
+        completedLaps=completed_laps, iCurrentTime=int(current_time_ms),
+        iBestTime=int(best_time_ms),
+        globalYellow=g_yellow, globalYellow1=g_yellow1, globalYellow2=g_yellow2,
+        globalYellow3=g_yellow3, globalWhite=g_white, globalRed=g_red,
+        globalChequered=g_chequered)
+
+
 # ── Forza "Data Out" (FH5 / FH6 / Forza Motorsport, little-endian) ───────────
 # Sled offsets: IsRaceOn @0 (s32), EngineMaxRpm @8 (f32), CurrentRpm @16 (f32).
 # Sizes: 232 = Sled (all titles), 311 = Car Dash (Horizon 5 / Motorsport),

@@ -16,6 +16,7 @@ from dr2_bridge import DR2BridgeCore        # noqa: E402
 from wrc_bridge import WRCBridgeCore        # noqa: E402
 from forza_bridge import ForzaBridgeCore    # noqa: E402
 from ac_bridge import ACBridgeCore          # noqa: E402
+from acc_bridge import ACCBridgeCore         # noqa: E402
 
 
 class RecordingF1Bridge(F1LifxBridgeCore):
@@ -111,6 +112,34 @@ class RecordingACBridge(ACBridgeCore):
         self.enabled_events = None
         # Normally read from acpmf_static on the first sample; the tests aren't
         # attached to any map, so stand it in and skip the one-shot layout log.
+        self._ac_max_rpm = max_rpm
+        self._ac_logged_layout = True
+
+    def reset(self):
+        self.dispatches.clear()
+        return self
+
+    def _fire(self, method, *args):
+        self.dispatches.append((method, args))
+
+    def neutral_bridge(self):
+        self.dispatches.append(("neutral", ()))
+
+    def log(self, message):
+        pass
+
+
+class RecordingACCBridge(ACCBridgeCore):
+    """Assetto Corsa Competizione bridge that records dispatches (#79).
+
+    Same shape as the AC recorder — ACC inherits AC's whole dispatch and only
+    replaces the flag handling, so it's driven through _handle_ac the same way.
+    """
+
+    def __init__(self, max_rpm=8000):
+        super().__init__(dry_run=True)
+        self.dispatches = []
+        self.enabled_events = None
         self._ac_max_rpm = max_rpm
         self._ac_logged_layout = True
 
