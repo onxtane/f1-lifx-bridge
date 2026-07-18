@@ -30,11 +30,11 @@
 
         <!-- Ring 1: outermost, slow clockwise, sparse dashes -->
         <circle class="sl-ring sl-r1" cx="80" cy="80" r="72"
-          stroke="rgba(139,124,246,0.45)" stroke-width="1.5" stroke-dasharray="6 14"/>
+          stroke="rgba(var(--accent-rgb),0.45)" stroke-width="1.5" stroke-dasharray="6 14"/>
 
         <!-- Ring 2: counter-clockwise, medium dashes -->
         <circle class="sl-ring sl-r2" cx="80" cy="80" r="60"
-          stroke="rgba(139,124,246,0.7)" stroke-width="2" stroke-dasharray="16 10"/>
+          stroke="rgba(var(--accent-rgb),0.7)" stroke-width="2" stroke-dasharray="16 10"/>
 
         <!-- Ring 3: clockwise, fast, with 4 glowing orbital dots -->
         <g class="sl-orb">
@@ -88,7 +88,7 @@
       <div class="brand-card" id="brandLifx">
         <div class="brand-card-icon-wrap">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2a7 7 0 0 0-4.5 12.33V17a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-2.67A7 7 0 0 0 12 2z" fill="rgba(139,124,246,0.7)" stroke="#a78bfa" stroke-width="1"/>
+            <path d="M12 2a7 7 0 0 0-4.5 12.33V17a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-2.67A7 7 0 0 0 12 2z" fill="rgba(var(--accent-rgb),0.7)" stroke="#a78bfa" stroke-width="1"/>
             <line x1="9.5" y1="19" x2="14.5" y2="19" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
             <line x1="10.5" y1="21" x2="13.5" y2="21" stroke="rgba(167,139,250,0.6)" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
@@ -139,7 +139,7 @@
   <div id="tutSpotlight"></div>
   <div id="tutPointer">
     <svg id="tutPointerSvg" width="28" height="28" viewBox="0 0 28 28" fill="none">
-      <circle cx="14" cy="14" r="13" fill="rgba(139,124,246,0.88)" stroke="rgba(167,139,250,0.35)" stroke-width="1"/>
+      <circle cx="14" cy="14" r="13" fill="rgba(var(--accent-rgb),0.88)" stroke="rgba(167,139,250,0.35)" stroke-width="1"/>
       <polyline points="8,11 14,17 20,11" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
     </svg>
   </div>
@@ -186,14 +186,14 @@
     </div>
 
     <!-- Step 1 — find the bridge (must happen before pairing) -->
-    <div style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:16px 18px;margin-bottom:14px;">
+    <div style="width:100%;background:rgba(var(--surface-rgb),0.03);border:1px solid rgba(var(--surface-rgb),0.09);border-radius:14px;padding:16px 18px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
         <span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:rgba(255,160,50,0.18);color:rgba(255,160,50,0.95);font-size:12px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0;">1</span>
         <span style="font-size:14px;font-weight:600;color:var(--text-main);">Find your Bridge</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;width:100%;">
         <input type="text" id="setupHueIp" placeholder="Bridge IP  e.g. 192.168.1.2" autocomplete="off" spellcheck="false"
-          style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--text-main);outline:none;">
+          style="flex:1;background:rgba(var(--surface-rgb),0.06);border:1px solid rgba(var(--surface-rgb),0.14);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--text-main);outline:none;">
         <button class="btn btn-ghost btn-sm" id="setupHueDiscoverBtn" style="white-space:nowrap;">Auto-Detect</button>
       </div>
       <p id="setupHueDiscoverHint" style="font-size:12px;color:var(--text-muted);margin:8px 0 0;">Auto-detect your bridge, or type its IP. This is needed before you can pair.</p>
@@ -207,7 +207,7 @@
       </div>
       <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;line-height:1.6;">Press the <strong style="color:var(--text-main);">round link button</strong> on top of your Hue Bridge, then click Pair within 30 seconds.</p>
       <div style="display:flex;gap:10px;align-items:center;">
-        <span id="setupHueBadge" style="font-size:11px;padding:3px 12px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
+        <span id="setupHueBadge" style="font-size:11px;padding:3px 12px;border-radius:99px;background:rgba(var(--surface-rgb),0.07);border:1px solid rgba(var(--surface-rgb),0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
         <button class="btn btn-primary btn-sm" id="setupHuePairBtn" disabled>Pair</button>
         <span id="setupHuePairLock" style="font-size:12px;color:var(--text-muted);">Complete step 1 first</span>
       </div>
@@ -1022,7 +1022,7 @@
                 <div class="setting-hint">Destination IP address</div>
               </div>
               <input type="text" id="settingFwdHost" value="127.0.0.1" placeholder="127.0.0.1"
-                style="width:140px;background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:10px;padding:7px 12px;color:var(--text-main);font-size:13px;font-family:inherit;">
+                style="width:140px;background:rgba(var(--surface-rgb),0.07);border:1px solid var(--glass-border);border-radius:10px;padding:7px 12px;color:var(--text-main);font-size:13px;font-family:inherit;">
             </div>
             <div class="setting-row">
               <div>
@@ -1030,7 +1030,7 @@
                 <div class="setting-hint">Destination UDP port</div>
               </div>
               <input type="number" id="settingFwdPort" value="20778" min="1024" max="65535"
-                style="width:90px;background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:10px;padding:7px 12px;color:var(--text-main);font-size:13px;font-family:inherit;">
+                style="width:90px;background:rgba(var(--surface-rgb),0.07);border:1px solid var(--glass-border);border-radius:10px;padding:7px 12px;color:var(--text-main);font-size:13px;font-family:inherit;">
             </div>
           </div>
 
@@ -1109,7 +1109,7 @@
                 <div class="setting-hint" id="nanoleafPairingHint">Hold the power button on your Nanoleaf for 5–7 s until it pulses, then click Pair</div>
               </div>
               <div class="setting-control" style="display:flex;gap:8px;align-items:center;">
-                <span id="nanoleafStatusBadge" style="font-size:11px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
+                <span id="nanoleafStatusBadge" style="font-size:11px;padding:3px 10px;border-radius:99px;background:rgba(var(--surface-rgb),0.07);border:1px solid rgba(var(--surface-rgb),0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
                 <button class="btn btn-ghost btn-sm" id="nanoleafPairBtn">Pair</button>
               </div>
             </div>
@@ -1155,7 +1155,7 @@
                 <div class="setting-hint">Press the link button on your Hue Bridge, then click Pair</div>
               </div>
               <div class="setting-control" style="display:flex;gap:8px;align-items:center;">
-                <span id="hueStatusBadge" style="font-size:11px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
+                <span id="hueStatusBadge" style="font-size:11px;padding:3px 10px;border-radius:99px;background:rgba(var(--surface-rgb),0.07);border:1px solid rgba(var(--surface-rgb),0.14);color:var(--text-muted);white-space:nowrap;">Not paired</span>
                 <button class="btn btn-ghost btn-sm" id="huePairBtn">Pair</button>
               </div>
             </div>
@@ -1199,7 +1199,7 @@
             </div>
             </div><!-- /staggerSection -->
 
-            <div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>
+            <div style="height:1px;background:rgba(var(--surface-rgb),0.08);margin:8px 0;"></div>
 
             <div class="setting-row">
               <div>
@@ -1882,7 +1882,7 @@
       const num = ++lifxNum;
       const checked = useActiveSet ? _activeLabels.has(l.label) : true;
       const zoneBadge = l.zones > 0
-        ? `<span style="font-size:11px;background:rgba(139,124,246,0.18);border:1px solid rgba(139,124,246,0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
+        ? `<span style="font-size:11px;background:rgba(var(--accent-rgb),0.18);border:1px solid rgba(var(--accent-rgb),0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
         : '';
       return `
         <div class="light-item" data-index="${i}" onclick="toggleLightCheck(event, ${i})">
@@ -3628,8 +3628,8 @@
 
     function setBadge(text, ok) {
       badge.textContent = text;
-      badge.style.background    = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(255,255,255,0.07)';
-      badge.style.borderColor   = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(255,255,255,0.14)';
+      badge.style.background    = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(var(--surface-rgb),0.07)';
+      badge.style.borderColor   = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(var(--surface-rgb),0.14)';
       badge.style.color         = ok ? '#3ddc84' : ok === false ? '#ff7070' : 'var(--text-muted)';
     }
 
@@ -3784,8 +3784,8 @@
 
     function setBadge(text, ok) {
       badge.textContent   = text;
-      badge.style.background  = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(255,255,255,0.07)';
-      badge.style.borderColor = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(255,255,255,0.14)';
+      badge.style.background  = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(var(--surface-rgb),0.07)';
+      badge.style.borderColor = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(var(--surface-rgb),0.14)';
       badge.style.color       = ok ? '#3ddc84' : ok === false ? '#ff7070' : 'var(--text-muted)';
     }
 
@@ -3801,8 +3801,8 @@
       lights.forEach(l => {
         const row = document.createElement('div');
         row.className = 'hue-light-item';
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:var(--text-muted);';
-        row.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${l.on ? '#3ddc84' : 'rgba(255,255,255,0.2)'};flex-shrink:0;"></span><span style="color:var(--text-main);">${l.name || l.id}</span>`;
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(var(--surface-rgb),0.06);font-size:13px;color:var(--text-muted);';
+        row.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${l.on ? '#3ddc84' : 'rgba(var(--surface-rgb),0.2)'};flex-shrink:0;"></span><span style="color:var(--text-main);">${l.name || l.id}</span>`;
         lightList.appendChild(row);
       });
     }
@@ -4523,14 +4523,14 @@
       bulb.style.background = color;
       bulb.style.boxShadow  = glowColor ? `0 0 20px 6px ${glowColor}` : 'none';
       bulb.classList.add('lit');
-      bulb.querySelector('.lp-bulb-inner').style.background = `rgba(255,255,255,${innerA ?? 0.4})`;
+      bulb.querySelector('.lp-bulb-inner').style.background = `rgba(var(--surface-rgb),${innerA ?? 0.4})`;
     }
 
     function dim(bulb) {
-      bulb.style.background = 'rgba(255,255,255,0.06)';
+      bulb.style.background = 'rgba(var(--surface-rgb),0.06)';
       bulb.style.boxShadow  = 'none';
       bulb.classList.remove('lit');
-      bulb.querySelector('.lp-bulb-inner').style.background = 'rgba(255,255,255,0.15)';
+      bulb.querySelector('.lp-bulb-inner').style.background = 'rgba(var(--surface-rgb),0.15)';
     }
 
     function dimAll() { getBulbs().forEach(dim); }
@@ -4647,11 +4647,11 @@
       // Alternate white / green rapidly, then settle white
       let phase = 0;
       const colors = ['#ffffff', '#22c55e'];
-      const glows  = ['rgba(255,255,255,0.5)', 'rgba(34,197,94,0.6)'];
+      const glows  = ['rgba(var(--surface-rgb),0.5)', 'rgba(34,197,94,0.6)'];
       let count = 0;
       const maxFlashes = 10;
       every(280, () => {
-        if (count >= maxFlashes) { stopAnim(); getBulbs().forEach(b => lit(b, '#ffffff', 'rgba(255,255,255,0.4)', 0.5)); return; }
+        if (count >= maxFlashes) { stopAnim(); getBulbs().forEach(b => lit(b, '#ffffff', 'rgba(var(--surface-rgb),0.4)', 0.5)); return; }
         phase = (phase + 1) % 2;
         getBulbs().forEach(b => lit(b, colors[phase], glows[phase], 0.5));
         count++;
@@ -4897,7 +4897,7 @@
       ctx.clearRect(0, 0, W, H);
 
       // grid
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.strokeStyle = 'rgba(var(--surface-rgb),0.06)';
       ctx.lineWidth = 1;
       for (let i = 0; i <= 4; i++) {
         const x = PAD.l + (i / 4) * cw();
@@ -4907,7 +4907,7 @@
       }
 
       // axis labels
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillStyle = 'rgba(var(--surface-rgb),0.18)';
       ctx.font = '9px system-ui, sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText('100%', PAD.l - 4, PAD.t + 4);
@@ -4925,13 +4925,13 @@
         pts.forEach(([t, v]) => ctx.lineTo(...toC(t, v)));
         ctx.lineTo(...toC(pts[pts.length - 1][0], 0));
         ctx.closePath();
-        ctx.fillStyle = 'rgba(139,124,246,0.1)';
+        ctx.fillStyle = 'rgba(var(--accent-rgb),0.1)';
         ctx.fill();
 
         // line
         ctx.beginPath();
         pts.forEach(([t, v], i) => { const [cx, cy] = toC(t, v); if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); });
-        ctx.strokeStyle = 'rgba(139,124,246,0.85)';
+        ctx.strokeStyle = 'rgba(var(--accent-rgb),0.85)';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -5559,7 +5559,7 @@
     if (!sh) { enterApp(); return; }
     sh.style.display = '';
     document.getElementById('setupHueBadge').textContent = 'Not paired';
-    document.getElementById('setupHueBadge').style.cssText = 'font-size:11px;padding:3px 12px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-muted);white-space:nowrap;';
+    document.getElementById('setupHueBadge').style.cssText = 'font-size:11px;padding:3px 12px;border-radius:99px;background:rgba(var(--surface-rgb),0.07);border:1px solid rgba(var(--surface-rgb),0.14);color:var(--text-muted);white-space:nowrap;';
     document.getElementById('setupHueContinue').disabled = true;
     requestAnimationFrame(() => sh.classList.add('visible'));
 
@@ -5591,8 +5591,8 @@
     const badge = document.getElementById('setupHueBadge');
     if (!badge) return;
     badge.textContent   = text;
-    badge.style.background  = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(255,255,255,0.07)';
-    badge.style.borderColor = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(255,255,255,0.14)';
+    badge.style.background  = ok ? 'rgba(61,220,132,0.12)' : ok === false ? 'rgba(255,80,80,0.12)' : 'rgba(var(--surface-rgb),0.07)';
+    badge.style.borderColor = ok ? 'rgba(61,220,132,0.35)' : ok === false ? 'rgba(255,80,80,0.35)' : 'rgba(var(--surface-rgb),0.14)';
     badge.style.color       = ok ? '#3ddc84' : ok === false ? '#ff7070' : 'var(--text-muted)';
   }
 
@@ -5699,7 +5699,7 @@
       const item = document.createElement('div');
       item.className = 'setup-light-item';
       const zoneBadge = l.zones > 0
-        ? `<span style="font-size:11px;background:rgba(139,124,246,0.18);border:1px solid rgba(139,124,246,0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
+        ? `<span style="font-size:11px;background:rgba(var(--accent-rgb),0.18);border:1px solid rgba(var(--accent-rgb),0.35);color:#c4b5fd;border-radius:99px;padding:2px 8px;flex-shrink:0;">${l.zones} zones</span>`
         : '';
       item.innerHTML = `
         <input type="checkbox" class="setup-light-check" data-index="${i}" checked>
@@ -6286,12 +6286,12 @@
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <div id="plLegend" style="display:none;font-size:11px;color:var(--text-muted);
-          background:rgba(255,255,255,0.05);border:1px solid var(--border);
+          background:rgba(var(--surface-rgb),0.05);border:1px solid var(--border);
           border-radius:8px;padding:6px 12px;line-height:1.6;"></div>
         <button id="plClose" style="background:none;border:1px solid var(--border);
           color:var(--text-muted);cursor:pointer;border-radius:8px;
           padding:5px 10px;font-size:13px;transition:all 0.15s;"
-          onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,0.3)'"
+          onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(var(--surface-rgb),0.3)'"
           onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">
           Close
         </button>
@@ -6300,7 +6300,7 @@
 
     <!-- canvas area -->
     <div id="plCanvasWrap" style="flex:1;position:relative;overflow:hidden;
-      background:radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.025) 0%, transparent 70%);">
+      background:radial-gradient(ellipse at 50% 50%, rgba(var(--surface-rgb),0.025) 0%, transparent 70%);">
       <svg id="plSvg" style="width:100%;height:100%;display:block;"></svg>
       <div id="plEmpty" style="display:none;position:absolute;inset:0;
         align-items:center;justify-content:center;flex-direction:column;gap:10px;
@@ -6491,7 +6491,7 @@
     const defs = document.createElementNS(ns, 'defs');
     defs.innerHTML = `
       <pattern id="pl-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-        <circle cx="12" cy="12" r="1" fill="rgba(255,255,255,0.04)"/>
+        <circle cx="12" cy="12" r="1" fill="rgba(var(--surface-rgb),0.04)"/>
       </pattern>`;
     svg.appendChild(defs);
     const bgRect = document.createElementNS(ns, 'rect');
@@ -6514,8 +6514,8 @@
 
       const poly = document.createElementNS(ns, 'polygon');
       poly.setAttribute('points', pts);
-      poly.setAttribute('fill', 'rgba(255,255,255,0.07)');
-      poly.setAttribute('stroke', 'rgba(255,255,255,0.35)');
+      poly.setAttribute('fill', 'rgba(var(--surface-rgb),0.07)');
+      poly.setAttribute('stroke', 'rgba(var(--surface-rgb),0.35)');
       poly.setAttribute('stroke-width', '1.5');
       poly.setAttribute('stroke-linejoin', 'round');
 
@@ -6524,7 +6524,7 @@
       label.setAttribute('y', cy.toFixed(1));
       label.setAttribute('text-anchor', 'middle');
       label.setAttribute('dominant-baseline', 'middle');
-      label.setAttribute('fill', 'rgba(255,255,255,0.55)');
+      label.setAttribute('fill', 'rgba(var(--surface-rgb),0.55)');
       label.setAttribute('font-size', fontSize.toFixed(0));
       label.setAttribute('font-family', 'var(--font-mono, monospace)');
       label.setAttribute('pointer-events', 'none');
