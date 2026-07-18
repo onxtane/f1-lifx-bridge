@@ -4,6 +4,18 @@ All notable changes are documented here.
 
 ---
 
+## [0.11.0] — 2026-07-17
+
+### Added
+- **Assetto Corsa support.** GridGlow's first title that reads shared memory instead of listening for UDP — AC broadcasts nothing, so the bridge attaches to its memory-mapped telemetry directly. No port, no in-game setup: pick it in the game selector and start the bridge. Fires race start, yellow / blue / white / black / chequered flags (straight from AC's flag state), personal best, penalty, crash (G-force + speed-drop), track clear, and the RPM meter against the car's real rev ceiling. Because shared memory is local to one machine, GridGlow has to run on the PC you're racing on. Validated on real hardware. (#49)
+- **Assetto Corsa Competizione support.** Shares AC's shared-memory approach with ACC's extended layout, reading its global and per-sector flags — including a real red flag, which AC doesn't have. Also validated on real hardware. (#79)
+- **Redesigned game switcher.** The "Choose your game" screen is now a launcher: a searchable, filterable grid with favourites, a list view, and a Selected-game detail panel showing each title's telemetry type, setup, port, compatibility and developer. Filter by connection method, star your favourites to float them to the top, and switch between grid and list. Titles now show their official logos. (#81)
+
+### Fixed
+- **A missing-effect log line no longer raises an error banner.** Nanoleaf and Hue don't implement the crash flash (only LIFX does), so every DiRT Rally and Forza crash had been popping an error banner at those owners for something they couldn't act on. A brand simply not having an effect is now treated as a capability gap, not a fault. (#49)
+
+---
+
 ## [0.10.4] — 2026-07-16
 
 ### Added
