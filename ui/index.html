@@ -946,6 +946,18 @@
                 </label>
               </div>
             </div>
+            <div class="setting-row">
+              <div>
+                <div class="setting-label">Glass theme</div>
+                <div class="setting-hint">Frosted panels, lit edges, and a slow ambient glow. Off keeps the classic flat look.</div>
+              </div>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="settingGlassTheme">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
             <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
               <div>
                 <div class="setting-label">Advanced mode</div>
@@ -2934,6 +2946,7 @@
     if (!settings) return;
 
     if (window._applyAdvancedMode) window._applyAdvancedMode(settings.advanced_mode);
+    if (window._applyTheme) window._applyTheme(settings.theme);
 
     if (Object.prototype.hasOwnProperty.call(settings, 'enabled_events')) {
       applyEnabledEvents(settings.enabled_events);
@@ -5342,7 +5355,11 @@
     document.getElementById('gameSelectorRemember').checked =
       !!(window._loadedSettings || {}).skip_game_selector;
     gs._fromSetup = fromSetup;
-    requestAnimationFrame(() => gs.classList.add('visible'));
+    requestAnimationFrame(() => {
+      gs.classList.add('visible');
+      // .visible is now set, so the coordinator will pick the switcher's field.
+      if (window._glassBgSync) window._glassBgSync();
+    });
   }
 
   function hideGameSelector(cb) {
@@ -5353,6 +5370,8 @@
     gs.addEventListener('transitionend', () => {
       gs.classList.remove('hiding');
       gs.style.display = 'none';
+      // Overlay is gone — hand the ribbon field over to the app-wide backdrop.
+      if (window._glassBgSync) window._glassBgSync();
       if (cb) cb();
     }, { once: true });
   }
@@ -6115,6 +6134,160 @@
     }
     if (window.pywebview && window.pywebview.api) checkDev();
     else window.addEventListener('pywebviewready', checkDev);
+  })();
+
+  // ---- glass theme toggle (Settings -> App) ----
+  // Flips :root[data-theme]; the glass styles in app.css are scoped under
+  // [data-theme="glass"], so "classic" (the default) is left completely alone.
+  (function () {
+    const toggle = document.getElementById('settingGlassTheme');
+    if (!toggle) return;
+
+    function apply(on) {
+      document.documentElement.setAttribute('data-theme', on ? 'glass' : 'classic');
+      if (window._glassBgSync) window._glassBgSync();
+    }
+
+    // Called once the saved settings arrive.
+    window._applyTheme = function (theme) {
+      const on = theme === 'glass';
+      toggle.checked = on;
+      apply(on);
+    };
+
+    toggle.addEventListener('change', function () {
+      apply(this.checked);
+      callApi('save_gui_settings', { theme: this.checked ? 'glass' : 'classic' });
+    });
+  })();
+
+  // ---- glass theme: PS3-XMB-style flowing ribbon backdrop (canvas) ----
+  // A reusable wave field: draws a handful of slow drifting sine-lines
+  // additively, and app.css blurs the canvas so they read as soft luminous
+  // wisps. Two instances share the look — one behind the game switcher
+  // (#gsWaves, sized to that overlay) and one behind the whole app (#glassBg,
+  // full window). Only the visible screen's field runs; both tear down on stop,
+  // so classic keeps no canvas or RAF loop. _glassBgSync() picks which is live.
+  (function () {
+    function makeField(cfg) {
+      // cfg: { canvasId, sizeEl:()=>el|null(=viewport), attach:(canvas)=>void, gate:()=>bool }
+      let canvas = null, ctx = null, raf = 0, running = false, lines = [], W = 0, H = 0, dpr = 1, t0 = 0;
+
+      function measure() {
+        const el = cfg.sizeEl && cfg.sizeEl();
+        if (el) { W = el.clientWidth; H = el.clientHeight; }
+        else { W = window.innerWidth; H = window.innerHeight; }
+      }
+      function resize() {
+        if (!canvas) return;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        measure();
+        canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+        canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      function initLines() {
+        lines = [];
+        const N = 10;
+        for (let i = 0; i < N; i++) {
+          const f = i / (N - 1);
+          lines.push({
+            y:   0.12 + 0.78 * f,
+            amp: 34 + Math.random() * 70,
+            w1:  0.0012 + Math.random() * 0.0016,
+            w2:  0.0034 + Math.random() * 0.0035,
+            sp1: 0.08 + Math.random() * 0.10,
+            sp2: 0.13 + Math.random() * 0.13,
+            ph:  Math.random() * Math.PI * 2,
+            hue: 232 + f * 96 + (Math.random() * 16 - 8), // blue -> purple -> magenta
+            width: 1.1 + Math.random() * 2.0,
+            alpha: 0.22 + Math.random() * 0.20,
+          });
+        }
+      }
+      function frame(ts) {
+        if (!running) return;
+        if (!t0) t0 = ts;
+        const t = (ts - t0) / 1000;
+        ctx.clearRect(0, 0, W, H);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+        for (const L of lines) {
+          const yBase = H * L.y;
+          const g = ctx.createLinearGradient(0, 0, W, 0);
+          g.addColorStop(0.00, 'hsla(' + (L.hue - 12) + ',90%,66%,0)');
+          g.addColorStop(0.22, 'hsla(' + (L.hue - 12) + ',90%,68%,' + L.alpha + ')');
+          g.addColorStop(0.50, 'hsla(' + (L.hue + 10) + ',95%,72%,' + (L.alpha * 1.35) + ')');
+          g.addColorStop(0.78, 'hsla(' + (L.hue + 26) + ',90%,68%,' + L.alpha + ')');
+          g.addColorStop(1.00, 'hsla(' + (L.hue + 26) + ',90%,68%,0)');
+          ctx.strokeStyle = g;
+          ctx.lineWidth = L.width;
+          ctx.beginPath();
+          for (let x = -60; x <= W + 60; x += 16) {
+            const y = yBase
+              + L.amp * Math.sin(x * L.w1 + t * L.sp1 + L.ph)
+              + L.amp * 0.5 * Math.sin(x * L.w2 - t * L.sp2 + L.ph * 1.7);
+            if (x <= -60) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        raf = requestAnimationFrame(frame);
+      }
+      function start() {
+        if (running) return;
+        if (document.documentElement.getAttribute('data-theme') !== 'glass') return;
+        if (cfg.gate && !cfg.gate()) return;
+        canvas = document.getElementById(cfg.canvasId);
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+          canvas.id = cfg.canvasId;
+          cfg.attach(canvas);
+        }
+        ctx = canvas.getContext('2d');
+        resize(); initLines();
+        running = true; t0 = 0;
+        window.addEventListener('resize', resize);
+        raf = requestAnimationFrame(frame);
+      }
+      function stop() {
+        running = false;
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        window.removeEventListener('resize', resize);
+        if (canvas && canvas.parentElement) canvas.parentElement.removeChild(canvas);
+        canvas = null; ctx = null;
+      }
+      return { start: start, stop: stop };
+    }
+
+    const selectorField = makeField({
+      canvasId: 'gsWaves',
+      sizeEl: function () { return document.getElementById('gameSelector'); },
+      attach: function (c) { const h = document.getElementById('gameSelector'); if (h) h.insertBefore(c, h.firstChild); },
+      gate: function () { const h = document.getElementById('gameSelector'); return !!h && h.classList.contains('visible'); },
+    });
+    const appField = makeField({
+      canvasId: 'glassBg',
+      sizeEl: function () { return document.querySelector('.app'); },
+      attach: function (c) { const a = document.querySelector('.app'); if (a) a.insertBefore(c, a.firstChild); },
+      gate: function () { return !!document.querySelector('.app'); },
+    });
+
+    // Pick which field is live: the switcher's while that overlay is up,
+    // otherwise the app-wide one. Neither in classic. The switcher is hidden
+    // with opacity (it keeps display:flex), so we key off the .visible class,
+    // NOT display — otherwise the app-wide field would never run.
+    function sync() {
+      const glass = document.documentElement.getAttribute('data-theme') === 'glass';
+      const sel = document.getElementById('gameSelector');
+      const selVisible = !!sel && sel.classList.contains('visible');
+      if (!glass) { selectorField.stop(); appField.stop(); return; }
+      if (selVisible) { appField.stop(); selectorField.start(); }
+      else { selectorField.stop(); appField.start(); }
+    }
+
+    window._glassBgSync = sync;
+    window._glassBgStop  = function () { selectorField.stop(); appField.stop(); };
   })();
 
   // ---- developer self-tests (live inside the Advanced category) ----
