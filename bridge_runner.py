@@ -265,6 +265,15 @@ class BridgeRunner:
                     dry_run=self._module.DRY_RUN,
                     log_callback=self.on_log,
                 )
+            elif self._game_mode == 'iracing':
+                import iracing_bridge as _ir
+                # Reads iRacing's shared-memory map, no listen address and no
+                # in-game setup — if the sim is running the map is there (#69).
+                self.bridge = _ir.IRacingBridgeCore(
+                    bulb_count=self._module.LIFX_BULB_COUNT,
+                    dry_run=self._module.DRY_RUN,
+                    log_callback=self.on_log,
+                )
             else:
                 self.bridge = self._module.F1LifxBridgeCore(
                     udp_ip=listen_ip,
@@ -780,8 +789,8 @@ class BridgeRunner:
             return {"ok": False, "error": str(exc)}
 
     def set_game_mode(self, mode: str):
-        """Switch game mode ('f1_25', 'dr2', 'forza', 'wrc', 'ac', 'acc').  Restarts the bridge if running."""
-        if mode not in ('f1_25', 'dr2', 'forza', 'wrc', 'ac', 'acc'):
+        """Switch game mode ('f1_25', 'dr2', 'forza', 'wrc', 'ac', 'acc', 'iracing').  Restarts the bridge if running."""
+        if mode not in ('f1_25', 'dr2', 'forza', 'wrc', 'ac', 'acc', 'iracing'):
             return
         self._game_mode = mode
         if self.is_running():

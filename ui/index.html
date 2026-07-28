@@ -1054,7 +1054,7 @@
             <div class="setting-row">
               <div>
                 <div class="setting-label">Nothing to set up</div>
-                <div class="setting-hint">Assetto Corsa and Competizione publish telemetry to shared memory whenever they're running. There's no port to choose and nothing to enable in-game — start the bridge and GridGlow picks the game up when you launch it.</div>
+                <div class="setting-hint">Assetto Corsa, Competizione and iRacing publish telemetry to shared memory whenever they're running. There's no port to choose and nothing to enable in-game — start the bridge and GridGlow picks the game up when you launch it.</div>
               </div>
             </div>
             <div class="setting-row">
@@ -2798,7 +2798,7 @@
     // The Assetto Corsa titles read shared memory, so there's no port to listen
     // on and nothing to forward. Leaving those controls up would invite people
     // to "fix" a connection that was never used (#49, #79).
-    const usesUdp = (game !== 'ac' && game !== 'acc');
+    const usesUdp = (game !== 'ac' && game !== 'acc' && game !== 'iracing');
     const udpConn = document.getElementById('udpConnectionSection');
     const udpFwd  = document.getElementById('udpForwardingSection');
     if (udpConn) udpConn.style.display = usesUdp ? '' : 'none';
@@ -5180,6 +5180,7 @@
     { id:'forza', name:'Forza Horizon / Motorsport', dev:'Playground · Turn 10', method:'UDP', channel:'Port 5300', setup:'Turn on Data Out', accent:'#2dd4bf', supported:true },
     { id:'ac',    name:'Assetto Corsa', dev:'Kunos Simulazioni', method:'Shared Memory', channel:'N/A', setup:'No extra setup', accent:'#f43f5e', supported:true },
     { id:'acc',   name:'Assetto Corsa Competizione', dev:'Kunos Simulazioni', method:'Shared Memory', channel:'N/A', setup:'No extra setup', accent:'#f43f5e', supported:true },
+    { id:'iracing', name:'iRacing', dev:'iRacing.com Motorsport', method:'Shared Memory', channel:'N/A', setup:'No extra setup', accent:'#e8482e', supported:true },
     { id:'wrc',   name:'EA SPORTS WRC', dev:'Codemasters', method:'JSON', channel:'Port 20777', setup:'Install config (1 click)', accent:'#4f8ef7', supported:true },
     { id:'pcars2',    name:'Project CARS 2', dev:'Slightly Mad Studios', method:'UDP', supported:false },
     { id:'ams2',      name:'Automobilista 2', dev:'Reiza Studios', method:'UDP', supported:false },
