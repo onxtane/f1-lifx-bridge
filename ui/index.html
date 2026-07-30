@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="glass">
 <head>
 <meta charset="UTF-8">
 <title>GridGlow</title>
@@ -942,18 +942,6 @@
               <div class="setting-control">
                 <label class="toggle-switch">
                   <input type="checkbox" id="settingShowGameSelector" checked>
-                  <span class="toggle-track"></span>
-                </label>
-              </div>
-            </div>
-            <div class="setting-row">
-              <div>
-                <div class="setting-label">Glass theme</div>
-                <div class="setting-hint">Frosted panels, lit edges, and a slow ambient glow. Off keeps the classic flat look.</div>
-              </div>
-              <div class="setting-control">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="settingGlassTheme">
                   <span class="toggle-track"></span>
                 </label>
               </div>
@@ -2946,7 +2934,7 @@
     if (!settings) return;
 
     if (window._applyAdvancedMode) window._applyAdvancedMode(settings.advanced_mode);
-    if (window._applyTheme) window._applyTheme(settings.theme);
+    if (window._glassBgSync) window._glassBgSync();   // start the theme backdrop
 
     if (Object.prototype.hasOwnProperty.call(settings, 'enabled_events')) {
       applyEnabledEvents(settings.enabled_events);
@@ -6138,30 +6126,11 @@
     else window.addEventListener('pywebviewready', checkDev);
   })();
 
-  // ---- glass theme toggle (Settings -> App) ----
-  // Flips :root[data-theme]; the glass styles in app.css are scoped under
-  // [data-theme="glass"], so "classic" (the default) is left completely alone.
-  (function () {
-    const toggle = document.getElementById('settingGlassTheme');
-    if (!toggle) return;
-
-    function apply(on) {
-      document.documentElement.setAttribute('data-theme', on ? 'glass' : 'classic');
-      if (window._glassBgSync) window._glassBgSync();
-    }
-
-    // Called once the saved settings arrive.
-    window._applyTheme = function (theme) {
-      const on = theme === 'glass';
-      toggle.checked = on;
-      apply(on);
-    };
-
-    toggle.addEventListener('change', function () {
-      apply(this.checked);
-      callApi('save_gui_settings', { theme: this.checked ? 'glass' : 'classic' });
-    });
-  })();
+  // ---- theme ----
+  // The glass theme is the app's permanent look for now. Its styles are scoped
+  // under :root[data-theme="glass"], set directly on <html>, and the backdrop is
+  // driven by _glassBgSync below. There's no user switch until a proper theme
+  // selector lands — keeping the scoping in place is what makes that easy to add.
 
   // ---- glass theme: PS3-XMB-style flowing ribbon backdrop (canvas) ----
   // A reusable wave field: draws a handful of slow drifting sine-lines
