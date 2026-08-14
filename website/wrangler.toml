@@ -1,0 +1,25 @@
+# Cloudflare Pages config for the GridGlow website + Workshop backend.
+#
+# This is the first wrangler.toml in the repo. Cloudflare Pages reads it for
+# BOTH local dev (`wrangler pages dev`) and git-connected production builds, so
+# the D1 binding below applies in both places — no separate dashboard binding
+# needed. The existing GITHUB_TOKEN for request-title.js stays a dashboard env
+# var; secrets don't belong here.
+#
+# One-time setup (account action — must be run by a maintainer who is logged in):
+#   cd website && npx wrangler d1 create gridglow-workshop
+# Paste the printed database_id below, then apply the schema locally:
+#   npx wrangler d1 migrations apply gridglow-workshop --local
+#   npx wrangler d1 execute gridglow-workshop --local --file=./seed/dev-seed.sql
+# Run the whole thing (static site + Functions + local D1):
+#   npx wrangler pages dev
+
+name = "gridglow-website"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding = "DB"                       # Functions read it as env.DB
+database_name = "gridglow-workshop"
+database_id = "da7a7960-0b3b-42a8-95df-ae1486db723f"
+migrations_dir = "migrations"
