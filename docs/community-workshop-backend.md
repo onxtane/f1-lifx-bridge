@@ -1,7 +1,12 @@
 # Community Workshop — Backend Design
 
-**Status:** Design draft (no code yet) · **Date:** 2026-08-13
+**Status:** Implemented · read path **live in production**, write path built + verified (not yet deployed) · **Date:** 2026-08-13, updated 2026-08-15
 **Decisions locked for this pass:** Cloudflare D1 storage · auth deferred (anonymous browse/download/upload)
+
+> **Implementation status (2026-08-15)** — code lives in `website/functions/api/workshop/`, branch `claude/community-workshop-backend-ca111f`.
+> - **Read path** (`GET /presets`, `GET /presets/:id`) — **deployed to production** on Pages project `f1-lifx-bridge`. Base URL: **`https://gridglow.titanstowers.net`** (`https://f1-lifx-bridge.pages.dev` fallback). Remote D1 migrated; starts empty. Deploy facts: [[project_workshop_deploy]] / see §9.
+> - **Write path** (`POST /presets` upload, `/:id/download`, `/:id/like`, `/:id/rate`, `DELETE /:id`, and `?mine|liked|downloaded` personal tabs) — built, committed, verified locally (25/25). **Not yet deployed to prod** — held because upload is a public unauthenticated surface with no rate limiting yet (§7.4).
+> - Validator (§4.3) is a standalone module (`_validate.js`) so the app can reuse it for pre-flight. Game slug→name registry: `_games.js` (mirrors `GS_CATALOG` in `ui/index.html`).
 
 The Community Workshop lets GridGlow users **view, share, and download community lighting
 presets**. The front-end concept mockup already exists
@@ -278,24 +283,52 @@ is needed — a downloaded preset is just a partial `gui_settings` payload.
 
 ## 7. Open questions / later passes
 
-1. **Moderation** — report endpoint, admin token, `hidden`/`removed` workflow. Stubbed via the
-   `status` column now.
+1. **Moderation** — report endpoint, admin token, `hidden`/`removed` workflow. `DELETE /:id`
+   (owner soft-remove) ships; the `status` column already supports `hidden`/`removed`, but
+   there's no report path or admin toggle yet.
 2. **Real auth** — GitHub OAuth + row-claim migration (§5).
-3. **Game slug registry** — presets reference `game` slugs (`ui/logos/<slug>.png`); a
-   canonical list should be shared between app, website, and this validator.
-4. **Abuse at scale** — Cloudflare WAF + Turnstile on upload if honeypot proves insufficient.
+3. ~~**Game slug registry**~~ — **done**: `_games.js` mirrors `GS_CATALOG` in `ui/index.html`;
+   the API echoes `game_name`, the DB stores the slug.
+4. **Abuse / rate limiting (now the top gap)** — upload/like/rate/download are public and
+   token-gated only by a self-issued `X-GG-Token`. There's a honeypot, full validation, and a
+   16 KB cap, but **no rate limiting**. Add per-IP + per-token throttling (and/or Cloudflare
+   Turnstile on upload) **before deploying the write path to prod**.
 5. **Preset updates/versioning** — edit-in-place vs new-row-per-version (leaning new row;
    `id` immutable, so downloads/likes stay attributable).
 6. **Featured / curated** — a `featured` flag or separate table for editorial rows.
 
 ---
 
-## 8. Suggested build order (when we start coding)
+## 8. Build order — status
 
-1. `migrations/0001_init.sql` + D1 binding in `website/` (`wrangler.toml`).
-2. Shared validator module (§4.3) — reused by upload and by an app-side pre-flight.
-3. Read path: `GET /presets`, `GET /presets/:id` (unblocks front-end wiring immediately).
-4. Write path: `POST /presets` with full validation.
-5. Counters: `download` / `like` endpoints + join tables.
-6. Personal tabs via `X-GG-Token`.
-7. Moderation + auth in a later milestone.
+1. ✅ `migrations/0001_init.sql` + D1 binding in `website/` (`wrangler.toml`).
+2. ✅ Shared validator module (§4.3, `_validate.js`) — reused by upload and app pre-flight.
+3. ✅ Read path: `GET /presets`, `GET /presets/:id` — **deployed to prod**.
+4. ✅ Write path: `POST /presets` with full validation.
+5. ✅ Counters: `download` / `like` / `rate` endpoints + join tables.
+6. ✅ Personal tabs via `X-GG-Token`; `DELETE /:id` owner soft-remove.
+7. ⬜ **Rate limiting** on the write endpoints, then **deploy the write path to prod** (§7.4).
+8. ⬜ Moderation (report + admin) + real auth — later milestone.
+
+---
+
+## 9. Deployment
+
+The site is the **`f1-lifx-bridge`** Cloudflare Pages project (also serves the marketing site
+and `request-title.js`) — **direct-upload, not git-connected**, so pushing to GitHub deploys
+nothing. Production domains: `gridglow.titanstowers.net` (canonical) + `f1-lifx-bridge.pages.dev`.
+Production branch is `main`.
+
+```bash
+cd website
+npm run build
+npx wrangler pages deploy dist --project-name f1-lifx-bridge --branch main   # production
+# omit --branch main → a preview deploy at https://<git-branch>.f1-lifx-bridge.pages.dev
+```
+
+- The D1 binding comes from `website/wrangler.toml` (`[[d1_databases]]` binding `DB`); `name`
+  must stay `f1-lifx-bridge` or a duplicate project is created.
+- Apply schema to the **remote** DB (once, and on each new migration):
+  `npx wrangler d1 migrations apply gridglow-workshop --remote`.
+- `request-title.js`'s `GITHUB_TOKEN` is a dashboard env var, preserved across deploys.
+- Optional `GG_TOKEN_SALT` env var salts the hashed `X-GG-Token` (falls back to a constant).
