@@ -14,7 +14,10 @@
 # Run the whole thing (static site + Functions + local D1):
 #   npx wrangler pages dev
 
-name = "gridglow-website"
+# Project name MUST match the existing Cloudflare Pages project that already
+# serves the site (f1-lifx-bridge.pages.dev / gridglow.titanstowers.net) — it is
+# a direct-upload project (not git-connected), updated via `wrangler pages deploy`.
+name = "f1-lifx-bridge"
 pages_build_output_dir = "dist"
 compatibility_date = "2024-11-01"
 
