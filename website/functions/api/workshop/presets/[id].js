@@ -2,10 +2,31 @@
 // Returns the whole validated envelope (§2.1) so the front end can drive every
 // preview colour from `theme` and download applies it via the app's set_* setters.
 
-import { json, error, preflight, parseJsonArray, ratingOf } from "../_shared.js";
+import { json, error, preflight, parseJsonArray, ratingOf, ownerHash, nowMs } from "../_shared.js";
 import { gameName } from "../_games.js";
 
 export const onRequestOptions = () => preflight();
+
+// DELETE /api/workshop/presets/:id — soft-remove, owner only (hashed token match).
+export async function onRequestDelete({ request, params, env }) {
+  if (!env.DB) return error("Server misconfiguration — workshop storage unavailable", 500);
+
+  const token = await ownerHash(request, env);
+  if (!token) return error("Missing X-GG-Token", 401);
+
+  const row = await env.DB
+    .prepare(`SELECT owner_token, status FROM presets WHERE id = ?`)
+    .bind(params.id)
+    .first();
+  if (!row || row.status === "removed") return error("Preset not found", 404);
+  if (row.owner_token !== token) return error("Not your preset", 403);
+
+  await env.DB
+    .prepare(`UPDATE presets SET status = 'removed', updated_at = ? WHERE id = ?`)
+    .bind(nowMs(), params.id)
+    .run();
+  return json({ ok: true });
+}
 
 export async function onRequestGet({ params, env }) {
   if (!env.DB) return error("Server misconfiguration — workshop storage unavailable", 500);

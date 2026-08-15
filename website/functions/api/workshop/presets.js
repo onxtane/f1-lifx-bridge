@@ -1,13 +1,12 @@
-// GET /api/workshop/presets — browse/list (Discover).
-// Query: game, sort (hot|new|likes), q, cursor, limit.
-// Personal filters (mine/liked/downloaded via X-GG-Token) land in a later pass;
-// this is the public read path that unblocks front-end wiring.
+// /api/workshop/presets
+//   GET  — browse/list (Discover) + personal tabs (mine|liked|downloaded).
+//   POST — upload a preset.
 
 import {
   json, error, preflight, encodeCursor, decodeCursor,
-  swatchFromTheme, parseJsonArray, ratingOf,
+  toCard, ownerHash, newId, readJson, nowMs,
 } from "./_shared.js";
-import { gameName } from "./_games.js";
+import { validatePreset } from "./_validate.js";
 
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 50;
@@ -48,6 +47,19 @@ export async function onRequestGet({ request, env }) {
     binds.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
 
+  // Personal tabs (§5): scoped to the caller's hashed token. Any of these with
+  // no X-GG-Token yields an empty list rather than leaking everyone's rows.
+  const mine = url.searchParams.get("mine") === "1";
+  const liked = url.searchParams.get("liked") === "1";
+  const downloaded = url.searchParams.get("downloaded") === "1";
+  if (mine || liked || downloaded) {
+    const token = await ownerHash(request, env);
+    if (!token) return json({ presets: [], cursor: null });
+    if (mine) { where.push("owner_token = ?"); binds.push(token); }
+    if (liked) { where.push("id IN (SELECT preset_id FROM likes WHERE token = ?)"); binds.push(token); }
+    if (downloaded) { where.push("id IN (SELECT preset_id FROM downloads WHERE token = ?)"); binds.push(token); }
+  }
+
   // Secondary sort by id keeps ordering stable when the primary key ties.
   // Fetch limit+1 to detect a next page without a second COUNT query.
   const sql =
@@ -69,21 +81,54 @@ export async function onRequestGet({ request, env }) {
   }
 
   const hasMore = rows.length > limit;
-  const presets = rows.slice(0, limit).map((r) => ({
-    id: r.id,
-    title: r.title,
-    game: r.game,                       // slug → ui/logos/<slug>.png
-    game_name: gameName(r.game),        // display name (registry)
-    author_name: r.author_name,
-    tags: parseJsonArray(r.tags),
-    devices: parseJsonArray(r.devices),
-    downloads: r.downloads,
-    likes: r.likes,
-    rating: ratingOf(r.rating_sum, r.rating_count),
-    rating_count: r.rating_count,
-    created_at: r.created_at,
-    swatch: swatchFromTheme(r.theme_json),
-  }));
-
+  const presets = rows.slice(0, limit).map(toCard);
   return json({ presets, cursor: hasMore ? encodeCursor(offset + limit) : null });
+}
+
+export async function onRequestPost({ request, env }) {
+  if (!env.DB) return error("Server misconfiguration — workshop storage unavailable", 500);
+
+  const body = await readJson(request);
+  if (!body) return error("Invalid request body", 400);
+
+  // Honeypot — bots fill the hidden field, humans don't (mirrors request-title.js).
+  if (body._trap) return json({ ok: true });
+
+  const owner = await ownerHash(request, env);
+  if (!owner) return error("Missing X-GG-Token — a client token is required to upload", 401);
+
+  const result = validatePreset(body);
+  if (!result.ok) return error(result.error, result.status);
+  const v = result.value;
+
+  const id = newId();
+  const ts = nowMs();
+  try {
+    await env.DB
+      .prepare(
+        `INSERT INTO presets
+           (id, title, description, game, author_name, owner_token, theme_json,
+            tags, devices, downloads, likes, rating_sum, rating_count,
+            status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 'public', ?, ?)`
+      )
+      .bind(id, v.title, v.description, v.game, v.author_name, owner, v.theme_json,
+            v.tags, v.devices, ts, ts)
+      .run();
+  } catch (e) {
+    console.error("workshop upload insert failed", e);
+    return error("Could not save preset", 502);
+  }
+
+  // Return the created row as a list card so the client can insert it optimistically.
+  const row = await env.DB
+    .prepare(
+      `SELECT id, title, game, author_name, tags, devices,
+              downloads, likes, rating_sum, rating_count, created_at, theme_json
+       FROM presets WHERE id = ?`
+    )
+    .bind(id)
+    .first();
+
+  return json({ ok: true, id, preset: row ? toCard(row) : { id } }, 201);
 }

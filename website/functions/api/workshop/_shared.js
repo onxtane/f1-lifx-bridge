@@ -4,6 +4,8 @@
 // (JSON envelope, { error } shape), plus CORS so the desktop app — a legitimate
 // cross-origin consumer — can call these endpoints from its webview.
 
+import { gameName } from "./_games.js";
+
 export const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
@@ -56,6 +58,28 @@ export function swatchFromTheme(themeJson) {
   }
 }
 
+// Shape a presets row into the list-card contract (design doc §4.1). One place
+// so the list, upload response, and any future card producer stay identical.
+// The row must include: id, title, game, author_name, tags, devices, downloads,
+// likes, rating_sum, rating_count, created_at, theme_json.
+export function toCard(r) {
+  return {
+    id: r.id,
+    title: r.title,
+    game: r.game,                    // slug → ui/logos/<slug>.png
+    game_name: gameName(r.game),     // display name (registry)
+    author_name: r.author_name,
+    tags: parseJsonArray(r.tags),
+    devices: parseJsonArray(r.devices),
+    downloads: r.downloads,
+    likes: r.likes,
+    rating: ratingOf(r.rating_sum, r.rating_count),
+    rating_count: r.rating_count,
+    created_at: r.created_at,
+    swatch: swatchFromTheme(r.theme_json),
+  };
+}
+
 // tags/devices are stored as JSON-array text; parse defensively for responses.
 export function parseJsonArray(text) {
   try {
@@ -72,11 +96,44 @@ export function ratingOf(sum, count) {
   return count > 0 ? Math.round((sum / count) * 10) / 10 : null;
 }
 
-// Salted SHA-256 of a client token (§5). Not used by the read path yet — lives
-// here so the write/personal-tab passes share one hashing definition. The salt
-// comes from an env var so it never ships in source.
+// Salted SHA-256 of a client token (§5). The salt comes from an env var so it
+// never ships in source; a fixed fallback keeps hashing consistent in dev.
 export async function hashToken(token, salt) {
-  const data = new TextEncoder().encode(`${salt || ""}:${token}`);
+  const data = new TextEncoder().encode(`${salt || "gridglow-workshop"}:${token}`);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+// The raw client token from the X-GG-Token header, or null. Opaque bearer handle
+// (§5) — identity enough for owner checks + personal tabs, not an account.
+export function getToken(request) {
+  const t = request.headers.get("X-GG-Token");
+  return t && t.trim() ? t.trim() : null;
+}
+
+// Hashed owner handle for writes/personal tabs, or null when no token was sent.
+export async function ownerHash(request, env) {
+  const t = getToken(request);
+  return t ? hashToken(t, env.GG_TOKEN_SALT) : null;
+}
+
+// Sortable-ish id: time prefix (base36 ms) + random suffix. Not a strict ULID,
+// but monotonic-enough for created_at ties and collision-safe in practice.
+export function newId() {
+  const time = Date.now().toString(36).toUpperCase().padStart(9, "0");
+  let rand = "";
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  for (const b of bytes) rand += (b % 36).toString(36).toUpperCase();
+  return `01${time}${rand}`.slice(0, 26);
+}
+
+// Parse a JSON request body, tolerating empty/invalid → null.
+export async function readJson(request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+}
+
+export const nowMs = () => Date.now();
