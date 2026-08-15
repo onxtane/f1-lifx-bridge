@@ -4,9 +4,10 @@
 
 import {
   json, error, preflight, encodeCursor, decodeCursor,
-  toCard, ownerHash, newId, readJson, nowMs,
+  toCard, newId, readJson, nowMs,
 } from "./_shared.js";
 import { validatePreset } from "./_validate.js";
+import { getUser, ensureUser } from "./_auth.js";
 
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 50;
@@ -47,17 +48,18 @@ export async function onRequestGet({ request, env }) {
     binds.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
 
-  // Personal tabs (§5): scoped to the caller's hashed token. Any of these with
-  // no X-GG-Token yields an empty list rather than leaking everyone's rows.
+  // Personal tabs (§5): scoped to the logged-in user. Any of these without a
+  // valid session yields an empty list rather than leaking everyone's rows.
+  // (The like/download join tables' `token` column now holds the user id.)
   const mine = url.searchParams.get("mine") === "1";
   const liked = url.searchParams.get("liked") === "1";
   const downloaded = url.searchParams.get("downloaded") === "1";
   if (mine || liked || downloaded) {
-    const token = await ownerHash(request, env);
-    if (!token) return json({ presets: [], cursor: null });
-    if (mine) { where.push("owner_token = ?"); binds.push(token); }
-    if (liked) { where.push("id IN (SELECT preset_id FROM likes WHERE token = ?)"); binds.push(token); }
-    if (downloaded) { where.push("id IN (SELECT preset_id FROM downloads WHERE token = ?)"); binds.push(token); }
+    const user = await getUser(request, env);
+    if (!user) return json({ presets: [], cursor: null });
+    if (mine) { where.push("owner_user_id = ?"); binds.push(user.id); }
+    if (liked) { where.push("id IN (SELECT preset_id FROM likes WHERE token = ?)"); binds.push(user.id); }
+    if (downloaded) { where.push("id IN (SELECT preset_id FROM downloads WHERE token = ?)"); binds.push(user.id); }
   }
 
   // Secondary sort by id keeps ordering stable when the primary key ties.
@@ -94,12 +96,17 @@ export async function onRequestPost({ request, env }) {
   // Honeypot — bots fill the hidden field, humans don't (mirrors request-title.js).
   if (body._trap) return json({ ok: true });
 
-  const owner = await ownerHash(request, env);
-  if (!owner) return error("Missing X-GG-Token — a client token is required to upload", 401);
+  const user = await getUser(request, env);
+  if (!user) return error("Sign in with Discord to upload", 401);
+  await ensureUser(env, user);
 
   const result = validatePreset(body);
   if (!result.ok) return error(result.error, result.status);
   const v = result.value;
+
+  // Uploads are attributed to the signed-in user; author name defaults to their
+  // display name when they didn't type one.
+  const authorName = (body.author_name && String(body.author_name).trim()) ? v.author_name : user.display_name;
 
   const id = newId();
   const ts = nowMs();
@@ -107,12 +114,12 @@ export async function onRequestPost({ request, env }) {
     await env.DB
       .prepare(
         `INSERT INTO presets
-           (id, title, description, game, author_name, owner_token, theme_json,
+           (id, title, description, game, author_name, owner_token, owner_user_id, theme_json,
             tags, devices, downloads, likes, rating_sum, rating_count,
             status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 'public', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 'public', ?, ?)`
       )
-      .bind(id, v.title, v.description, v.game, v.author_name, owner, v.theme_json,
+      .bind(id, v.title, v.description, v.game, authorName, user.id, user.id, v.theme_json,
             v.tags, v.devices, ts, ts)
       .run();
   } catch (e) {
