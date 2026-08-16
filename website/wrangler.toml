@@ -26,3 +26,9 @@ binding = "DB"                       # Functions read it as env.DB
 database_name = "gridglow-workshop"
 database_id = "da7a7960-0b3b-42a8-95df-ae1486db723f"
 migrations_dir = "migrations"
+
+[vars]
+# Public (not a secret): the Supabase project whose JWKS verifies login tokens.
+# The Workshop verifies Discord/Supabase access tokens against
+# <SUPABASE_URL>/auth/v1/.well-known/jwks.json (ES256). No shared JWT secret.
+SUPABASE_URL = "https://upvbmoseimgiathprtsj.supabase.co"

@@ -1,15 +1,17 @@
 // Supabase-issued session verification for the Workshop write path.
 // Browse stays anonymous; upload/like/rate/download/delete require a logged-in
 // user. The client signs in with Discord via Supabase and sends the resulting
-// access token as `Authorization: Bearer <jwt>`. We verify it here (HS256 with
-// the project's JWT secret) and resolve a stable user identity from the claims.
+// access token as `Authorization: Bearer <jwt>`. Supabase signs those tokens
+// with an ASYMMETRIC key (ES256), so we verify against the project's public
+// JWKS — there is no shared secret.
 //
-// Env: SUPABASE_JWT_SECRET — the project's JWT secret (Supabase → Settings → API).
-// Set as a secret, never in source: `wrangler pages secret put SUPABASE_JWT_SECRET`.
-//
-// (If the Supabase project uses asymmetric signing keys instead of the shared
-// secret, swap verifyHs256 for a JWKS fetch+verify — the getUser contract is the
-// same. HS256 covers the default/legacy JWT-secret setup.)
+// Config:
+//   SUPABASE_URL   — project URL; JWKS lives at <url>/auth/v1/.well-known/jwks.json
+//   SUPABASE_JWKS  — optional inline JWKS JSON, for local tests only (skips fetch)
+
+const SUPABASE_URL_FALLBACK = "https://upvbmoseimgiathprtsj.supabase.co";
+const JWKS_TTL_MS = 10 * 60 * 1000;
+const _jwks = { keys: null, at: 0 }; // per-isolate cache
 
 function b64urlToBytes(s) {
   s = s.replace(/-/g, "+").replace(/_/g, "/");
@@ -19,34 +21,65 @@ function b64urlToBytes(s) {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
+function b64urlToJson(s) {
+  return JSON.parse(new TextDecoder().decode(b64urlToBytes(s)));
+}
 
-async function verifyHs256(token, secret) {
+function jwksUrl(env) {
+  const base = (env.SUPABASE_URL || SUPABASE_URL_FALLBACK).replace(/\/+$/, "");
+  return `${base}/auth/v1/.well-known/jwks.json`;
+}
+
+// Fetch + cache the signing keys. An inline SUPABASE_JWKS (local tests) wins.
+// `force` bypasses the cache so a rotated kid can be picked up once.
+async function getKeys(env, force = false) {
+  if (env.SUPABASE_JWKS) {
+    try { return JSON.parse(env.SUPABASE_JWKS).keys || []; } catch { return []; }
+  }
+  const now = Date.now();
+  if (!force && _jwks.keys && now - _jwks.at < JWKS_TTL_MS) return _jwks.keys;
+  try {
+    const res = await fetch(jwksUrl(env));
+    if (!res.ok) return _jwks.keys || [];
+    const data = await res.json();
+    _jwks.keys = data.keys || [];
+    _jwks.at = now;
+    return _jwks.keys;
+  } catch (e) {
+    console.error("JWKS fetch failed", e);
+    return _jwks.keys || [];
+  }
+}
+
+async function verifyEs256(token, env) {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [h, p, sig] = parts;
 
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["verify"],
-  );
-  const ok = await crypto.subtle.verify(
-    "HMAC",
-    key,
-    b64urlToBytes(sig),
-    new TextEncoder().encode(`${h}.${p}`),
-  );
-  if (!ok) return null;
+  let header, payload;
+  try { header = b64urlToJson(h); payload = b64urlToJson(p); } catch { return null; }
+  if (header.alg !== "ES256" || !header.kid) return null;
 
-  let payload;
+  let jwk = (await getKeys(env)).find((k) => k.kid === header.kid);
+  if (!jwk) jwk = (await getKeys(env, true)).find((k) => k.kid === header.kid); // maybe rotated
+  if (!jwk) return null;
+
+  let ok = false;
   try {
-    payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(p)));
-  } catch {
+    const key = await crypto.subtle.importKey(
+      "jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"],
+    );
+    ok = await crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      key,
+      b64urlToBytes(sig),                       // JWT ES256 sig is raw r||s (P-1363) — what verify wants
+      new TextEncoder().encode(`${h}.${p}`),
+    );
+  } catch (e) {
+    console.error("JWT verify error", e);
     return null;
   }
-  // Reject expired tokens (exp is seconds since epoch).
+  if (!ok) return null;
   if (payload.exp && Date.now() / 1000 >= payload.exp) return null;
   return payload;
 }
@@ -68,11 +101,7 @@ export async function getUser(request, env) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : null;
   if (!token) return null;
-  if (!env.SUPABASE_JWT_SECRET) {
-    console.error("SUPABASE_JWT_SECRET not configured — cannot verify sessions");
-    return null;
-  }
-  const claims = await verifyHs256(token, env.SUPABASE_JWT_SECRET);
+  const claims = await verifyEs256(token, env);
   if (!claims || !claims.sub) return null;
   return userFromClaims(claims);
 }
