@@ -354,7 +354,45 @@ class Api:
                 applied.append("curves")
         except Exception as exc:
             return {"ok": False, "error": str(exc), "applied": applied}
+        # Persist the applied theme to gui_settings so it survives a restart and the
+        # Effects page reflects it — the live setters above only touch the running
+        # bridge. Mirrors what each Effects control does (set + save_gui_settings).
+        try:
+            flat = self._theme_to_gui_settings(theme)
+            if flat:
+                self.runner.save_gui_settings(flat)
+        except Exception:
+            pass  # persistence is best-effort; the live apply already succeeded
         return {"ok": True, "applied": applied}
+
+    @staticmethod
+    def _theme_to_gui_settings(theme: dict) -> dict:
+        """Flatten a preset `theme` back into the app's gui_settings keys (the inverse
+        of _gui_settings_to_theme) so an applied preset persists and shows in the UI."""
+        gs: dict = {}
+        if isinstance(theme.get("enabled_events"), list):
+            gs["enabled_events"] = theme["enabled_events"]
+        br = theme.get("brightness_range")
+        if isinstance(br, dict) and "min_pct" in br and "max_pct" in br:
+            gs["brightness_min"] = int(br["min_pct"])
+            gs["brightness_max"] = int(br["max_pct"])
+        st = theme.get("stagger")
+        if isinstance(st, dict) and "enabled" in st:
+            gs["stagger_enabled"] = bool(st["enabled"])
+            gs["stagger_ms"] = int(st.get("ms", 0) or 0)
+        idle = theme.get("idle_state")
+        if isinstance(idle, dict) and "color_hex" in idle:
+            gs["idle_color"] = idle["color_hex"]
+            gs["idle_pulse"] = bool(idle.get("pulse", False))
+        mz = theme.get("mz_startlights")
+        if isinstance(mz, dict) and "direction" in mz and "mode" in mz:
+            gs["mz_startlights_direction"] = mz["direction"]
+            gs["mz_startlights_mode"] = mz["mode"]
+        if isinstance(theme.get("rpm_gradient"), list):
+            gs["rpm_gradient"] = theme["rpm_gradient"]
+        if isinstance(theme.get("curves"), dict):
+            gs["curves"] = theme["curves"]
+        return gs
 
     # ---- Community Workshop (write path — all require a Supabase login) ----
 
