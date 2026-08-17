@@ -161,7 +161,7 @@
   const HEART_OUTLINE = '<i class="ti ti-heart hx"></i>';
 
   // ---- state ----
-  let workshopLoaded = false, currentPresetId = null, previewGradient = ['#3ddc84','#f5b02e','#ff5d5d'];
+  let workshopLoaded = false, currentPresetId = null, currentPreset = null, previewGradient = ['#3ddc84','#f5b02e','#ff5d5d'];
   const fstate = { sort:'pop', game:'all', device:'all', q:'' };
   let listEl, emptyEl, loadingEl, errEl;
 
@@ -208,6 +208,7 @@
   }
   function renderDetail(p) {
     currentPresetId = p.id;
+    currentPreset = p;
     const theme = p.theme || {};
     previewGradient = (theme.rpm_gradient && theme.rpm_gradient.length) ? theme.rpm_gradient : (p.swatch && p.swatch.length ? p.swatch : ['#3ddc84','#f5b02e','#ff5d5d']);
     document.getElementById('wsHero').style.background = 'radial-gradient(120% 140% at 70% 10%, '+(previewGradient[previewGradient.length-1]||'#7a0f1a')+' 0%, rgba(10,7,16,.55) 55%, #0a0710 100%)';
@@ -259,6 +260,8 @@
     if (btn.dataset.dl === '1') return;
     if (!requireLogin()) return;
     const card = btn.closest('.pc'), id = (card && card.dataset.id) || currentPresetId;
+    const title = (card && card.dataset.name) || (currentPreset && currentPreset.title) || 'Preset';
+    pendingApplyTheme = null;
     if (id) wsWrite('/api/workshop/presets/' + id + '/download', 'POST').then(r => { if (r.ok && r.data) pendingApplyTheme = r.data.theme || r.data; });
     btn.dataset.dl = '1';
     const orig = btn.innerHTML; btn.classList.add('is-dl');
@@ -270,7 +273,8 @@
       if (e < 1) requestAnimationFrame(step);
       else { fill.style.width='100%'; btn.classList.add('dl-done'); lbl.innerHTML = CHECK + ' Downloaded';
         setTimeout(() => { btn.classList.remove('is-dl','dl-done'); btn.innerHTML = orig; btn.dataset.dl='';
-          if (pendingApplyTheme) { callApi('apply_workshop_preset', pendingApplyTheme); toast('Applied to your lights', 'ok'); } }, 850); }
+          if (pendingApplyTheme && window._wsOpenApply) window._wsOpenApply(title, pendingApplyTheme);
+          else if (pendingApplyTheme) { callApi('apply_workshop_preset', pendingApplyTheme); toast('Applied to your lights', 'ok'); } }, 850); }
     }
     requestAnimationFrame(step);
   }
@@ -343,6 +347,54 @@
     document.getElementById('wsAcEmailBtn').addEventListener('click', async ()=>{ const email=document.getElementById('wsAcEmail').value.trim(); if(!email){acMsg('Enter an email.');return;} const {error}=await sb.auth.updateUser({email},{emailRedirectTo:location.href}); acMsg(error?error.message:'Confirmation sent to the new address.', !error); });
     document.getElementById('wsAcPassBtn').addEventListener('click', async ()=>{ const pw=document.getElementById('wsAcPass').value; if(pw.length<6){acMsg('Password must be at least 6 characters.');return;} const {error}=await sb.auth.updateUser({password:pw}); if(error)acMsg(error.message); else {acMsg('Password updated.',true); document.getElementById('wsAcPass').value='';} });
     document.getElementById('wsAcSignout').addEventListener('click', ()=>{ if(sb) sb.auth.signOut(); acBackdrop.classList.remove('open'); });
+
+    // ---- Apply modal (map a downloaded preset's theme onto the user's lights) ----
+    root.insertAdjacentHTML('beforeend',
+      '<div class="ap-backdrop" id="wsAp"><div class="ap-modal">'
+      + '<div class="up-head"><div><h3>Apply Preset</h3><p id="wsApSub">Map it to your lights</p></div><button class="up-x" id="wsApClose" type="button"><i class="ti ti-x"></i></button></div>'
+      + '<div class="ap-compat warn" id="wsApCompat"><span class="ap-compat-badge" id="wsApBadge">Partial</span><div id="wsApCompatText"></div></div>'
+      + '<div class="up-lbl" style="margin-bottom:10px;">What this preset changes</div><div class="ap-map" id="wsApMap"></div>'
+      + '<div class="ap-soon"><i class="ti ti-color-swatch"></i><div><b>Planned — match colours per light.</b> Assign each of your lights a specific colour from the preset instead of applying the theme globally. Not built yet.</div></div>'
+      + '<div class="up-foot"><button class="btn btn-ghost btn-sm" id="wsApCancel" type="button">Cancel</button><button class="btn btn-primary btn-sm" id="wsApApply" type="button"><i class="ti ti-check"></i> Apply preset</button></div>'
+      + '</div></div>');
+    const apBackdrop = document.getElementById('wsAp');
+    const EVLBL = { start_lights:'Start lights', fastest_lap:'Fastest lap', sector_status:'Sector status', rpm_meter:'RPM meter', red_flag:'Red flag', yellow_flag:'Yellow flag', blue_flag:'Blue flag', black_flag:'Black flag', chequered_flag:'Chequered flag' };
+    function themeRows(theme) {
+      const rows = [], mz = e => MZ_EFFECTS.indexOf(e) >= 0, evs = theme.enabled_events || [];
+      if (evs.length) rows.push({ name:'Race events', req: evs.some(mz)?'mz':'any', val: evs.map(e=>EVLBL[e]||e).join(', ') });
+      if (theme.brightness_range) rows.push({ name:'Brightness range', req:'any', val: theme.brightness_range.min_pct+'–'+theme.brightness_range.max_pct+'%' });
+      if (theme.stagger) rows.push({ name:'Stagger', req:'any', val: theme.stagger.enabled ? theme.stagger.ms+' ms' : 'off' });
+      if (theme.idle_state) rows.push({ name:'Idle / ambient', req:'any', val: theme.idle_state.color_hex + (theme.idle_state.pulse?' · pulse':'') });
+      if (theme.mz_startlights) rows.push({ name:'Start lights', req:'mz', val: theme.mz_startlights.direction+' · '+theme.mz_startlights.mode });
+      if (theme.rpm_gradient && theme.rpm_gradient.length) rows.push({ name:'RPM rev meter', req:'mz', val: theme.rpm_gradient.length+'-stop gradient' });
+      if (theme.curves && Object.keys(theme.curves).length) rows.push({ name:'Effect curves', req:'any', val: Object.keys(theme.curves).length+' custom' });
+      return rows;
+    }
+    let apTheme = {};
+    window._wsOpenApply = (title, theme) => {
+      apTheme = theme || {};
+      document.getElementById('wsApSub').textContent = (title || 'Preset') + ' → map it to your lights';
+      const cp = compatFor(apTheme), cel = document.getElementById('wsApCompat');
+      cel.className = 'ap-compat ' + cp.cls;
+      document.getElementById('wsApBadge').textContent = cp.cls === 'ok' ? 'Full' : 'Partial';
+      document.getElementById('wsApCompatText').innerHTML = cp.html;
+      const rows = themeRows(apTheme);
+      document.getElementById('wsApMap').innerHTML = rows.length ? rows.map(r =>
+        '<div class="ap-role"><div class="ap-role-info"><div class="ap-role-name">'+esc(r.name)+'</div>'
+        + '<div class="ap-role-req"><span class="req '+r.req+'">'+(r.req==='mz'?'Needs multizone':'Any light')+'</span></div></div>'
+        + '<div class="ap-role-ctl"><div class="ap-pick" style="cursor:default;">'+esc(r.val)+'</div></div></div>'
+      ).join('') : '<div class="ap-role"><div class="ap-role-info"><div class="ap-role-name">Theme</div></div><div class="ap-role-ctl"><div class="ap-pick" style="cursor:default;">Colours &amp; timing</div></div></div>';
+      apBackdrop.classList.add('open');
+    };
+    document.getElementById('wsApClose').addEventListener('click', ()=>apBackdrop.classList.remove('open'));
+    document.getElementById('wsApCancel').addEventListener('click', ()=>apBackdrop.classList.remove('open'));
+    apBackdrop.addEventListener('click', e=>{ if(e.target===apBackdrop) apBackdrop.classList.remove('open'); });
+    document.getElementById('wsApApply').addEventListener('click', async ()=>{
+      const r = await callApi('apply_workshop_preset', apTheme);
+      apBackdrop.classList.remove('open');
+      if (r && r.ok === false) toast('Apply failed: ' + String(r.error||'error').slice(0,120), 'err');
+      else toast('Applied to your lights', 'ok');
+    });
   }
   function openLogin() { if (window._wsOpenLogin) window._wsOpenLogin(); }
   function openAccount(mode) { if (window._wsOpenAccount) window._wsOpenAccount(mode); }
@@ -446,9 +498,13 @@
     const paint = n => rate.querySelectorAll('.star-in').forEach(s=>s.classList.toggle('on', +s.dataset.star<=n));
     rate.addEventListener('mouseover', e=>{ const s=e.target.closest('.star-in'); if(s) paint(+s.dataset.star); });
     rate.addEventListener('mouseout', ()=> paint(+(rate.dataset.rated||0)));
-    rate.addEventListener('click', async e=>{ const s=e.target.closest('.star-in'); if(!s) return; if(!requireLogin()) return; const stars=+s.dataset.star; const r=await wsWrite('/api/workshop/presets/'+currentPresetId+'/rate','POST',{stars}); if(r.ok){ rate.dataset.rated=stars; paint(stars); rate.querySelector('.rate-note').textContent='Rated '+stars+'★'; if(r.data&&r.data.rating!=null) document.getElementById('wsRating').textContent=(+r.data.rating).toFixed(1)+(r.data.rating_count?' ('+r.data.rating_count+')':''); toast('Thanks for rating!','ok'); } });
+    rate.addEventListener('click', async e=>{ const s=e.target.closest('.star-in'); if(!s) return; if(!requireLogin()) return; if(!currentPresetId){ toast('Select a preset first','err'); return; } const stars=+s.dataset.star; const r=await wsWrite('/api/workshop/presets/'+currentPresetId+'/rate','POST',{stars}); if(r.ok){ rate.dataset.rated=stars; paint(stars); rate.querySelector('.rate-note').textContent='Rated '+stars+'★'; if(r.data&&r.data.rating!=null) document.getElementById('wsRating').textContent=(+r.data.rating).toFixed(1)+(r.data.rating_count?' ('+r.data.rating_count+')':''); toast('Thanks for rating!','ok'); } else { const m=(r.data&&(r.data.detail||r.data.error))||('status '+(r.status||'?')); toast('Rating failed: '+String(m).slice(0,120),'err'); } });
+    // share: copy the preset link (Python clipboard bridge, or navigator in preview)
+    function copyShareLink(){ const link=(document.getElementById('wsShareLink')||{}).textContent; if(!link) return; if(hasBridge()) callApi('copy_to_clipboard', link); else if(navigator.clipboard) navigator.clipboard.writeText(link).catch(()=>{}); toast('Link copied','ok'); }
+    document.getElementById('wsShare').addEventListener('click', copyShareLink);
+    const dCopy = root.querySelector('#page-workshop .d-copy') || root.querySelector('.d-copy'); if(dCopy) dCopy.addEventListener('click', copyShareLink);
     // personal-panel delegation
-    root.querySelectorAll('.tab-panel[data-panel] .mgrid').forEach(grid=> grid.addEventListener('click', async e=>{ const row=e.target.closest('.mrow'); if(!row) return; const id=row.dataset.id; if(e.target.closest('[data-apply]')){ const r=await wsWrite('/api/workshop/presets/'+id+'/download','POST'); if(r.ok&&r.data){ callApi('apply_workshop_preset', r.data.theme||r.data); toast('Applied to your lights','ok'); } return; } const d=e.target.closest('[data-dl]'); if(d){ runDownload(d); return; } if(e.target.closest('[data-del]')){ if(!requireLogin()) return; const r=await wsWrite('/api/workshop/presets/'+id,'DELETE'); if(r.ok){ row.remove(); toast('Removed','ok'); } else toast('Delete failed','err'); return; } if(e.target.closest('[data-unlike]')){ if(!requireLogin()) return; const r=await wsWrite('/api/workshop/presets/'+id+'/like','POST'); if(r.ok){ row.remove(); toast('Unliked','ok'); } } }));
+    root.querySelectorAll('.tab-panel[data-panel] .mgrid').forEach(grid=> grid.addEventListener('click', async e=>{ const row=e.target.closest('.mrow'); if(!row) return; const id=row.dataset.id; if(e.target.closest('[data-apply]')){ if(!requireLogin()) return; const r=await wsWrite('/api/workshop/presets/'+id+'/download','POST'); if(r.ok&&r.data){ const th=r.data.theme||r.data, nm=(row.querySelector('.mrow-tit')?row.querySelector('.mrow-tit').textContent:'Preset'); if(window._wsOpenApply) window._wsOpenApply(nm, th); else { callApi('apply_workshop_preset', th); toast('Applied to your lights','ok'); } } else { const m=(r.data&&(r.data.detail||r.data.error))||('status '+(r.status||'?')); toast('Apply failed: '+String(m).slice(0,120),'err'); } return; } const d=e.target.closest('[data-dl]'); if(d){ runDownload(d); return; } if(e.target.closest('[data-del]')){ if(!requireLogin()) return; const r=await wsWrite('/api/workshop/presets/'+id,'DELETE'); if(r.ok){ row.remove(); toast('Removed','ok'); } else toast('Delete failed','err'); return; } if(e.target.closest('[data-unlike]')){ if(!requireLogin()) return; const r=await wsWrite('/api/workshop/presets/'+id+'/like','POST'); if(r.ok){ row.remove(); toast('Unliked','ok'); } } }));
     initPreview();
   }
 

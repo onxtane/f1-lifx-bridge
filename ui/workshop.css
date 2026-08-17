@@ -3,7 +3,11 @@
  * (can't clobber the app); standalone-page chrome dropped; @keyframes renamed ws_*.
  */
 #page-workshop .nv.active { background:#241f45; color:var(--purple-l2); }
-#page-workshop .main { flex:1; min-width:0; display:flex; flex-direction:column; padding:22px 26px 0; overflow:hidden; }
+/* #workshopRoot is the app's mount point (a bare wrapper). Make it fill the bounded
+   .page so the internal .main → .split → .d-scroll chain has a height to scroll in,
+   instead of ballooning to content height and clipping. */
+#page-workshop #workshopRoot { flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; }
+#page-workshop .main { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; padding:22px 26px 0; overflow:hidden; }
 #page-workshop .hd { display:flex; align-items:flex-start; gap:20px; flex-shrink:0; }
 #page-workshop .hd h1 { margin:0; font-size:25px; font-weight:700; letter-spacing:-.02em; }
 #page-workshop .hd .sub { margin:6px 0 0; font-size:13px; color:var(--text-muted); }
@@ -97,7 +101,7 @@
 #page-workshop .list-empty.show { display:block; }
 #page-workshop .tab-panel { display:none; flex:1; min-height:0; flex-direction:column; }
 #page-workshop .tab-panel.active { display:flex; }
-#page-workshop .split { flex:1; display:grid; grid-template-columns:1fr 372px; gap:16px; min-height:0; }
+#page-workshop .split { flex:1; display:grid; grid-template-columns:1fr 372px; grid-template-rows:minmax(0,1fr); gap:16px; min-height:0; }
 #page-workshop .panel-head { display:flex; align-items:center; justify-content:space-between; margin:16px 0 14px; flex-shrink:0; }
 #page-workshop .panel-head .ph-title { font-size:14px; font-weight:600; }
 #page-workshop .panel-head .ph-sub { font-size:12px; color:var(--text-muted); }
@@ -135,7 +139,7 @@
 #page-workshop .panel-empty h4 { margin:6px 0 0; font-size:15px; font-weight:600; color:var(--text-main); }
 #page-workshop .panel-empty p { margin:0; font-size:13px; line-height:1.6; max-width:340px; }
 #page-workshop .panel-empty .btn { margin-top:6px; }
-#page-workshop .list { display:flex; flex-direction:column; gap:10px; overflow:hidden; padding-right:2px; }
+#page-workshop .list { display:flex; flex-direction:column; gap:10px; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
 #page-workshop .pc {
     display:flex; align-items:center; gap:14px; padding:12px 14px;
     background:var(--glass-fill); border:1px solid var(--glass-border);
@@ -237,6 +241,8 @@
 #page-workshop .ap-compat { display:flex; gap:11px; align-items:flex-start; padding:12px 14px; border-radius:12px;
               font-size:12px; line-height:1.55; margin-bottom:18px; }
 #page-workshop .ap-compat.warn { background:rgba(245,176,46,.10); border:1px solid rgba(245,176,46,.28); }
+#page-workshop .ap-compat.ok { background:rgba(61,220,132,.10); border:1px solid rgba(61,220,132,.28); }
+#page-workshop .ap-compat.ok .ap-compat-badge { background:rgba(61,220,132,.18); color:#3ddc84; }
 #page-workshop .ap-compat b { color:var(--text-main); }
 #page-workshop .ap-compat-badge { flex-shrink:0; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
                     padding:3px 9px; border-radius:99px; background:rgba(245,176,46,.18); color:var(--amber); }
@@ -317,9 +323,9 @@
 #page-workshop .pg i { font-size:15px; }
 #page-workshop .detail {
     background:var(--glass-fill); border:1px solid var(--glass-border); border-radius:16px;
-    display:flex; flex-direction:column; overflow:hidden;
+    display:flex; flex-direction:column; overflow:hidden; min-height:0;
   }
-#page-workshop .d-scroll { overflow-y:auto; overflow-x:hidden; padding:0 18px 18px; }
+#page-workshop .d-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; padding:0 18px 18px; }
 #page-workshop .d-hero { position:relative; height:134px; margin:0 -18px 0; display:flex; align-items:flex-end; padding:14px 18px; }
 #page-workshop .d-hero::after { content:''; position:absolute; inset:0; background:linear-gradient(to top, rgba(11,16,32,.95), rgba(11,16,32,.15) 60%, transparent); }
 #page-workshop .d-close { position:absolute; top:12px; right:12px; z-index:2; width:26px; height:26px; border-radius:8px;
