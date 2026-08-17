@@ -84,15 +84,20 @@ async function verifyEs256(token, env) {
   return payload;
 }
 
-// Normalize a Supabase JWT into the identity the rest of the API uses.
-// `id` is the Supabase user uuid (claims.sub) — the stable owner key.
+// Normalize a Supabase JWT into the identity the rest of the API uses. Provider-
+// neutral: works for email/password (no provider_id/avatar; name from email) and
+// OAuth alike. `id` is the Supabase user uuid (claims.sub) — the stable owner key.
 function userFromClaims(claims) {
   const m = claims.user_metadata || {};
+  const email = claims.email || m.email || null;
   return {
     id: claims.sub,
-    discord_id: m.provider_id || m.sub || null,
-    display_name: m.full_name || m.name || m.user_name || "Racer",
-    avatar_url: m.avatar_url || null,
+    email,
+    provider_id: m.provider_id || null,
+    display_name:
+      m.full_name || m.name || m.user_name ||
+      (email ? email.split("@")[0] : null) || "Racer",
+    avatar_url: m.avatar_url || m.picture || null,
   };
 }
 
@@ -111,13 +116,14 @@ export async function getUser(request, env) {
 export async function ensureUser(env, user) {
   await env.DB
     .prepare(
-      `INSERT INTO users (id, discord_id, display_name, avatar_url, created_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO users (id, email, provider_id, display_name, avatar_url, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
-         discord_id = excluded.discord_id,
+         email = excluded.email,
+         provider_id = excluded.provider_id,
          display_name = excluded.display_name,
          avatar_url = excluded.avatar_url`,
     )
-    .bind(user.id, user.discord_id, user.display_name, user.avatar_url, Date.now())
+    .bind(user.id, user.email, user.provider_id, user.display_name, user.avatar_url, Date.now())
     .run();
 }

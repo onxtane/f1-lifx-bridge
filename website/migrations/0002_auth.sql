@@ -1,4 +1,6 @@
--- Real accounts (design doc §5, revised): Supabase-issued Discord logins.
+-- Real accounts (design doc §5, revised): Supabase-issued logins. Provider-neutral
+-- — the chosen method is Supabase email/password, but the schema and verifier don't
+-- care (email/password, Google, and Discord all mint the same ES256 JWT).
 -- Additive over 0001 (which is already applied to the remote/prod DB).
 --
 -- Identity model change: the like/download/rating join tables' `token` column now
@@ -9,7 +11,8 @@
 
 CREATE TABLE users (
   id           TEXT PRIMARY KEY,            -- Supabase user uuid (JWT sub)
-  discord_id   TEXT,                        -- Discord provider id
+  email        TEXT,                        -- present for email/password + most OAuth
+  provider_id  TEXT,                        -- external provider id (OAuth); NULL for email/pw
   display_name TEXT NOT NULL DEFAULT 'Racer',
   avatar_url   TEXT,
   created_at   INTEGER NOT NULL             -- epoch ms
