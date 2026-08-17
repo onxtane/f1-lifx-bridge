@@ -128,6 +128,33 @@ class Api:
     def get_discovered_lights(self):
         return self.runner.get_discovered_lights()
 
+    def get_workshop_capabilities(self):
+        """What the Workshop compatibility banner needs about the user's real
+        setup: {'brands': [...], 'has_multizone': bool}. brands is the set of
+        controller types present ('lifx' | 'hue' | 'nanoleaf'); has_multizone is
+        True when the user owns a device that can render zone-based effects — a
+        LIFX multizone strip (zones > 0) or a Nanoleaf (its panels act as zones).
+        """
+        brands: set[str] = set()
+        has_multizone = False
+        try:
+            for d in self.runner.get_discovered_lights() or []:
+                t = d.get("type")
+                if t:
+                    brands.add(t)
+                if t == "lifx" and (d.get("zones") or 0) > 0:
+                    has_multizone = True
+                elif t == "nanoleaf":
+                    has_multizone = True
+        except Exception:
+            pass
+        try:
+            if self.runner.get_hue_lights():
+                brands.add("hue")
+        except Exception:
+            pass
+        return {"brands": sorted(brands), "has_multizone": has_multizone}
+
     def set_selected_lights(self, labels: list):
         self.runner.set_selected_lights(labels)
         return {"ok": True}

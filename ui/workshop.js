@@ -69,7 +69,9 @@
 
   // ---- helpers ----
   const DEV_META = { hue:{label:'Philips Hue',cls:'dev-hue'}, nanoleaf:{label:'Nanoleaf',cls:'dev-nano'}, lifx:{label:'LIFX',cls:'dev-lifx'} };
-  const USER_DEVICES = ['hue'];
+  // Populated from the bridge (get_workshop_capabilities) at mount; empty until then.
+  let USER_DEVICES = [];
+  let HAS_MULTIZONE = false;
   const MZ_EFFECTS = ['rpm_meter','start_lights','sector_status'];
   const fmt = n => { n = +n || 0; return n >= 1000 ? (n/1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/,'') + 'k' : String(n); };
   const daysSince = ms => Math.max(0, Math.floor((Date.now() - ms) / 86400000));
@@ -129,6 +131,7 @@
     +     '<div class="detail"><div class="d-scroll">'
     +       '<div class="d-hero" id="wsHero"><img class="d-badge" id="wsBadge" src="" alt="" style="height:26px;width:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));"></div>'
     +       '<div class="d-tit" id="wsTit"></div><div class="d-by" id="wsBy"></div>'
+    +       '<div class="d-official" id="wsOfficial" style="display:none;">'+VERIFIED(17)+'<div><b>Official GridGlow preset</b><span>Curated and verified by the GridGlow team</span></div></div>'
     +       '<div class="d-actions"><button class="btn btn-primary" id="wsDownload"><i class="ti ti-download"></i> Download</button>'
     +         '<div class="d-icons"><div class="d-iconbtn like" id="wsLike"><svg class="hx" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="'+HEART_PATH()+'"/></svg> <span class="lc" id="wsLikeCount">0</span></div>'
     +         '<div class="d-iconbtn" id="wsShare"><i class="ti ti-share-3"></i> Share</div></div></div>'
@@ -156,6 +159,8 @@
     + '</div>'
     + '<div class="ws-toast" id="wsToast"></div>';
 
+  // Verified badge for official GridGlow presets (starburst seal + white check).
+  function VERIFIED(size) { size = size || 15; return '<svg class="ws-verified" viewBox="0 0 24 24" width="'+size+'" height="'+size+'" aria-label="Official GridGlow preset"><title>Official GridGlow preset</title><path d="M12 1l2.35 1.74 2.92.02 1.03 2.73 2.42 1.63-.55 2.86.9 2.78-2.16 1.97-.36 2.9-2.86.6L12 22.9l-2.71-1.34-2.86-.6-.36-2.9-2.16-1.97.9-2.78-.55-2.86 2.42-1.63L7.7 2.78l2.92-.02z" fill="url(#ws_seal)"/><path d="M10.4 15.2l-2.2-2.2-1.35 1.35 3.55 3.55 6.3-6.3-1.35-1.35z" fill="#fff"/><defs><linearGradient id="ws_seal" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse"><stop stop-color="#9d8cf8"/><stop offset="1" stop-color="#6f5be0"/></linearGradient></defs></svg>'; }
   function HEART_PATH() { return 'M12 21s-7.5-4.9-10-9.2C.4 8.9 1.6 5.5 4.8 4.8 7 4.3 9 5.5 12 8c3-2.5 5-3.7 7.2-3.2 3.2.7 4.4 4.1 2.8 7C19.5 16.1 12 21 12 21z'; }
   const HEART_FILLED  = '<svg class="hx" viewBox="0 0 24 24" width="16" height="16" fill="#ff5d5d"><path d="'+HEART_PATH()+'"/></svg>';
   const HEART_OUTLINE = '<i class="ti ti-heart hx"></i>';
@@ -176,7 +181,7 @@
     const rt = p.rating == null ? '—' : (+p.rating).toFixed(1);
     card.innerHTML =
       '<div class="thumb"><img class="thumb-logo" src="'+logoFor(p.game)+'" alt="'+esc(p.game_name||'')+'"></div>'
-      + '<div class="pc-info"><div class="pc-titrow"><span class="pc-tit">'+esc(p.title)+'</span></div>'
+      + '<div class="pc-info"><div class="pc-titrow"><span class="pc-tit">'+esc(p.title)+'</span>'+(p.official?VERIFIED(14):'')+'</div>'
       + '<p class="pc-game">'+esc(p.game_name||p.game)+' · <span class="pc-by">by '+esc(p.author_name||'unknown')+'</span></p>'
       + '<p class="pc-desc">'+(p.tags||[]).slice(0,4).map(t=>'#'+esc(t)).join(' ')+'</p></div>'
       + '<div class="zones"></div>'
@@ -202,9 +207,14 @@
     emptyEl.classList.toggle('show', workshopLoaded && vis.length===0);
   }
   function compatFor(theme) {
-    const evs = (theme && theme.enabled_events) || [], hasStrip = USER_DEVICES.some(d=>d==='lifx'||d==='nanoleaf'), mz = evs.filter(e=>MZ_EFFECTS.indexOf(e)>=0).length;
-    if (mz===0 || hasStrip) return { cls:'ok', html:'<b>Fully compatible</b> with your setup<span class="sub">Your devices can render every effect.</span>' };
-    return { cls:'warn', html:'<b>Partially compatible</b> with your setup<span class="sub">Your theme applies fully — '+mz+' effect'+(mz>1?'s':'')+' need a multizone strip you don\'t have.</span>' };
+    const evs = (theme && theme.enabled_events) || [], mz = evs.filter(e=>MZ_EFFECTS.indexOf(e)>=0).length;
+    if (mz===0 || HAS_MULTIZONE) return { cls:'ok', html:'<b>Fully compatible</b> with your setup<span class="sub">Your devices can render every effect.</span>' };
+    return { cls:'warn', html:'<b>Partially compatible</b> with your setup<span class="sub">Your theme applies fully — '+mz+' effect'+(mz>1?'s':'')+' need'+(mz>1?'':'s')+' a multizone strip you don\'t have.</span>' };
+  }
+  async function loadCapabilities() {
+    const caps = await callApi('get_workshop_capabilities');
+    if (caps && Array.isArray(caps.brands)) { USER_DEVICES = caps.brands; HAS_MULTIZONE = !!caps.has_multizone; }
+    if (currentPreset) renderDetail(currentPreset);   // repaint chips + compat with real devices
   }
   function renderDetail(p) {
     currentPresetId = p.id;
@@ -213,8 +223,9 @@
     previewGradient = (theme.rpm_gradient && theme.rpm_gradient.length) ? theme.rpm_gradient : (p.swatch && p.swatch.length ? p.swatch : ['#3ddc84','#f5b02e','#ff5d5d']);
     document.getElementById('wsHero').style.background = 'radial-gradient(120% 140% at 70% 10%, '+(previewGradient[previewGradient.length-1]||'#7a0f1a')+' 0%, rgba(10,7,16,.55) 55%, #0a0710 100%)';
     const badge = document.getElementById('wsBadge'); badge.src = logoFor(p.game); badge.alt = p.game_name||'';
-    document.getElementById('wsTit').textContent = p.title||'';
+    document.getElementById('wsTit').innerHTML = esc(p.title||'') + (p.official ? ' '+VERIFIED(17) : '');
     document.getElementById('wsBy').textContent = 'by ' + (p.author_name||'unknown');
+    document.getElementById('wsOfficial').style.display = p.official ? 'flex' : 'none';
     document.getElementById('wsDl').textContent = fmt(p.downloads);
     document.getElementById('wsLikes').textContent = fmt(p.likes);
     document.getElementById('wsRating').textContent = p.rating==null ? '—' : (+p.rating).toFixed(1)+(p.rating_count?' ('+p.rating_count+')':'');
@@ -546,6 +557,7 @@
     root.innerHTML = MARKUP;
     wire();
     injectUpload();
+    loadCapabilities();
     loadWorkshop();
   }
   const navBtn = document.querySelector('.nav-btn[data-page="workshop"]');
