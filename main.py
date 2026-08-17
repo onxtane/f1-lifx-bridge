@@ -36,7 +36,17 @@ import replay
 import runtime_check
 from app_paths import BUNDLE_DIR, USER_DATA_DIR
 
+try:
+    import requests
+except ImportError:  # mirrors the guarded import in hue_controller / nanoleaf_controller
+    requests = None
+
 UI_FILE = BUNDLE_DIR / "ui" / "index.html"
+
+# Community Workshop API base. The app reaches the read API over HTTPS exactly like
+# it reaches Hue/Nanoleaf — never D1 directly (D1 is only reachable inside the Pages
+# Functions). Env-overridable: local wrangler in dev, the Pages domain in prod.
+WORKSHOP_API_BASE = os.environ.get("GRIDGLOW_API_BASE", "https://gridglow.titanstowers.net")
 
 
 class Api:
@@ -236,6 +246,81 @@ class Api:
     def set_hue_diag(self, enabled: bool):
         self.runner.set_hue_diag(enabled)
         return {"ok": True}
+
+    # ---- Community Workshop (read path) ----
+
+    def _workshop_request(self, path: str, params: dict | None = None):
+        """GET {WORKSHOP_API_BASE}{path} → parsed JSON, or an {'error': ...} dict.
+
+        Never raises into the webview bridge; the page always gets JSON back so it
+        can render a friendly offline/empty state.
+        """
+        if requests is None:
+            return {"error": "requests_unavailable"}
+        try:
+            resp = requests.get(f"{WORKSHOP_API_BASE}{path}", params=params, timeout=8)
+            if resp.status_code == 404:
+                return {"error": "not_found", "status": 404}
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as exc:  # network down, wrangler not running, bad JSON, …
+            return {"error": "request_failed", "detail": str(exc)}
+
+    def workshop_list(self, game=None, sort="hot", q=None, cursor=None):
+        """Browse presets. Mirrors GET /api/workshop/presets (game/sort/q/cursor)."""
+        params = {"sort": sort or "hot"}
+        if game:
+            params["game"] = game
+        if q:
+            params["q"] = q
+        if cursor:
+            params["cursor"] = cursor
+        return self._workshop_request("/api/workshop/presets", params)
+
+    def workshop_get(self, preset_id: str):
+        """Fetch one preset's full detail (incl. `theme`). GET /api/workshop/presets/:id."""
+        return self._workshop_request(f"/api/workshop/presets/{preset_id}")
+
+    def apply_workshop_preset(self, theme: dict):
+        """Apply a downloaded preset's device-agnostic `theme` to the user's lights.
+
+        A downloaded preset is just a partial gui_settings payload — loop each field
+        that's present through the existing live setter so it takes effect on running
+        lights (and persists), exactly like changing it in Settings. Fields map 1:1 to
+        the `theme` shape documented in docs/community-workshop-backend.md §2.1.
+        """
+        if not isinstance(theme, dict):
+            return {"ok": False, "error": "invalid_theme"}
+        applied: list[str] = []
+        try:
+            if isinstance(theme.get("enabled_events"), list):
+                self.runner.set_enabled_events(theme["enabled_events"])
+                applied.append("enabled_events")
+            br = theme.get("brightness_range")
+            if isinstance(br, dict) and "min_pct" in br and "max_pct" in br:
+                self.runner.set_brightness_range(int(br["min_pct"]), int(br["max_pct"]))
+                applied.append("brightness_range")
+            st = theme.get("stagger")
+            if isinstance(st, dict) and "enabled" in st:
+                self.runner.set_stagger(bool(st["enabled"]), int(st.get("ms", 0)))
+                applied.append("stagger")
+            idle = theme.get("idle_state")
+            if isinstance(idle, dict) and "color_hex" in idle:
+                self.runner.set_idle_state(idle["color_hex"], bool(idle.get("pulse", False)))
+                applied.append("idle_state")
+            mz = theme.get("mz_startlights")
+            if isinstance(mz, dict) and "direction" in mz and "mode" in mz:
+                self.runner.set_mz_startlights(mz["direction"], mz["mode"])
+                applied.append("mz_startlights")
+            if isinstance(theme.get("rpm_gradient"), list):
+                self.runner.set_rpm_gradient(theme["rpm_gradient"])
+                applied.append("rpm_gradient")
+            if isinstance(theme.get("curves"), dict):
+                self.runner.set_curves(theme["curves"])
+                applied.append("curves")
+        except Exception as exc:
+            return {"ok": False, "error": str(exc), "applied": applied}
+        return {"ok": True, "applied": applied}
 
     def get_nanoleaf_layout(self):
         return self.runner.get_nanoleaf_layout()
