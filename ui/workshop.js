@@ -46,15 +46,17 @@
   function norm(res) { if (!res) return { ok:false, status:0, data:null }; if (res.error) return { ok:false, status:res.status||0, data:res }; return { ok:true, status:200, data:res }; }
   async function wsWrite(path, method, body) {
     if (hasBridge()) {
-      let m;
-      if ((m = path.match(/\/presets\/([^/?]+)\/like$/)))     return norm(await callApi('workshop_like', m[1]));
-      if ((m = path.match(/\/presets\/([^/?]+)\/download$/))) return norm(await callApi('workshop_download', m[1]));
-      if ((m = path.match(/\/presets\/([^/?]+)\/rate$/)))     return norm(await callApi('workshop_rate', m[1], body.stars));
-      if ((m = path.match(/[?&](mine|liked|downloaded)=1/)))  return norm(await callApi('workshop_personal', m[1]));
-      if ((m = path.match(/\/presets\/([^/?]+)$/)) && method === 'DELETE') return norm(await callApi('workshop_delete', m[1]));
-      if (path.endsWith('/presets') && method === 'POST')
-        return norm(await callApi('workshop_upload', { title: body.title, description: body.description, game: body.game, visibility: body.visibility, tags: body.tags, devices: body.devices }));
-      return { ok:false, status:0, data:null };
+      try {
+        let m;
+        if ((m = path.match(/\/presets\/([^/?]+)\/like$/)))     return norm(await callApi('workshop_like', m[1]));
+        if ((m = path.match(/\/presets\/([^/?]+)\/download$/))) return norm(await callApi('workshop_download', m[1]));
+        if ((m = path.match(/\/presets\/([^/?]+)\/rate$/)))     return norm(await callApi('workshop_rate', m[1], body.stars));
+        if ((m = path.match(/[?&](mine|liked|downloaded)=1/)))  return norm(await callApi('workshop_personal', m[1]));
+        if ((m = path.match(/\/presets\/([^/?]+)$/)) && method === 'DELETE') return norm(await callApi('workshop_delete', m[1]));
+        if (path.endsWith('/presets') && method === 'POST')
+          return norm(await callApi('workshop_upload', { title: body.title, description: body.description, game: body.game, visibility: body.visibility, tags: body.tags, devices: body.devices }));
+        return { ok:false, status:0, data:{ error:'no_route' } };
+      } catch (e) { return { ok:false, status:0, data:{ error:'bridge_error', detail:String(e) } }; }
     }
     try {
       const r = await fetch(API_BASE + path, { method, headers: Object.assign({ 'Content-Type':'application/json' }, authHeader()), body: body ? JSON.stringify(body) : undefined });
@@ -476,7 +478,7 @@
     const ug = document.getElementById('wsUpGame'); const gm=document.createElement('div'); gm.className='fmenu'; gm.innerHTML=GAMES.map(g=>'<div class="fmenu-item" data-slug="'+g[0]+'">'+esc(g[1])+'</div>').join(''); ug.style.position='relative'; ug.appendChild(gm);
     ug.addEventListener('click', e=>{ if(e.target.closest('.fmenu')) return; gm.style.display = gm.style.display==='block'?'none':'block'; });
     gm.addEventListener('click', e=>{ const it=e.target.closest('.fmenu-item'); if(!it) return; ug.dataset.game=it.dataset.slug; ug.firstChild.textContent=it.textContent+' '; gm.style.display='none'; });
-    document.getElementById('wsUpPublish').addEventListener('click', async ()=>{ if(!requireLogin()) return; const devSlug={'dev-hue':'hue','dev-nano':'nanoleaf','dev-lifx':'lifx'}; const devices=[].slice.call(up.querySelectorAll('.up-chip.on')).map(c=>devSlug[[].slice.call(c.classList).find(k=>k.indexOf('dev-')===0)]).filter(Boolean); const tags=[].slice.call(up.querySelectorAll('.up-tag')).map(t=>(t.firstChild&&t.firstChild.textContent||'').trim()).filter(Boolean); const body={ title:document.getElementById('wsUpName').value.trim()||'Untitled preset', description:document.getElementById('wsUpDesc').value.trim(), game:document.getElementById('wsUpGame').dataset.game||'f1_25', visibility:(up.querySelector('.up-seg-btn.active')?up.querySelector('.up-seg-btn.active').textContent.trim().toLowerCase():'public'), tags, devices, gridglow_preset:1, app_min_version:'0.10.0', theme:{} }; const pub=document.getElementById('wsUpPublish'); pub.disabled=true; const r=await wsWrite('/api/workshop/presets','POST',body); pub.disabled=false; if(r.ok){ up.classList.remove('open'); toast('Preset published!','ok'); loadWorkshop(); } else if(r.status) toast('Upload failed ('+r.status+')','err'); });
+    document.getElementById('wsUpPublish').addEventListener('click', async ()=>{ if(!requireLogin()) return; const devSlug={'dev-hue':'hue','dev-nano':'nanoleaf','dev-lifx':'lifx'}; const devices=[].slice.call(up.querySelectorAll('.up-chip.on')).map(c=>devSlug[[].slice.call(c.classList).find(k=>k.indexOf('dev-')===0)]).filter(Boolean); const tags=[].slice.call(up.querySelectorAll('.up-tag')).map(t=>(t.firstChild&&t.firstChild.textContent||'').trim()).filter(Boolean); const body={ title:document.getElementById('wsUpName').value.trim()||'Untitled preset', description:document.getElementById('wsUpDesc').value.trim(), game:document.getElementById('wsUpGame').dataset.game||'f1_25', visibility:(up.querySelector('.up-seg-btn.active')?up.querySelector('.up-seg-btn.active').textContent.trim().toLowerCase():'public'), tags, devices, gridglow_preset:1, app_min_version:'0.10.0', theme:{} }; const pub=document.getElementById('wsUpPublish'); pub.disabled=true; toast('Publishing…'); const r=await wsWrite('/api/workshop/presets','POST',body); pub.disabled=false; console.log('[workshop] upload result', r); if(r.ok){ up.classList.remove('open'); toast('Preset published!','ok'); loadWorkshop(); } else { const e=(r.data&&(r.data.error||r.data.detail))||('status '+(r.status||'?')); toast('Upload failed: '+e,'err'); } });
   }
 
   // ---- mount ----
