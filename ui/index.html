@@ -3435,6 +3435,47 @@
     callApi('set_rpm_gradient', _rpmGradStops);
   }
 
+  // Reflect a downloaded workshop preset's `theme` in the Effects UI. The Python
+  // apply_workshop_preset() already pushes these to the bridge and persists them;
+  // this repaints the on-screen controls so what you see matches what was applied.
+  // (Presets are device-agnostic — they carry no light assignments by design, so
+  // those are intentionally left untouched.)
+  window.applyWorkshopThemeToUI = function (theme) {
+    if (!theme || typeof theme !== 'object') return;
+    try {
+      if (Array.isArray(theme.enabled_events)) {
+        applyEnabledEvents(theme.enabled_events);
+        if (window._pwRenderGarage) window._pwRenderGarage();
+      }
+      if (theme.brightness_range) {
+        if (theme.brightness_range.min_pct != null) sliderMin.value = theme.brightness_range.min_pct;
+        if (theme.brightness_range.max_pct != null) sliderMax.value = theme.brightness_range.max_pct;
+        updateBrightnessUI();
+      }
+      if (theme.stagger) {
+        document.getElementById('settingStagger').checked = !!theme.stagger.enabled;
+        if (theme.stagger.ms != null) document.getElementById('settingStaggerMs').value = theme.stagger.ms;
+      }
+      if (theme.idle_state) {
+        // Setting .value flows through the hidden input's setter, which calls
+        // picker.setValue() — so the custom swatch updates automatically.
+        if (theme.idle_state.color_hex) document.getElementById('settingIdleColor').value = theme.idle_state.color_hex;
+        document.getElementById('settingIdlePulse').checked = !!theme.idle_state.pulse;
+      }
+      if (theme.mz_startlights) {
+        if (theme.mz_startlights.mode) document.getElementById('settingMzSweep').checked = theme.mz_startlights.mode !== 'solid';
+        if (theme.mz_startlights.direction && typeof setMzDirection === 'function') setMzDirection(theme.mz_startlights.direction);
+        if (typeof updateMzDirectionRowVisibility === 'function') updateMzDirectionRowVisibility();
+      }
+      if (Array.isArray(theme.rpm_gradient) && theme.rpm_gradient.length) {
+        rpmGradInit(theme.rpm_gradient);            // resets _rpmGradStops + repaints the gradient section
+        if (typeof rpmGradRenderPreview === 'function') rpmGradRenderPreview();
+        if (typeof rpmGradMarkActivePreset === 'function') rpmGradMarkActivePreset();
+      }
+      if (theme.curves && window._reloadCurves) window._reloadCurves();
+    } catch (e) { console.warn('applyWorkshopThemeToUI failed', e); }
+  };
+
   (function () {
     const add = document.getElementById('rpmGradAddStop');
     const reset = document.getElementById('rpmGradReset');

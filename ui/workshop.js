@@ -391,6 +391,8 @@
     apBackdrop.addEventListener('click', e=>{ if(e.target===apBackdrop) apBackdrop.classList.remove('open'); });
     document.getElementById('wsApApply').addEventListener('click', async ()=>{
       const r = await callApi('apply_workshop_preset', apTheme);
+      // Repaint the Effects controls so the UI reflects what was just applied.
+      if (window.applyWorkshopThemeToUI) window.applyWorkshopThemeToUI(apTheme);
       apBackdrop.classList.remove('open');
       if (r && r.ok === false) toast('Apply failed: ' + String(r.error||'error').slice(0,120), 'err');
       else toast('Applied to your lights', 'ok');

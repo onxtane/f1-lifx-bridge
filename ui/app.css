@@ -1069,6 +1069,11 @@
 
   /* ---- settings page ---- */
   .settings-section{ background:var(--glass-fill); border:1px solid var(--glass-border); border-radius:18px; padding:24px 28px; }
+  /* A color-picker panel opens downward into the next section. Because glass
+     sections each become their own stacking context (backdrop-filter), the panel
+     can't rise above the following section on z-index alone — so lift the whole
+     section that owns the currently-open picker above its siblings. */
+  .settings-section:has(.cp-trigger.cp-open){ position:relative; z-index:20; }
   .settings-section h3{ margin:0 0 18px; font-size:16px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; font-size:12px; }
   .setting-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(var(--surface-rgb),0.06); }
   .setting-row:last-child{ border-bottom:none; }
