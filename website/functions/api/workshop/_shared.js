@@ -62,13 +62,16 @@ export function swatchFromTheme(themeJson) {
 // so the list, upload response, and any future card producer stay identical.
 // The row must include: id, title, game, author_name, tags, devices, downloads,
 // likes, rating_sum, rating_count, created_at, theme_json.
-export function toCard(r) {
+export function toCard(r, officialIds) {
   return {
     id: r.id,
     title: r.title,
     game: r.game,                    // slug → ui/logos/<slug>.png
     game_name: gameName(r.game),     // display name (registry)
     author_name: r.author_name,
+    // Official = owned by a GridGlow team account (env OFFICIAL_USER_IDS). Drives
+    // the verified badge/check; based on the owner id, so author_name can't spoof it.
+    official: isOfficial(r.owner_user_id, officialIds),
     tags: parseJsonArray(r.tags),
     devices: parseJsonArray(r.devices),
     downloads: r.downloads,
@@ -78,6 +81,19 @@ export function toCard(r) {
     created_at: r.created_at,
     swatch: swatchFromTheme(r.theme_json),
   };
+}
+
+// The set of GridGlow team user ids, from the OFFICIAL_USER_IDS env var
+// (comma-separated Supabase user ids). Empty when unset — nothing is "official".
+export function officialSet(env) {
+  return new Set(
+    String((env && env.OFFICIAL_USER_IDS) || "")
+      .split(",").map((s) => s.trim()).filter(Boolean)
+  );
+}
+
+export function isOfficial(ownerUserId, officialIds) {
+  return !!(ownerUserId && officialIds && officialIds.has(ownerUserId));
 }
 
 // tags/devices are stored as JSON-array text; parse defensively for responses.

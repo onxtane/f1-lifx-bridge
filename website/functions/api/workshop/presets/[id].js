@@ -2,7 +2,7 @@
 // Returns the whole validated envelope (§2.1) so the front end can drive every
 // preview colour from `theme` and download applies it via the app's set_* setters.
 
-import { json, error, preflight, parseJsonArray, ratingOf, nowMs } from "../_shared.js";
+import { json, error, preflight, parseJsonArray, ratingOf, nowMs, officialSet, isOfficial } from "../_shared.js";
 import { gameName } from "../_games.js";
 import { getUser } from "../_auth.js";
 import { enforce } from "../_ratelimit.js";
@@ -40,7 +40,7 @@ export async function onRequestGet({ params, env }) {
   try {
     row = await env.DB
       .prepare(
-        `SELECT id, title, description, game, author_name, tags, devices,
+        `SELECT id, title, description, game, author_name, owner_user_id, tags, devices,
                 downloads, likes, rating_sum, rating_count,
                 created_at, updated_at, theme_json
          FROM presets
@@ -69,6 +69,7 @@ export async function onRequestGet({ params, env }) {
     game: row.game,                       // slug → ui/logos/<slug>.png
     game_name: gameName(row.game),        // display name (registry)
     author_name: row.author_name,
+    official: isOfficial(row.owner_user_id, officialSet(env)),
     tags: parseJsonArray(row.tags),
     devices: parseJsonArray(row.devices),
     downloads: row.downloads,

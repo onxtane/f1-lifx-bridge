@@ -4,7 +4,7 @@
 
 import {
   json, error, preflight, encodeCursor, decodeCursor,
-  toCard, newId, readJson, nowMs,
+  toCard, officialSet, newId, readJson, nowMs,
 } from "./_shared.js";
 import { validatePreset } from "./_validate.js";
 import { getUser, ensureUser } from "./_auth.js";
@@ -66,7 +66,7 @@ export async function onRequestGet({ request, env }) {
   // Secondary sort by id keeps ordering stable when the primary key ties.
   // Fetch limit+1 to detect a next page without a second COUNT query.
   const sql =
-    `SELECT id, title, game, author_name, tags, devices,
+    `SELECT id, title, game, author_name, owner_user_id, tags, devices,
             downloads, likes, rating_sum, rating_count, created_at, theme_json
      FROM presets
      WHERE ${where.join(" AND ")}
@@ -84,7 +84,8 @@ export async function onRequestGet({ request, env }) {
   }
 
   const hasMore = rows.length > limit;
-  const presets = rows.slice(0, limit).map(toCard);
+  const off = officialSet(env);
+  const presets = rows.slice(0, limit).map((r) => toCard(r, off));
   return json({ presets, cursor: hasMore ? encodeCursor(offset + limit) : null });
 }
 
@@ -139,12 +140,12 @@ export async function onRequestPost({ request, env }) {
   // Return the created row as a list card so the client can insert it optimistically.
   const row = await env.DB
     .prepare(
-      `SELECT id, title, game, author_name, tags, devices,
+      `SELECT id, title, game, author_name, owner_user_id, tags, devices,
               downloads, likes, rating_sum, rating_count, created_at, theme_json
        FROM presets WHERE id = ?`
     )
     .bind(id)
     .first();
 
-  return json({ ok: true, id, preset: row ? toCard(row) : { id } }, 201);
+  return json({ ok: true, id, preset: row ? toCard(row, officialSet(env)) : { id } }, 201);
 }
