@@ -64,6 +64,10 @@ class Api:
         self._queue: list = []
         self._queue_lock = threading.Lock()
 
+        # Supabase access token for Workshop write/personal calls (set by the webview
+        # on auth state change; None when signed out). Reads never use it.
+        self._workshop_token: str | None = None
+
         # A replay runs for ~20-35s on its own thread so the UI stays live.
         self._replay_thread: threading.Thread | None = None
         self._replay_stop = threading.Event()
@@ -249,21 +253,41 @@ class Api:
 
     # ---- Community Workshop (read path) ----
 
-    def _workshop_request(self, path: str, params: dict | None = None):
-        """GET {WORKSHOP_API_BASE}{path} → parsed JSON, or an {'error': ...} dict.
+    def _workshop_request(self, path, method="GET", params=None, body=None, auth=False):
+        """Call {WORKSHOP_API_BASE}{path} → parsed JSON, or an {'error': ...} dict.
 
-        Never raises into the webview bridge; the page always gets JSON back so it
-        can render a friendly offline/empty state.
+        Never raises into the webview bridge; the page always gets JSON back so it can
+        render a friendly offline / empty / needs-login state. `auth=True` attaches the
+        Supabase access token (from set_workshop_token) as a Bearer header — required by
+        every write / personal-tab endpoint. Reads send no header.
         """
         if requests is None:
             return {"error": "requests_unavailable"}
+        headers: dict = {}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        if auth:
+            if not self._workshop_token:
+                return {"error": "not_authenticated", "status": 401}
+            headers["Authorization"] = "Bearer " + self._workshop_token
         try:
-            resp = requests.get(f"{WORKSHOP_API_BASE}{path}", params=params, timeout=8)
+            resp = requests.request(
+                method, f"{WORKSHOP_API_BASE}{path}",
+                params=params, json=body, headers=headers, timeout=8,
+            )
+            if resp.status_code == 401:
+                return {"error": "unauthorized", "status": 401}
             if resp.status_code == 404:
                 return {"error": "not_found", "status": 404}
+            if resp.status_code == 429:
+                return {"error": "rate_limited", "status": 429,
+                        "retry_after": resp.headers.get("Retry-After")}
             resp.raise_for_status()
-            return resp.json()
-        except Exception as exc:  # network down, wrangler not running, bad JSON, …
+            try:
+                return resp.json()
+            except ValueError:  # empty/no-JSON body (e.g. a 204)
+                return {"ok": True, "status": resp.status_code}
+        except Exception as exc:  # network down, API unreachable, bad JSON, …
             return {"error": "request_failed", "detail": str(exc)}
 
     def workshop_list(self, game=None, sort="hot", q=None, cursor=None):
@@ -275,7 +299,7 @@ class Api:
             params["q"] = q
         if cursor:
             params["cursor"] = cursor
-        return self._workshop_request("/api/workshop/presets", params)
+        return self._workshop_request("/api/workshop/presets", params=params)
 
     def workshop_get(self, preset_id: str):
         """Fetch one preset's full detail (incl. `theme`). GET /api/workshop/presets/:id."""
@@ -321,6 +345,103 @@ class Api:
         except Exception as exc:
             return {"ok": False, "error": str(exc), "applied": applied}
         return {"ok": True, "applied": applied}
+
+    # ---- Community Workshop (write path — all require a Supabase login) ----
+
+    def set_workshop_token(self, access_token):
+        """Store the Supabase access token (None clears it on sign-out). The webview
+        pushes this on auth state change; write / personal calls send it as Bearer."""
+        self._workshop_token = access_token or None
+        return {"ok": True}
+
+    def workshop_personal(self, kind):
+        """Personal tabs. kind: 'mine' | 'liked' | 'downloaded' → GET ?<kind>=1 (Bearer)."""
+        if kind not in ("mine", "liked", "downloaded"):
+            return {"error": "bad_kind"}
+        return self._workshop_request("/api/workshop/presets", params={kind: 1}, auth=True)
+
+    def workshop_download(self, preset_id):
+        """POST /:id/download → returns the preset's theme and records the download."""
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}/download", method="POST", auth=True)
+
+    def workshop_like(self, preset_id):
+        """POST /:id/like → toggle like."""
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}/like", method="POST", auth=True)
+
+    def workshop_rate(self, preset_id, stars):
+        """POST /:id/rate {stars:1-5}."""
+        try:
+            stars = int(stars)
+        except (TypeError, ValueError):
+            return {"error": "bad_stars"}
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}/rate",
+            method="POST", body={"stars": stars}, auth=True)
+
+    def workshop_delete(self, preset_id):
+        """DELETE /:id (owner only)."""
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}", method="DELETE", auth=True)
+
+    def workshop_upload(self, meta):
+        """POST /presets — publish the user's CURRENT setup as a preset.
+
+        `meta` carries the presentation fields from the upload form
+        ({title, description, game, visibility, tags, devices}); the device-agnostic
+        `theme` is built here from the live gui_settings (the reverse of
+        apply_workshop_preset). This is the real-setup upload the mockup faked with a
+        SAMPLE_THEME.
+        """
+        if not isinstance(meta, dict):
+            return {"error": "bad_payload"}
+        body = {
+            "title": (meta.get("title") or "Untitled preset"),
+            "description": meta.get("description", ""),
+            "game": meta.get("game", ""),
+            "visibility": meta.get("visibility", "public"),
+            "tags": meta.get("tags", []),
+            "devices": meta.get("devices", []),
+            "gridglow_preset": 1,
+            "app_min_version": "0.10.0",
+            "theme": self._gui_settings_to_theme(self.runner.get_gui_settings() or {}),
+        }
+        return self._workshop_request(
+            "/api/workshop/presets", method="POST", body=body, auth=True)
+
+    @staticmethod
+    def _gui_settings_to_theme(gs: dict) -> dict:
+        """Map the app's flat gui_settings keys → the backend `theme` shape (the inverse
+        of apply_workshop_preset). Only includes fields that are present."""
+        theme: dict = {}
+        if isinstance(gs.get("enabled_events"), list):
+            theme["enabled_events"] = gs["enabled_events"]
+        if "brightness_min" in gs or "brightness_max" in gs:
+            theme["brightness_range"] = {
+                "min_pct": int(gs.get("brightness_min", 0)),
+                "max_pct": int(gs.get("brightness_max", 100)),
+            }
+        if "stagger_enabled" in gs or "stagger_ms" in gs:
+            theme["stagger"] = {
+                "enabled": bool(gs.get("stagger_enabled", False)),
+                "ms": int(gs.get("stagger_ms", 0) or 0),
+            }
+        if gs.get("idle_color"):
+            theme["idle_state"] = {
+                "color_hex": gs["idle_color"],
+                "pulse": bool(gs.get("idle_pulse", False)),
+            }
+        if gs.get("mz_startlights_direction") or gs.get("mz_startlights_mode"):
+            theme["mz_startlights"] = {
+                "direction": gs.get("mz_startlights_direction", "ltr"),
+                "mode": gs.get("mz_startlights_mode", "sweep"),
+            }
+        if isinstance(gs.get("rpm_gradient"), list):
+            theme["rpm_gradient"] = gs["rpm_gradient"]
+        if isinstance(gs.get("curves"), dict):
+            theme["curves"] = gs["curves"]
+        return theme
 
     def get_nanoleaf_layout(self):
         return self.runner.get_nanoleaf_layout()
