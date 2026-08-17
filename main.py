@@ -282,7 +282,17 @@ class Api:
             if resp.status_code == 429:
                 return {"error": "rate_limited", "status": 429,
                         "retry_after": resp.headers.get("Retry-After")}
-            resp.raise_for_status()
+            if not resp.ok:
+                # 4xx/5xx we don't special-case above (e.g. a 422 validation
+                # reject). Surface the server's own message — it names the exact
+                # offending field — instead of a generic HTTPError string.
+                detail = None
+                try:
+                    detail = resp.json().get("error")
+                except ValueError:
+                    detail = (resp.text or "").strip()[:200] or None
+                return {"error": detail or f"http_{resp.status_code}",
+                        "status": resp.status_code}
             try:
                 return resp.json()
             except ValueError:  # empty/no-JSON body (e.g. a 204)
@@ -410,13 +420,25 @@ class Api:
         return self._workshop_request(
             "/api/workshop/presets", method="POST", body=body, auth=True)
 
-    @staticmethod
-    def _gui_settings_to_theme(gs: dict) -> dict:
+    # Event keys the Workshop backend accepts (mirrors _validate.js KNOWN_EVENTS).
+    # The app has extra internal keys (lights_out / white_warning / neutral) that a
+    # shared, device-agnostic preset must not carry — the backend 422s on them.
+    _WORKSHOP_EVENTS = frozenset({
+        "start_lights", "fastest_lap", "sector_status", "rpm_meter",
+        "red_flag", "yellow_flag", "blue_flag", "black_flag", "chequered_flag",
+    })
+
+    @classmethod
+    def _gui_settings_to_theme(cls, gs: dict) -> dict:
         """Map the app's flat gui_settings keys → the backend `theme` shape (the inverse
         of apply_workshop_preset). Only includes fields that are present."""
         theme: dict = {}
         if isinstance(gs.get("enabled_events"), list):
-            theme["enabled_events"] = gs["enabled_events"]
+            # Drop any app-internal keys the backend doesn't know, so the upload
+            # passes validation instead of 422-ing on e.g. "lights_out".
+            evs = [e for e in gs["enabled_events"] if e in cls._WORKSHOP_EVENTS]
+            if evs:
+                theme["enabled_events"] = evs
         if "brightness_min" in gs or "brightness_max" in gs:
             theme["brightness_range"] = {
                 "min_pct": int(gs.get("brightness_min", 0)),
@@ -427,9 +449,10 @@ class Api:
                 "enabled": bool(gs.get("stagger_enabled", False)),
                 "ms": int(gs.get("stagger_ms", 0) or 0),
             }
-        if gs.get("idle_color"):
+        idle_hex = cls._norm_hex(gs.get("idle_color"))
+        if idle_hex:
             theme["idle_state"] = {
-                "color_hex": gs["idle_color"],
+                "color_hex": idle_hex,
                 "pulse": bool(gs.get("idle_pulse", False)),
             }
         if gs.get("mz_startlights_direction") or gs.get("mz_startlights_mode"):
@@ -438,10 +461,26 @@ class Api:
                 "mode": gs.get("mz_startlights_mode", "sweep"),
             }
         if isinstance(gs.get("rpm_gradient"), list):
-            theme["rpm_gradient"] = gs["rpm_gradient"]
+            stops = [cls._norm_hex(c) for c in gs["rpm_gradient"]]
+            stops = [c for c in stops if c][:12]
+            if stops:
+                theme["rpm_gradient"] = stops
         if isinstance(gs.get("curves"), dict):
             theme["curves"] = gs["curves"]
         return theme
+
+    @staticmethod
+    def _norm_hex(v) -> "str | None":
+        """Coerce a colour to the strict #RRGGBB the backend validator wants, or
+        None if it can't. Accepts '#RGB', 'RGB', 'RRGGBB', '#RRGGBB' (any case)."""
+        if not isinstance(v, str):
+            return None
+        s = v.strip().lstrip("#")
+        if len(s) == 3 and all(c in "0123456789abcdefABCDEF" for c in s):
+            s = "".join(c * 2 for c in s)
+        if len(s) == 6 and all(c in "0123456789abcdefABCDEF" for c in s):
+            return "#" + s.lower()
+        return None
 
     def get_nanoleaf_layout(self):
         return self.runner.get_nanoleaf_layout()
