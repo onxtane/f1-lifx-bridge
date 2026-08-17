@@ -16,11 +16,13 @@
   const API_BASE      = 'https://gridglow.titanstowers.net';
   const SUPABASE_URL  = 'https://upvbmoseimgiathprtsj.supabase.co';
   const SUPABASE_ANON = 'sb_publishable_bChP2PoDJXHNSHysW63DNA_CK7M1RKC';
-  const BRIDGE = !!(window.pywebview && window.pywebview.api);
+  // pywebview injects window.pywebview.api ASYNCHRONOUSLY (after load), so this must be
+  // checked at CALL time — not captured once, or the app wrongly falls back to fetch.
+  function hasBridge() { return !!(window.pywebview && window.pywebview.api); }
 
   function callApi(fn) {
     const args = Array.prototype.slice.call(arguments, 1);
-    if (BRIDGE && window.pywebview.api[fn]) return window.pywebview.api[fn].apply(null, args);
+    if (hasBridge() && window.pywebview.api[fn]) return window.pywebview.api[fn].apply(null, args);
     return Promise.resolve(null);
   }
 
@@ -34,16 +36,16 @@
   // ---- data layer ----
   function jok(r) { return r.json().catch(() => ({ error: 'bad_json' })); }
   async function wsList() {
-    if (BRIDGE) return callApi('workshop_list');
+    if (hasBridge()) return callApi('workshop_list');
     try { return await fetch(API_BASE + '/api/workshop/presets').then(jok); } catch (e) { return { error: 'x' }; }
   }
   async function wsGet(id) {
-    if (BRIDGE) return callApi('workshop_get', id);
+    if (hasBridge()) return callApi('workshop_get', id);
     try { return await fetch(API_BASE + '/api/workshop/presets/' + id).then(jok); } catch (e) { return { error: 'x' }; }
   }
   function norm(res) { if (!res) return { ok:false, status:0, data:null }; if (res.error) return { ok:false, status:res.status||0, data:res }; return { ok:true, status:200, data:res }; }
   async function wsWrite(path, method, body) {
-    if (BRIDGE) {
+    if (hasBridge()) {
       let m;
       if ((m = path.match(/\/presets\/([^/?]+)\/like$/)))     return norm(await callApi('workshop_like', m[1]));
       if ((m = path.match(/\/presets\/([^/?]+)\/download$/))) return norm(await callApi('workshop_download', m[1]));
