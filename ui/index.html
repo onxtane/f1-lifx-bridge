@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>GridGlow</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="vendor/tabler/tabler-icons.min.css">
+<link rel="stylesheet" href="workshop.css">
 </head>
 <body>
 <div id="splash">
@@ -390,6 +392,9 @@
       </div>
       <div class="nav-btn" data-page="profiles" title="Profiles">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="2"/><rect x="2" y="10" width="20" height="5" rx="2"/><rect x="2" y="17" width="20" height="5" rx="2"/><circle cx="18" cy="5.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="18" cy="12.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="nav-btn" data-page="workshop" title="Workshop">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/></svg>
       </div>
       <div class="nav-btn" data-page="settings" title="Settings">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1407,6 +1412,11 @@
       </div>
       <!-- /profiles page -->
 
+      <!-- PAGE: Community Workshop (ported from docs/mockups/workshop-community.html) -->
+      <div class="page" id="page-workshop">
+        <div id="workshopRoot"></div>
+      </div>
+
     </div><!-- .main -->
   </div><!-- .app -->
 </div><!-- .scene -->
@@ -1419,6 +1429,7 @@
     effects:   'Effects',
     logs:      'Logs',
     profiles:  'Profiles',
+    workshop:  'Workshop',
     settings:  'Settings',
   };
 
@@ -6853,5 +6864,8 @@
 })();
 </script>
 
+<!-- Community Workshop (vendored supabase-js + the workshop module) -->
+<script src="vendor/supabase.min.js"></script>
+<script src="workshop.js"></script>
 </body>
 </html>

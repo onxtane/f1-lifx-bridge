@@ -1,0 +1,10 @@
+/* Community Workshop — styles ported from docs/mockups/workshop-community.html.
+ *
+ * ⚠ SCOPING: the mockup was a standalone page and reused generic class names that
+ * already exist in app.css (.btn, .chip, .glass, .page, .sidebar, .main, .search …).
+ * Every rule moved here MUST be scoped under `#page-workshop` (or given a `ws-`
+ * prefix) so it can't clobber the rest of the app. Nothing global.
+ *
+ * The scoped content port is the next B2 pass — this file is intentionally empty
+ * for now so linking it into index.html is a no-op.
+ */
