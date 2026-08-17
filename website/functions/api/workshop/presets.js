@@ -8,6 +8,7 @@ import {
 } from "./_shared.js";
 import { validatePreset } from "./_validate.js";
 import { getUser, ensureUser } from "./_auth.js";
+import { enforce, clientIp } from "./_ratelimit.js";
 
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 50;
@@ -97,7 +98,15 @@ export async function onRequestPost({ request, env }) {
   if (body._trap) return json({ ok: true });
 
   const user = await getUser(request, env);
-  if (!user) return error("Sign in with Discord to upload", 401);
+  if (!user) return error("Sign in to upload", 401);
+
+  // Uploads are the abuse-sensitive surface: cap per-account and per-IP.
+  const limited = await enforce(env, [
+    { action: "upload", id: user.id, limit: 10, windowSec: 3600 },
+    { action: "upload_ip", id: clientIp(request), limit: 20, windowSec: 3600 },
+  ]);
+  if (limited) return limited;
+
   await ensureUser(env, user);
 
   const result = validatePreset(body);

@@ -4,6 +4,7 @@
 
 import { json, error, preflight, nowMs } from "../../_shared.js";
 import { getUser } from "../../_auth.js";
+import { enforce } from "../../_ratelimit.js";
 
 export const onRequestOptions = () => preflight();
 
@@ -11,7 +12,10 @@ export async function onRequestPost({ request, params, env }) {
   if (!env.DB) return error("Server misconfiguration — workshop storage unavailable", 500);
 
   const user = await getUser(request, env);
-  if (!user) return error("Sign in with Discord to like", 401);
+  if (!user) return error("Sign in to like", 401);
+
+  const limited = await enforce(env, [{ action: "like", id: user.id, limit: 60, windowSec: 60 }]);
+  if (limited) return limited;
 
   const row = await env.DB.prepare(`SELECT status FROM presets WHERE id = ?`).bind(params.id).first();
   if (!row || row.status !== "public") return error("Preset not found", 404);

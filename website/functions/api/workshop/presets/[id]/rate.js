@@ -4,6 +4,7 @@
 
 import { json, error, preflight, readJson, ratingOf, nowMs } from "../../_shared.js";
 import { getUser } from "../../_auth.js";
+import { enforce } from "../../_ratelimit.js";
 
 export const onRequestOptions = () => preflight();
 
@@ -11,7 +12,10 @@ export async function onRequestPost({ request, params, env }) {
   if (!env.DB) return error("Server misconfiguration — workshop storage unavailable", 500);
 
   const user = await getUser(request, env);
-  if (!user) return error("Sign in with Discord to rate", 401);
+  if (!user) return error("Sign in to rate", 401);
+
+  const limited = await enforce(env, [{ action: "rate", id: user.id, limit: 30, windowSec: 60 }]);
+  if (limited) return limited;
 
   const body = await readJson(request);
   const stars = Number(body?.stars);

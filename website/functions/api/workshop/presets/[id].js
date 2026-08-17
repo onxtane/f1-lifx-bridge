@@ -5,6 +5,7 @@
 import { json, error, preflight, parseJsonArray, ratingOf, nowMs } from "../_shared.js";
 import { gameName } from "../_games.js";
 import { getUser } from "../_auth.js";
+import { enforce } from "../_ratelimit.js";
 
 export const onRequestOptions = () => preflight();
 
@@ -13,7 +14,10 @@ export async function onRequestDelete({ request, params, env }) {
   if (!env.DB) return error("Server misconfiguration — workshop storage unavailable", 500);
 
   const user = await getUser(request, env);
-  if (!user) return error("Sign in with Discord", 401);
+  if (!user) return error("Sign in", 401);
+
+  const limited = await enforce(env, [{ action: "delete", id: user.id, limit: 30, windowSec: 60 }]);
+  if (limited) return limited;
 
   const row = await env.DB
     .prepare(`SELECT owner_user_id, status FROM presets WHERE id = ?`)

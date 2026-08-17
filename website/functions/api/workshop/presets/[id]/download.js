@@ -5,6 +5,7 @@
 
 import { json, error, preflight, nowMs } from "../../_shared.js";
 import { getUser } from "../../_auth.js";
+import { enforce } from "../../_ratelimit.js";
 
 export const onRequestOptions = () => preflight();
 
@@ -12,7 +13,10 @@ export async function onRequestPost({ request, params, env }) {
   if (!env.DB) return error("Server misconfiguration — workshop storage unavailable", 500);
 
   const user = await getUser(request, env);
-  if (!user) return error("Sign in with Discord to download", 401);
+  if (!user) return error("Sign in to download", 401);
+
+  const limited = await enforce(env, [{ action: "download", id: user.id, limit: 60, windowSec: 60 }]);
+  if (limited) return limited;
 
   const row = await env.DB
     .prepare(`SELECT theme_json, downloads, status FROM presets WHERE id = ?`)
