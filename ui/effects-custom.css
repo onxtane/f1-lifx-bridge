@@ -1,0 +1,90 @@
+/* Effect Customization — styles for the effects-custom.js module. Scoped under
+   #effectCustomRoot so nothing leaks into the rest of the app. Uses the app's
+   design tokens (glass fill, accent, text colours). */
+
+#effectCustomRoot .ec-wrap {
+  display: grid; grid-template-columns: 300px 1fr; gap: 16px; min-height: 0;
+}
+@media (max-width: 1080px) { #effectCustomRoot .ec-wrap { grid-template-columns: 1fr; } }
+
+/* ---- effect list (left) ---- */
+#effectCustomRoot .ec-list {
+  display: flex; flex-direction: column; gap: 6px; max-height: 460px; overflow-y: auto; padding-right: 2px;
+}
+#effectCustomRoot .ec-item {
+  display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 12px; cursor: pointer;
+  background: var(--card-inner, rgba(255,255,255,0.03)); border: 1px solid transparent; transition: background .14s, border-color .14s;
+}
+#effectCustomRoot .ec-item:hover { background: rgba(var(--surface-rgb),0.07); }
+#effectCustomRoot .ec-item.sel { background: rgba(var(--accent-rgb),0.12); border-color: rgba(var(--accent-rgb),0.4); }
+#effectCustomRoot .ec-item-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; border: 1px solid rgba(255,255,255,0.25); }
+#effectCustomRoot .ec-item-info { min-width: 0; }
+#effectCustomRoot .ec-item-name { font-size: 13.5px; font-weight: 600; color: var(--text-main); }
+#effectCustomRoot .ec-item-desc { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- editor (right) ---- */
+#effectCustomRoot .ec-editor {
+  background: var(--glass-fill); border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px 20px; min-width: 0;
+}
+#effectCustomRoot .ec-ed-head { display: flex; align-items: center; gap: 12px; }
+#effectCustomRoot .ec-ed-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+#effectCustomRoot .ec-ed-title { flex: 1; min-width: 0; }
+#effectCustomRoot .ec-ed-name { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+#effectCustomRoot .ec-ed-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+#effectCustomRoot .ec-ed-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+#effectCustomRoot .ec-mode { display: inline-flex; gap: 3px; margin: 16px 0 4px; padding: 3px; border-radius: 10px; background: rgba(var(--surface-rgb),0.06); border: 1px solid var(--glass-border); }
+#effectCustomRoot .ec-seg { border: none; background: none; color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 16px; border-radius: 8px; cursor: pointer; transition: background .14s, color .14s; }
+#effectCustomRoot .ec-seg.active { background: rgba(var(--accent-rgb),0.18); color: var(--purple-l, #b3a7ff); }
+
+#effectCustomRoot .ec-grid { display: grid; grid-template-columns: 1fr 260px; gap: 20px; margin-top: 14px; align-items: start; }
+@media (max-width: 900px) { #effectCustomRoot .ec-grid { grid-template-columns: 1fr; } }
+
+#effectCustomRoot .ec-colors-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 12px; }
+#effectCustomRoot .ec-colors-title .ec-sub { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-muted); opacity: .8; margin-left: 8px; }
+#effectCustomRoot .ec-slot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+#effectCustomRoot .ec-slot-label { font-size: 13px; color: var(--text-soft, var(--text-main)); }
+#effectCustomRoot .ec-empty { font-size: 13px; color: var(--text-muted); }
+
+/* per-light dots */
+#effectCustomRoot .ec-dots { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+#effectCustomRoot .ec-dot {
+  --c: #8b7cf6; width: 34px; height: 34px; border-radius: 50%; padding: 0; cursor: pointer; position: relative;
+  background: var(--c); border: 2px solid rgba(255,255,255,0.14); box-shadow: 0 0 10px var(--c);
+  transition: transform .12s, border-color .12s;
+}
+#effectCustomRoot .ec-dot:hover { transform: translateY(-1px); }
+#effectCustomRoot .ec-dot.sel { border-color: #fff; box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.6), 0 0 12px var(--c); }
+#effectCustomRoot .ec-dot-n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.55); text-shadow: 0 0 3px rgba(255,255,255,0.4); }
+#effectCustomRoot .ec-perpick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+#effectCustomRoot .ec-link { background: none; border: none; color: var(--purple-l, #b3a7ff); font: inherit; font-size: 12.5px; cursor: pointer; padding: 0; }
+#effectCustomRoot .ec-link:hover { text-decoration: underline; }
+
+#effectCustomRoot .ec-idle-note { margin: 14px 0 2px; padding: 12px 14px; border-radius: 11px; font-size: 13px; color: var(--text-soft, var(--text-main));
+  background: rgba(var(--accent-rgb),0.08); border: 1px solid rgba(var(--accent-rgb),0.28); }
+
+/* side column: animation (read-only) + preview */
+#effectCustomRoot .ec-side { display: flex; flex-direction: column; gap: 14px; }
+#effectCustomRoot .ec-anim { background: var(--card-inner, rgba(255,255,255,0.03)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 14px; }
+#effectCustomRoot .ec-anim-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 10px; }
+#effectCustomRoot .ec-ro { text-transform: none; letter-spacing: 0; font-weight: 600; background: rgba(var(--surface-rgb),0.1); color: var(--text-muted); border-radius: 99px; padding: 1px 7px; margin-left: 6px; }
+#effectCustomRoot .ec-anim-row { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; padding: 4px 0; }
+#effectCustomRoot .ec-anim-row span { color: var(--text-muted); }
+#effectCustomRoot .ec-anim-row b { color: var(--text-main); font-weight: 600; }
+#effectCustomRoot .ec-anim-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin: 8px 0 0; }
+
+#effectCustomRoot .ec-preview { background: var(--card-inner, rgba(255,255,255,0.03)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 14px; }
+#effectCustomRoot .ec-prev-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 10px; }
+#effectCustomRoot .ec-prev-stage { height: 80px; border-radius: 10px; background: radial-gradient(120% 120% at 50% 120%, rgba(255,255,255,0.05), rgba(0,0,0,0.35)); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#effectCustomRoot .ec-prev-light {
+  --c1: #8b7cf6; --c2: #8b7cf6; width: 78%; height: 26px; border-radius: 99px;
+  background: linear-gradient(90deg, var(--c1), var(--c2));
+  box-shadow: 0 0 22px 2px var(--c1), 0 0 8px var(--c2);
+  animation-duration: 1.15s; animation-iteration-count: infinite; animation-timing-function: ease-in-out;
+}
+@keyframes ecPulse  { 0%,100% { opacity: .45; transform: scale(.96); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes ecFlash  { 0%,40% { opacity: 1; } 50%,90% { opacity: .12; } 100% { opacity: 1; } }
+@keyframes ecFill   { 0% { clip-path: inset(0 100% 0 0); opacity: .9; } 60%,100% { clip-path: inset(0 0 0 0); opacity: 1; } }
+@keyframes ecSettle { 0% { opacity: .2; } 100% { opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { #effectCustomRoot .ec-prev-light { animation: none !important; opacity: 1; } }

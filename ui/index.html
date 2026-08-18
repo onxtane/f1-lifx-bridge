@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="vendor/tabler/tabler-icons.min.css">
 <link rel="stylesheet" href="workshop.css">
+<link rel="stylesheet" href="effects-custom.css">
 </head>
 <body>
 <div id="splash">
@@ -585,15 +586,22 @@
       <div class="page" id="page-effects">
         <div class="page-content glass" style="gap:0;">
 
-          <!-- Manual triggers -->
-          <div class="effects-section">
-            <div class="collapsible-header effects-collapse-header" data-target="effectsManualBody">
+          <!-- Effect Customization (replaces Manual Triggers) -->
+          <div class="effects-section" id="effectCustomSection">
+            <div class="collapsible-header effects-collapse-header" data-target="effectCustomBody">
               <div>
-                <div style="font-size:16px;font-weight:600;">Manual Triggers</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Fire any effect immediately</div>
+                <div style="font-size:16px;font-weight:600;">Effect Customization</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Set custom colours for each effect · trigger any effect to test</div>
               </div>
-              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg class="collapse-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
+            <div class="collapsible-body" id="effectCustomBody">
+              <div id="effectCustomRoot"></div>
+            </div>
+          </div><!-- /effect customization -->
+
+          <!-- (legacy manual-trigger grid — hidden; kept for game-def wiring refs) -->
+          <div class="effects-section" style="display:none;">
             <div class="collapsible-body collapsed" id="effectsManualBody">
               <div class="effects-grid" id="effectsManualGrid" style="padding-bottom:4px;">
               <div class="effect-card" data-effect="Start Lights" data-effect-key="start_lights">
@@ -855,8 +863,9 @@
 
           <div class="effects-section-divider"></div>
 
-          <!-- Intensity Curves -->
-          <div class="effects-section">
+          <!-- Intensity Curves — retired in favour of Effect Customization (kept hidden so
+               the curve editor's JS and Profiles/Workshop curve plumbing stay intact). -->
+          <div class="effects-section" style="display:none;">
             <div class="collapsible-header effects-collapse-header" data-target="effectsCurveBody">
               <div>
                 <div style="font-size:16px;font-weight:600;">Intensity Curves <span style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);border-radius:99px;padding:2px 8px;vertical-align:middle;margin-left:6px;">Preview</span></div>
@@ -2867,6 +2876,9 @@
 
     // Push the game-filtered enabled events to the backend (in-memory only, no file write)
     if (typeof getEnabledEvents === 'function') callApi('set_enabled_events', getEnabledEvents());
+
+    // Effect Customization list is game-aware too — re-render for this game.
+    if (window._effectCustomRefresh) window._effectCustomRefresh(game);
   };
 
   // ---- auto-response toggles ----
@@ -3214,6 +3226,8 @@
     if (o.mount) o.mount.append(wrap);
     return api;
   }
+  // Reused by the Effect Customization module (effects-custom.js).
+  window.createColorPicker = createColorPicker;
 
   // The idle colour keeps its hidden <input> so the rest of the app can go on
   // reading and writing settingIdleColor.value (settings restore, profiles).
@@ -6908,5 +6922,6 @@
 <!-- Community Workshop (vendored supabase-js + the workshop module) -->
 <script src="vendor/supabase.min.js"></script>
 <script src="workshop.js"></script>
+<script src="effects-custom.js"></script>
 </body>
 </html>
