@@ -137,23 +137,37 @@ class Api:
         """
         brands: set[str] = set()
         has_multizone = False
+        zones = 0            # colorable sections on the multizone device (strip zones / NL panels)
+        light_count = 0      # individual bulbs/devices, for the per-light view fallback
         try:
             for d in self.runner.get_discovered_lights() or []:
                 t = d.get("type")
                 if t:
                     brands.add(t)
+                light_count += 1
                 if t == "lifx" and (d.get("zones") or 0) > 0:
                     has_multizone = True
+                    zones = max(zones, int(d.get("zones") or 0))
                 elif t == "nanoleaf":
                     has_multizone = True
+                    try:
+                        zones = max(zones, len(self.runner.get_nanoleaf_layout() or []))
+                    except Exception:
+                        pass
         except Exception:
             pass
         try:
-            if self.runner.get_hue_lights():
+            hue = self.runner.get_hue_lights()
+            if hue:
                 brands.add("hue")
+                light_count += len(hue)
         except Exception:
             pass
-        return {"brands": sorted(brands), "has_multizone": has_multizone}
+        # A multizone device with an unknown zone count still needs a sensible strip length.
+        if has_multizone and zones <= 0:
+            zones = 16
+        return {"brands": sorted(brands), "has_multizone": has_multizone,
+                "zones": zones, "light_count": light_count}
 
     def set_selected_lights(self, labels: list):
         self.runner.set_selected_lights(labels)

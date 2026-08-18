@@ -1,33 +1,36 @@
-/* Effect Customization — styles for the effects-custom.js module. Scoped under
-   #effectCustomRoot so nothing leaks into the rest of the app. Uses the app's
-   design tokens (glass fill, accent, text colours). */
+/* Effect Customization — styles for effects-custom.js. Scoped under
+   #effectCustomRoot. Uses the app's design tokens. */
 
-#effectCustomRoot .ec-wrap {
-  display: grid; grid-template-columns: 300px 1fr; gap: 16px; min-height: 0;
-}
+#effectCustomRoot .ec-wrap { display: grid; grid-template-columns: 320px 1fr; gap: 16px; min-height: 0; }
 @media (max-width: 1080px) { #effectCustomRoot .ec-wrap { grid-template-columns: 1fr; } }
 
-/* ---- effect list (left) ---- */
-#effectCustomRoot .ec-list {
-  display: flex; flex-direction: column; gap: 6px; max-height: 460px; overflow-y: auto; padding-right: 2px;
-}
+/* ---- effect list (left) — matches the mockup cards ---- */
+#effectCustomRoot .ec-list { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow-y: auto; padding-right: 3px; }
 #effectCustomRoot .ec-item {
-  display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 12px; cursor: pointer;
-  background: var(--card-inner, rgba(255,255,255,0.03)); border: 1px solid transparent; transition: background .14s, border-color .14s;
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; cursor: pointer;
+  background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06);
+  transition: background .14s, border-color .14s, box-shadow .14s;
 }
-#effectCustomRoot .ec-item:hover { background: rgba(var(--surface-rgb),0.07); }
-#effectCustomRoot .ec-item.sel { background: rgba(var(--accent-rgb),0.12); border-color: rgba(var(--accent-rgb),0.4); }
-#effectCustomRoot .ec-item-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; border: 1px solid rgba(255,255,255,0.25); }
-#effectCustomRoot .ec-item-info { min-width: 0; }
-#effectCustomRoot .ec-item-name { font-size: 13.5px; font-weight: 600; color: var(--text-main); }
-#effectCustomRoot .ec-item-desc { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#effectCustomRoot .ec-item:hover { background: rgba(255,255,255,0.05); }
+#effectCustomRoot .ec-item.sel {
+  background: rgba(var(--accent-rgb),0.10); border-color: rgba(var(--accent-rgb),0.55);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.25), 0 8px 22px rgba(var(--accent-rgb),0.12);
+}
+#effectCustomRoot .ec-item-ic {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; border: 1px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+}
+#effectCustomRoot .ec-item-ic svg { width: 22px; height: 22px; }
+#effectCustomRoot .ec-item-info { min-width: 0; flex: 1; }
+#effectCustomRoot .ec-item-name { font-size: 14px; font-weight: 600; color: var(--text-main); }
+#effectCustomRoot .ec-item-desc { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+#effectCustomRoot .ec-item-more { align-self: flex-start; color: var(--text-muted); font-size: 17px; line-height: 1; opacity: .55; pointer-events: none; letter-spacing: 1px; }
 
 /* ---- editor (right) ---- */
-#effectCustomRoot .ec-editor {
-  background: var(--glass-fill); border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px 20px; min-width: 0;
-}
-#effectCustomRoot .ec-ed-head { display: flex; align-items: center; gap: 12px; }
-#effectCustomRoot .ec-ed-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+#effectCustomRoot .ec-editor { background: var(--glass-fill); border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px 20px; min-width: 0; }
+#effectCustomRoot .ec-ed-head { display: flex; align-items: center; gap: 13px; }
+#effectCustomRoot .ec-ed-icon { width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+#effectCustomRoot .ec-ed-icon svg { width: 24px; height: 24px; }
 #effectCustomRoot .ec-ed-title { flex: 1; min-width: 0; }
 #effectCustomRoot .ec-ed-name { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
 #effectCustomRoot .ec-ed-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
@@ -46,23 +49,23 @@
 #effectCustomRoot .ec-slot-label { font-size: 13px; color: var(--text-soft, var(--text-main)); }
 #effectCustomRoot .ec-empty { font-size: 13px; color: var(--text-muted); }
 
-/* per-light dots */
+/* per-light bulb dots */
 #effectCustomRoot .ec-dots { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-#effectCustomRoot .ec-dot {
-  --c: #8b7cf6; width: 34px; height: 34px; border-radius: 50%; padding: 0; cursor: pointer; position: relative;
-  background: var(--c); border: 2px solid rgba(255,255,255,0.14); box-shadow: 0 0 10px var(--c);
-  transition: transform .12s, border-color .12s;
-}
+#effectCustomRoot .ec-dot { --c: #8b7cf6; width: 34px; height: 34px; border-radius: 50%; padding: 0; cursor: pointer; position: relative; background: var(--c); border: 2px solid rgba(255,255,255,0.14); box-shadow: 0 0 10px var(--c); transition: transform .12s, border-color .12s; }
 #effectCustomRoot .ec-dot:hover { transform: translateY(-1px); }
 #effectCustomRoot .ec-dot.sel { border-color: #fff; box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.6), 0 0 12px var(--c); }
 #effectCustomRoot .ec-dot-n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.55); text-shadow: 0 0 3px rgba(255,255,255,0.4); }
-#effectCustomRoot .ec-perpick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
+/* multizone zone strip */
+#effectCustomRoot .ec-zonestrip { display: flex; gap: 3px; height: 46px; border-radius: 11px; padding: 4px; margin-bottom: 16px; background: rgba(0,0,0,0.28); border: 1px solid var(--glass-border); }
+#effectCustomRoot .ec-zone { --c: #8b7cf6; flex: 1; min-width: 6px; border: none; border-radius: 6px; padding: 0; cursor: pointer; background: var(--c); box-shadow: inset 0 0 7px rgba(0,0,0,0.3); outline: 2px solid transparent; transition: transform .1s; }
+#effectCustomRoot .ec-zone:hover { transform: scaleY(1.08); }
+#effectCustomRoot .ec-zone.sel { outline: 2px solid #fff; z-index: 1; box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.75), 0 0 12px var(--c); }
+
+#effectCustomRoot .ec-perpick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 #effectCustomRoot .ec-link { background: none; border: none; color: var(--purple-l, #b3a7ff); font: inherit; font-size: 12.5px; cursor: pointer; padding: 0; }
 #effectCustomRoot .ec-link:hover { text-decoration: underline; }
-
-#effectCustomRoot .ec-idle-note { margin: 14px 0 2px; padding: 12px 14px; border-radius: 11px; font-size: 13px; color: var(--text-soft, var(--text-main));
-  background: rgba(var(--accent-rgb),0.08); border: 1px solid rgba(var(--accent-rgb),0.28); }
+#effectCustomRoot .ec-idle-note { margin: 14px 0 2px; padding: 12px 14px; border-radius: 11px; font-size: 13px; color: var(--text-soft, var(--text-main)); background: rgba(var(--accent-rgb),0.08); border: 1px solid rgba(var(--accent-rgb),0.28); }
 
 /* side column: animation (read-only) + preview */
 #effectCustomRoot .ec-side { display: flex; flex-direction: column; gap: 14px; }
@@ -76,15 +79,5 @@
 
 #effectCustomRoot .ec-preview { background: var(--card-inner, rgba(255,255,255,0.03)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 14px; }
 #effectCustomRoot .ec-prev-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 10px; }
-#effectCustomRoot .ec-prev-stage { height: 80px; border-radius: 10px; background: radial-gradient(120% 120% at 50% 120%, rgba(255,255,255,0.05), rgba(0,0,0,0.35)); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-#effectCustomRoot .ec-prev-light {
-  --c1: #8b7cf6; --c2: #8b7cf6; width: 78%; height: 26px; border-radius: 99px;
-  background: linear-gradient(90deg, var(--c1), var(--c2));
-  box-shadow: 0 0 22px 2px var(--c1), 0 0 8px var(--c2);
-  animation-duration: 1.15s; animation-iteration-count: infinite; animation-timing-function: ease-in-out;
-}
-@keyframes ecPulse  { 0%,100% { opacity: .45; transform: scale(.96); } 50% { opacity: 1; transform: scale(1); } }
-@keyframes ecFlash  { 0%,40% { opacity: 1; } 50%,90% { opacity: .12; } 100% { opacity: 1; } }
-@keyframes ecFill   { 0% { clip-path: inset(0 100% 0 0); opacity: .9; } 60%,100% { clip-path: inset(0 0 0 0); opacity: 1; } }
-@keyframes ecSettle { 0% { opacity: .2; } 100% { opacity: .9; } }
-@media (prefers-reduced-motion: reduce) { #effectCustomRoot .ec-prev-light { animation: none !important; opacity: 1; } }
+#effectCustomRoot .ec-prev-stage { height: 62px; border-radius: 10px; background: radial-gradient(120% 130% at 50% 130%, rgba(255,255,255,0.05), rgba(0,0,0,0.4)); display: flex; align-items: center; gap: 4px; padding: 12px; }
+#effectCustomRoot .ec-cell { flex: 1; min-width: 0; height: 32px; border-radius: 5px; background: #151b2b; transition: background .06s linear, box-shadow .06s linear; }
