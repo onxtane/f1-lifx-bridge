@@ -294,17 +294,9 @@ class BridgeRunner:
             self.on_status_text("Error")
             return False
 
+        # Bridge-level settings — the bridge object exists now, so apply directly.
         if self._pending_enabled_events is not None:
             self.bridge.enabled_events = self._pending_enabled_events
-
-        if self._pending_stagger is not None and self.bridge.lifx is not None:
-            enabled, ms = self._pending_stagger
-            self.bridge.lifx.stagger_ms = ms if enabled else 0
-
-        if self._pending_idle is not None and self.bridge.lifx is not None:
-            hsbk, pulse = self._pending_idle
-            self.bridge.lifx.idle_hsbk = hsbk
-            self.bridge.lifx.idle_pulse = pulse
 
         if self._pending_forwarding is not None:
             enabled, host, port = self._pending_forwarding
@@ -312,30 +304,60 @@ class BridgeRunner:
             self.bridge.forward_host = host
             self.bridge.forward_port = port
 
-        if self._pending_mz_startlights is not None:
-            direction, mode = self._pending_mz_startlights
-            if self.bridge.lifx is not None:
-                self.bridge.lifx.mz_startlights_direction = direction
-                self.bridge.lifx.mz_startlights_mode = mode
-            if self.bridge.nanoleaf is not None:
-                self.bridge.nanoleaf.mz_startlights_direction = direction
-                self.bridge.nanoleaf.mz_startlights_mode = mode
-
-        if self._pending_rpm_gradient is not None and self.bridge.lifx is not None:
-            self.bridge.lifx.rpm_gradient = self._module.parse_rpm_gradient(
-                self._pending_rpm_gradient)
-
-        if self._light_assignments and self.bridge.lifx is not None:
-            self.bridge.lifx.light_assignments = self._light_assignments
-        if self._curves and self.bridge.lifx is not None:
-            self.bridge.lifx.curves = self._curves
-        if self._effect_colors and self.bridge.lifx is not None:
-            self.bridge.lifx.effect_colors = self._effect_colors
+        # Controller settings — LIFX/Nanoleaf aren't built until discovery, so this
+        # no-ops here and runs again (for real) from _do_discover().
+        self._apply_pending_to_controllers()
 
         self._connect_nanoleaf_if_configured()  # nanoleaf assigned/curves below after connection
         self._connect_hue_if_configured()
 
         return True
+
+    def _apply_pending_to_controllers(self):
+        """Push every persisted controller setting onto whatever LIFX / Nanoleaf
+        controllers currently exist.
+
+        The controllers are (re)built during discover_lights(), not at bridge
+        construction, so this must run both right after the bridge is built and
+        again after discovery — otherwise a setting applied only in one place is
+        silently dropped when the controller doesn't exist yet (the "restart shows
+        it but it tests as default until you change it" class of bug). It's a no-op
+        for a controller that isn't built yet and is safe to call repeatedly.
+        """
+        bridge = self.bridge
+        if bridge is None:
+            return
+        lifx = getattr(bridge, "lifx", None)
+        nl = getattr(bridge, "nanoleaf", None)
+        if lifx is not None:
+            if self._pending_brightness is not None:
+                lifx.brightness_min, lifx.brightness_max = self._pending_brightness
+            if self._pending_stagger is not None:
+                _en, _ms = self._pending_stagger
+                lifx.stagger_ms = _ms if _en else 0
+            if self._pending_idle is not None:
+                lifx.idle_hsbk, lifx.idle_pulse = self._pending_idle
+            if self._pending_mz_startlights is not None:
+                lifx.mz_startlights_direction, lifx.mz_startlights_mode = self._pending_mz_startlights
+            if self._pending_rpm_gradient is not None and self._module is not None:
+                lifx.rpm_gradient = self._module.parse_rpm_gradient(self._pending_rpm_gradient)
+            if self._light_assignments:
+                lifx.light_assignments = self._light_assignments
+            if self._curves:
+                lifx.curves = self._curves
+            if self._effect_colors:
+                lifx.effect_colors = self._effect_colors
+        if nl is not None:
+            if self._pending_brightness is not None:
+                nl.brightness_min, nl.brightness_max = self._pending_brightness
+            if self._pending_mz_startlights is not None:
+                nl.mz_startlights_direction, nl.mz_startlights_mode = self._pending_mz_startlights
+            if self._light_assignments:
+                nl.light_assignments = self._light_assignments
+            if self._curves:
+                nl.curves = self._curves
+            if self._effect_colors:
+                nl.effect_colors = self._effect_colors
 
     # ---- GUI-facing actions ----
 
@@ -1051,45 +1073,10 @@ class BridgeRunner:
         self.bridge.discover_lights()
         self._maybe_apply_last_group()
 
-        if self._pending_brightness is not None and self.bridge.lifx is not None:
-            self.bridge.lifx.brightness_min, self.bridge.lifx.brightness_max = self._pending_brightness
-        if self._pending_brightness is not None and self.bridge.nanoleaf is not None:
-            self.bridge.nanoleaf.brightness_min, self.bridge.nanoleaf.brightness_max = self._pending_brightness
-
-        if self._light_assignments:
-            if self.bridge.lifx is not None:
-                self.bridge.lifx.light_assignments = self._light_assignments
-            if self.bridge.nanoleaf is not None:
-                self.bridge.nanoleaf.light_assignments = self._light_assignments
-
-        # discover_lights() builds the controllers fresh, so re-apply every persisted
-        # setting now — at _ensure_bridge() bridge.lifx was still None, so those
-        # applies were skipped. Without this a saved RPM gradient / curves / effect
-        # colours / idle / stagger / multizone only took effect once the UI re-pushed
-        # them (the "restart shows it but tests as default until you change a stop" bug).
-        lifx = self.bridge.lifx
-        if lifx is not None:
-            if self._pending_rpm_gradient is not None:
-                lifx.rpm_gradient = self._module.parse_rpm_gradient(self._pending_rpm_gradient)
-            if self._pending_stagger is not None:
-                _en, _ms = self._pending_stagger
-                lifx.stagger_ms = _ms if _en else 0
-            if self._pending_idle is not None:
-                lifx.idle_hsbk, lifx.idle_pulse = self._pending_idle
-            if self._pending_mz_startlights is not None:
-                lifx.mz_startlights_direction, lifx.mz_startlights_mode = self._pending_mz_startlights
-            if self._curves:
-                lifx.curves = self._curves
-            if self._effect_colors:
-                lifx.effect_colors = self._effect_colors
-        nl = self.bridge.nanoleaf
-        if nl is not None:
-            if self._pending_mz_startlights is not None:
-                nl.mz_startlights_direction, nl.mz_startlights_mode = self._pending_mz_startlights
-            if self._curves:
-                nl.curves = self._curves
-            if self._effect_colors:
-                nl.effect_colors = self._effect_colors
+        # discover_lights() builds the LIFX/Nanoleaf controllers fresh — push every
+        # persisted setting onto them now (they were still None back in
+        # _ensure_bridge, so those applies were skipped).
+        self._apply_pending_to_controllers()
 
         self._push_light_stats()
         self.on_lights_discovered(self.get_discovered_lights())
