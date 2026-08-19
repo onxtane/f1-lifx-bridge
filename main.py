@@ -163,11 +163,38 @@ class Api:
                 light_count += len(hue)
         except Exception:
             pass
-        # A multizone device with an unknown zone count still needs a sensible strip length.
-        if has_multizone and zones <= 0:
-            zones = 16
+        # A configured Nanoleaf counts even when the bridge is stopped (no live probe).
+        try:
+            nl = getattr(self.runner, "_nanoleaf_settings", {}) or {}
+            if nl.get("ip") and nl.get("auth_token"):
+                has_multizone = True
+                brands.add("nanoleaf")
+        except Exception:
+            pass
+
+        gs = {}
+        try:
+            gs = self.runner.get_gui_settings() or {}
+        except Exception:
+            pass
+
+        if has_multizone:
+            if zones <= 0:
+                zones = int(gs.get("multizone_zones") or 0) or 16
+            # Remember it so per-zone stays available after the bridge is stopped or
+            # the strip goes offline — detection is otherwise live-only.
+            try:
+                if not gs.get("multizone_seen") or int(gs.get("multizone_zones") or 0) != zones:
+                    self.runner.save_gui_settings({"multizone_seen": True, "multizone_zones": zones})
+            except Exception:
+                pass
+        elif gs.get("multizone_seen"):
+            has_multizone = True
+            zones = int(gs.get("multizone_zones") or 0) or 16
+
         return {"brands": sorted(brands), "has_multizone": has_multizone,
-                "zones": zones, "light_count": light_count}
+                "zones": zones, "light_count": light_count,
+                "multizone_seen": bool(gs.get("multizone_seen")) or has_multizone}
 
     def set_selected_lights(self, labels: list):
         self.runner.set_selected_lights(labels)

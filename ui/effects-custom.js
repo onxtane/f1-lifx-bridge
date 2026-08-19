@@ -1,12 +1,14 @@
 /* Effect Customization — replaces the old "Manual Triggers" section.
  *
- * Set custom colours per effect (Sync All or Customize Per Light/Zone), see the
- * effect's animation read-only, and fire the effect to test it on real lights.
+ * Set custom colours per effect in three modes — Sync All, Customize Per Light
+ * (bulbs), Customize Per Zone (multizone strip / Nanoleaf) — see the effect's
+ * animation read-only, and fire the effect to test it. Per-Zone is always shown
+ * but greyed with a warning until a multizone device is detected, so a mixed
+ * bulb + strip setup can tune both.
  *
  * Phase 1: UI + persistence to gui_settings.effect_colors (wiring-ready). Phase 2
- * threads these colours through the three controllers so triggers actually paint
- * with them. Reuses createColorPicker (window) + the game-def system, and the
- * hidden legacy effect-card SVGs for per-effect icons.
+ * threads these colours through the three controllers. Reuses createColorPicker
+ * (window) + the game-def system, and the hidden legacy effect-card SVG icons.
  */
 (function () {
   'use strict';
@@ -28,8 +30,6 @@
     return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
   }
 
-  // Per-effect metadata. `def` colours match today's hardcoded look (Reset restores
-  // it). `anim` is shown read-only. Icons come from the legacy effect cards at runtime.
   const EFFECT_META = {
     start_lights:   { icon: '🔴', name: 'Start Lights',   desc: 'Red formation lights ramp up',    trigger: 'Start Lights',   slots: [{ key: 'main', label: 'Formation lights' }], def: { main: '#ff2828' }, anim: { style: 'Sequential fill', speed: '1 → 5 by count', repeat: 'Once' } },
     lights_out:     { icon: '🟢', name: 'Lights Out',     desc: 'Green flash — race start',         trigger: 'Lights Out',     slots: [{ key: 'main', label: 'Go colour' }],       def: { main: '#22e04a' }, anim: { style: 'Double flash → settle', speed: '~0.7s', repeat: 'Once' } },
@@ -45,13 +45,13 @@
   const ORDER = ['start_lights', 'lights_out', 'yellow_flag', 'blue_flag', 'red_flag', 'fastest_lap', 'chequered_flag', 'white_warning', 'crash', 'neutral'];
 
   // ---- state ----
-  let colors = {};          // effect_colors: { key: { mode, colors:{slot:hex}, per_light:[hex...] } }
-  let lightCount = 5;       // individual bulbs
-  let zones = 16;           // colorable sections on a multizone device
-  let hasMultizone = false; // a strip / Nanoleaf is present
+  let colors = {};
+  let lightCount = 5;
+  let zones = 16;
+  let hasMultizone = false;
   let selectedKey = null;
-  let selectedSection = 0;  // selected light/zone in Customize mode
-  let gameEvents = null;    // Set of effect keys for the current game (null = all)
+  let selectedSection = 0;
+  let gameEvents = null;
   let previewRaf = 0;
 
   function toast(msg) { if (window.showToast) window.showToast(msg); }
@@ -59,7 +59,6 @@
   function nameFor(key) { const g = gdef(); return (g && g.names && g.names[key]) || EFFECT_META[key].name; }
   function descFor(key) { const g = gdef(); return (g && g.descs && g.descs[key]) || EFFECT_META[key].desc; }
 
-  // per-effect icon (SVG) pulled from the hidden legacy manual-trigger cards.
   const _iconCache = {};
   function iconFor(key) {
     if (_iconCache[key]) return _iconCache[key];
@@ -71,24 +70,26 @@
   function cfg(key) {
     if (!colors[key]) colors[key] = {};
     const c = colors[key];
-    if (c.mode !== 'per_light') c.mode = 'all';
+    if (['all', 'per_light', 'per_zone'].indexOf(c.mode) < 0) c.mode = 'all';
     if (!c.colors || typeof c.colors !== 'object') c.colors = Object.assign({}, EFFECT_META[key].def);
     if (!Array.isArray(c.per_light)) c.per_light = [];
+    if (!Array.isArray(c.per_zone)) c.per_zone = [];
     return c;
   }
+  // Stored mode, but per_zone collapses to Sync All when no multizone device is present.
+  function effMode(key) { const m = cfg(key).mode; return (m === 'per_zone' && !hasMultizone) ? 'all' : m; }
+  function isZone(key) { return effMode(key) === 'per_zone'; }
+  function isPer(key) { const m = effMode(key); return m === 'per_light' || m === 'per_zone'; }
+  function sectionArr(key) { return cfg(key)[isZone(key) ? 'per_zone' : 'per_light']; }
+  function sectionCount(key) { return isZone(key) ? Math.max(1, Math.min(30, zones)) : Math.max(1, Math.min(20, lightCount)); }
+
   function primaryHex(key) {
     const meta = EFFECT_META[key];
-    if (!meta.slots.length) return meta.icon && iconFor(key).color || '#f6c66a';
+    if (!meta.slots.length) return iconFor(key).color || '#f6c66a';
     return cfg(key).colors[meta.slots[0].key] || meta.def[meta.slots[0].key] || '#8b7cf6';
   }
-  // Icon glyph colour reflects the customized colour; neutral uses its canonical tint.
   function iconColor(key) { return EFFECT_META[key].slots.length ? primaryHex(key) : (iconFor(key).color || '#f6c66a'); }
   function persist() { callApi('save_gui_settings', { effect_colors: colors }); }
-
-  // With a strip present, "your lights" are its zones; otherwise they're bulbs.
-  function useZones() { return hasMultizone; }
-  function sectionCount() { return useZones() ? Math.max(1, Math.min(30, zones)) : Math.max(1, Math.min(20, lightCount)); }
-  function sectionWord() { return useZones() ? 'Zone' : 'Light'; }
 
   // ---- list (left) ----
   function keysForGame() { return ORDER.filter(k => !gameEvents || gameEvents.has(k)); }
@@ -118,6 +119,7 @@
     const meta = EFFECT_META[selectedKey];
     const c = cfg(selectedKey);
     const ic = iconFor(selectedKey);
+    const eff = effMode(selectedKey);
     ed.innerHTML =
       '<div class="ec-ed-head">'
       + '<span class="ec-ed-icon" style="color:' + esc(iconColor(selectedKey)) + ';background:' + hexA(iconColor(selectedKey), 0.14) + '">' + ic.html + '</span>'
@@ -129,8 +131,13 @@
       + '</div></div>'
       + (meta.idleLink
         ? '<div class="ec-idle-note"><b>Neutral</b> uses your <b>Idle Color</b> from Settings. <button class="ec-link" id="ecGotoIdle">Open Idle Color →</button></div>'
-        : '<div class="ec-mode"><button class="ec-seg' + (c.mode === 'all' ? ' active' : '') + '" data-mode="all">Sync All</button>'
-          + '<button class="ec-seg' + (c.mode === 'per_light' ? ' active' : '') + '" data-mode="per_light">Customize Per ' + sectionWord() + '</button></div>')
+        : ('<div class="ec-mode">'
+          + '<button class="ec-seg' + (eff === 'all' ? ' active' : '') + '" data-mode="all">Sync All</button>'
+          + '<button class="ec-seg' + (eff === 'per_light' ? ' active' : '') + '" data-mode="per_light">Customize Per Light</button>'
+          + '<button class="ec-seg' + (eff === 'per_zone' ? ' active' : '') + (hasMultizone ? '' : ' ec-seg-dim') + '" data-mode="per_zone"'
+          + (hasMultizone ? '' : ' title="No multizone device detected"') + '>Customize Per Zone</button>'
+          + '</div>'
+          + (hasMultizone ? '' : '<div class="ec-mode-warn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Connect a multizone device (LIFX strip / Nanoleaf) to customise per-zone.</div>')))
       + '<div class="ec-grid">'
       + '<div class="ec-colors" id="ecColors"></div>'
       + '<div class="ec-side">'
@@ -146,13 +153,14 @@
     if (test) test.addEventListener('click', () => { callApi('trigger_effect', meta.trigger); toast('Triggered ' + nameFor(selectedKey)); });
     const reset = document.getElementById('ecReset');
     if (reset) reset.addEventListener('click', () => {
-      const cc = cfg(selectedKey); cc.colors = Object.assign({}, meta.def); cc.per_light = [];
+      const cc = cfg(selectedKey); cc.colors = Object.assign({}, meta.def); cc.per_light = []; cc.per_zone = [];
       persist(); refreshListIcon(selectedKey); renderColors();
     });
     const goIdle = document.getElementById('ecGotoIdle');
     if (goIdle) goIdle.addEventListener('click', () => { const b = document.querySelector('.nav-btn[data-page="settings"]'); if (b) b.click(); });
     ed.querySelectorAll('.ec-seg[data-mode]').forEach(seg => seg.addEventListener('click', () => {
-      const c2 = cfg(selectedKey); c2.mode = seg.dataset.mode; persist();
+      if (seg.dataset.mode === 'per_zone' && !hasMultizone) { toast('Connect a multizone device to customise per-zone'); return; }
+      cfg(selectedKey).mode = seg.dataset.mode; selectedSection = 0; persist();
       ed.querySelectorAll('.ec-seg').forEach(s => s.classList.toggle('active', s === seg));
       renderColors();
     }));
@@ -169,7 +177,7 @@
     box.innerHTML = '';
     if (meta.idleLink) { box.innerHTML = '<p class="ec-empty">No colour to set — Neutral follows your Idle Color.</p>'; startPreview(); return; }
 
-    if (c.mode === 'all') {
+    if (effMode(selectedKey) === 'all') {
       box.insertAdjacentHTML('beforeend', '<div class="ec-colors-title">' + (meta.slots.length > 1 ? 'Effect Colours' : 'Effect Colour') + '</div>');
       meta.slots.forEach(slot => {
         const row = document.createElement('div'); row.className = 'ec-slot';
@@ -182,15 +190,13 @@
         });
       });
     } else {
-      const word = sectionWord();
+      const zoned = isZone(selectedKey), word = zoned ? 'Zone' : 'Light';
       box.insertAdjacentHTML('beforeend',
         '<div class="ec-colors-title">Per ' + word + ' Colours <span class="ec-sub">Click a ' + word.toLowerCase() + ', then pick its colour</span></div>'
-        + (useZones()
-          ? '<div class="ec-zonestrip" id="ecSections"></div>'
-          : '<div class="ec-dots" id="ecSections"></div>')
+        + (zoned ? '<div class="ec-zonestrip" id="ecSections"></div>' : '<div class="ec-dots" id="ecSections"></div>')
         + '<div class="ec-perpick"><span class="ec-slot-label" id="ecPerLabel"></span><div id="ecPerMount"></div>'
         + '<button class="ec-link" id="ecOrder">Setup Light Order →</button></div>');
-      selectedSection = Math.max(0, Math.min(sectionCount() - 1, selectedSection));
+      selectedSection = Math.max(0, Math.min(sectionCount(selectedKey) - 1, selectedSection));
       renderSections();
       mountPerPicker();
       const order = document.getElementById('ecOrder');
@@ -205,10 +211,10 @@
 
   function renderSections() {
     const el = document.getElementById('ecSections'); if (!el) return;
-    const c = cfg(selectedKey), n = sectionCount(), zoned = useZones();
+    const arr = sectionArr(selectedKey), n = sectionCount(selectedKey), zoned = isZone(selectedKey);
     let html = '';
     for (let i = 0; i < n; i++) {
-      const col = c.per_light[i] || primaryHex(selectedKey);
+      const col = arr[i] || primaryHex(selectedKey);
       if (zoned) html += '<button class="ec-zone' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '"></button>';
       else html += '<button class="ec-dot' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '"><span class="ec-dot-n">' + (i + 1) + '</span></button>';
     }
@@ -216,12 +222,12 @@
   }
   function mountPerPicker() {
     const m = document.getElementById('ecPerMount'); if (!m) return; m.innerHTML = '';
-    const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = sectionWord() + ' ' + (selectedSection + 1);
-    const c = cfg(selectedKey);
+    const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = (isZone(selectedKey) ? 'Zone ' : 'Light ') + (selectedSection + 1);
+    const arr = sectionArr(selectedKey);
     window.createColorPicker({
-      mount: m, align: 'left', value: c.per_light[selectedSection] || primaryHex(selectedKey),
-      onInput: hex => { c.per_light[selectedSection] = hex; const d = document.querySelector('#ecSections [data-i="' + selectedSection + '"]'); if (d) d.style.setProperty('--c', hex); },
-      onChange: hex => { c.per_light[selectedSection] = hex; persist(); },
+      mount: m, align: 'left', value: arr[selectedSection] || primaryHex(selectedKey),
+      onInput: hex => { arr[selectedSection] = hex; const d = document.querySelector('#ecSections [data-i="' + selectedSection + '"]'); if (d) d.style.setProperty('--c', hex); },
+      onChange: hex => { arr[selectedSection] = hex; persist(); },
     });
   }
 
@@ -230,18 +236,17 @@
     cancelAnimationFrame(previewRaf);
     const stage = document.getElementById('ecPrevStrip'); if (!stage) return;
     const meta = EFFECT_META[selectedKey], c = cfg(selectedKey);
-    const n = meta.idleLink ? 6 : Math.min(16, sectionCount());
+    const n = meta.idleLink ? 6 : Math.min(16, sectionCount(selectedKey));
     stage.innerHTML = '';
     const cells = [];
     for (let i = 0; i < n; i++) { const d = document.createElement('div'); d.className = 'ec-cell'; stage.appendChild(d); cells.push(d); }
     const OFF = '#151b2b';
+    const arr = sectionArr(selectedKey);
     function colAt(i) {
       if (meta.idleLink) return primaryHex(selectedKey);
-      if (c.mode === 'per_light') return c.per_light[i] || primaryHex(selectedKey);
+      if (isPer(selectedKey)) return arr[i] || primaryHex(selectedKey);
       return c.colors[meta.slots[0].key] || meta.def[meta.slots[0].key] || primaryHex(selectedKey);
     }
-    // Paint a sensible static state immediately, so the preview is never blank
-    // (and is correct even where requestAnimationFrame is paused/throttled).
     cells.forEach((cell, i) => { const col = colAt(i); cell.style.background = col; cell.style.boxShadow = '0 0 8px ' + col; });
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const style = meta.anim.style.toLowerCase();
@@ -261,7 +266,7 @@
         const on = (Math.floor(t / 300) % 2) === 0; cells.forEach((cell, i) => paint(cell, on, colAt(i)));
       } else if (style.indexOf('pulse') >= 0) {
         const k = Math.sin(t / 480) * 0.5 + 0.5; cells.forEach((cell, i) => { const col = colAt(i); cell.style.background = col; cell.style.boxShadow = '0 0 11px ' + col; cell.style.opacity = (0.28 + 0.72 * k).toFixed(2); });
-      } else { // settle / double flash → hold on colour
+      } else {
         cells.forEach((cell, i) => { const col = colAt(i); cell.style.background = col; cell.style.boxShadow = '0 0 8px ' + col; cell.style.opacity = '0.92'; });
       }
       previewRaf = requestAnimationFrame(frame);
@@ -274,7 +279,6 @@
     document.querySelectorAll('.ec-item').forEach(it => it.classList.toggle('sel', it.dataset.key === key));
     renderEditor();
   }
-
   function ensureSelection() {
     const keys = keysForGame();
     if (!keys.length) { selectedKey = null; const ed = document.getElementById('ecEditor'); if (ed) ed.innerHTML = ''; return; }
@@ -285,6 +289,20 @@
   root.innerHTML = '<div class="ec-wrap"><div class="ec-list" id="ecList"></div><div class="ec-editor" id="ecEditor"></div></div>';
   document.getElementById('ecList').addEventListener('click', e => { const it = e.target.closest('.ec-item'); if (it) selectEffect(it.dataset.key); });
 
+  // Re-fetch capabilities (device detection is live) whenever the Effects page opens,
+  // so a strip discovered after mount enables Per-Zone without a restart.
+  function refreshCaps() {
+    return Promise.resolve(callApi('get_workshop_capabilities')).then(caps => {
+      if (caps) {
+        hasMultizone = !!caps.has_multizone;
+        if (caps.zones) zones = Math.max(1, Math.min(30, caps.zones));
+        if (caps.light_count) lightCount = Math.max(1, Math.min(20, caps.light_count));
+      }
+    }).catch(() => {});
+  }
+  const effNav = document.querySelector('.nav-btn[data-page="effects"]');
+  if (effNav) effNav.addEventListener('click', () => { refreshCaps().then(() => { if (selectedKey) renderEditor(); }); });
+
   window._effectCustomRefresh = function (game) {
     const g = window._GAME_DEFS && window._GAME_DEFS[game];
     gameEvents = g && Array.isArray(g.events) ? new Set(g.events.filter(k => EFFECT_META[k])) : null;
@@ -293,12 +311,7 @@
 
   Promise.resolve(callApi('get_gui_settings')).then(s => {
     if (s && s.effect_colors && typeof s.effect_colors === 'object') colors = s.effect_colors;
-  }).catch(() => {}).then(() => callApi('get_workshop_capabilities')).then(caps => {
-    if (caps) {
-      hasMultizone = !!caps.has_multizone;
-      if (caps.zones) zones = Math.max(1, Math.min(30, caps.zones));
-      if (caps.light_count) lightCount = Math.max(1, Math.min(20, caps.light_count));
-    }
-    render();
-  }).catch(() => render());
+    // Persisted hint keeps Per-Zone available once a strip has ever been seen.
+    if (s && s.multizone_seen) { hasMultizone = true; if (s.multizone_zones) zones = Math.max(1, Math.min(30, s.multizone_zones)); }
+  }).catch(() => {}).then(refreshCaps).then(render).catch(render);
 })();

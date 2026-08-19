@@ -39,6 +39,9 @@
 #effectCustomRoot .ec-mode { display: inline-flex; gap: 3px; margin: 16px 0 4px; padding: 3px; border-radius: 10px; background: rgba(var(--surface-rgb),0.06); border: 1px solid var(--glass-border); }
 #effectCustomRoot .ec-seg { border: none; background: none; color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 16px; border-radius: 8px; cursor: pointer; transition: background .14s, color .14s; }
 #effectCustomRoot .ec-seg.active { background: rgba(var(--accent-rgb),0.18); color: var(--purple-l, #b3a7ff); }
+#effectCustomRoot .ec-seg.ec-seg-dim { opacity: .4; cursor: not-allowed; }
+#effectCustomRoot .ec-seg.ec-seg-dim:hover { background: none; color: var(--text-muted); }
+#effectCustomRoot .ec-mode-warn { display: flex; align-items: center; gap: 6px; margin: 8px 0 2px; font-size: 12px; color: var(--amber, #f5b02e); }
 
 #effectCustomRoot .ec-grid { display: grid; grid-template-columns: 1fr 260px; gap: 20px; margin-top: 14px; align-items: start; }
 @media (max-width: 900px) { #effectCustomRoot .ec-grid { grid-template-columns: 1fr; } }
