@@ -52,7 +52,20 @@
   let zones = 16;
   let hasMultizone = false;
   let selectedKey = null;
-  let selectedSection = 0;
+  let selectedSet = new Set([0]);   // selected zone/light indices (multi-select)
+  let anchorSection = 0;            // anchor for shift-click / drag ranges
+  let dragging = false;
+  function selList() { return [...selectedSet].sort(function (a, b) { return a - b; }); }
+  function firstSel() { const l = selList(); return l.length ? l[0] : 0; }
+  function setSel(indices) { selectedSet = new Set(indices.length ? indices : [0]); }
+  function rangeSel(a, b) { const lo = Math.min(a, b), hi = Math.max(a, b), r = []; for (let i = lo; i <= hi; i++) r.push(i); return r; }
+  function selLabel() {
+    const sel = selList(), zoned = isZone(selectedKey);
+    if (sel.length === 1) return zoned ? ('Zone ' + (sel[0] + 1)) : lightName(sel[0]);
+    const lo = sel[0], hi = sel[sel.length - 1];
+    if (zoned && hi - lo + 1 === sel.length) return 'Zones ' + (lo + 1) + '–' + (hi + 1) + '  (' + sel.length + ')';
+    return sel.length + (zoned ? ' zones' : ' lights') + ' selected';
+  }
   let gameEvents = null;
   let previewRaf = 0;
   function lightName(i) { return lightNames[i] || ('Light ' + (i + 1)); }
@@ -84,7 +97,9 @@
   function effMode(key) { const m = cfg(key).mode; return (m === 'per_zone' && !hasMultizone) ? 'all' : m; }
   function isZone(key) { return effMode(key) === 'per_zone'; }
   function isPer(key) { const m = effMode(key); return m === 'per_light' || m === 'per_zone'; }
-  function sectionCount(key) { return isZone(key) ? Math.max(1, Math.min(30, zones)) : Math.max(1, Math.min(20, lightCount)); }
+  // Zones reflect the device's real addressable-zone count (LIFX strips expose one
+  // per LED segment). Cap only guards against an absurd DOM; bulbs cap lower.
+  function sectionCount(key) { return isZone(key) ? Math.max(1, Math.min(96, zones)) : Math.max(1, Math.min(40, lightCount)); }
   // Per-zone colours are index-keyed (zones are ordered); per-light colours are
   // keyed by light LABEL so they map to the right bulb regardless of order.
   function secGet(key, i) { const c = cfg(key); return isZone(key) ? c.per_zone[i] : c.per_light[lightName(i)]; }
@@ -174,7 +189,7 @@
     if (goIdle) goIdle.addEventListener('click', () => { const b = document.querySelector('.nav-btn[data-page="settings"]'); if (b) b.click(); });
     ed.querySelectorAll('.ec-seg[data-mode]').forEach(seg => seg.addEventListener('click', () => {
       if (seg.dataset.mode === 'per_zone' && !hasMultizone) { toast('Connect a multizone device to customise per-zone'); return; }
-      cfg(selectedKey).mode = seg.dataset.mode; selectedSection = 0; persist();
+      cfg(selectedKey).mode = seg.dataset.mode; selectedSet = new Set([0]); anchorSection = 0; persist();
       ed.querySelectorAll('.ec-seg').forEach(s => s.classList.toggle('active', s === seg));
       renderColors();
     }));
@@ -211,20 +226,39 @@
     } else {
       const zoned = isZone(selectedKey), word = zoned ? 'Zone' : 'Light';
       box.insertAdjacentHTML('beforeend',
-        '<div class="ec-colors-title">Per ' + word + ' Colours <span class="ec-sub">Click a ' + word.toLowerCase() + ', then pick its colour</span></div>'
+        '<div class="ec-colors-title">Per ' + word + ' Colours <span class="ec-sub">Click, shift-click or drag to select · then pick a colour</span></div>'
         + (zoned ? '<div class="ec-zonestrip" id="ecSections"></div>' : '<div class="ec-dots" id="ecSections"></div>')
         + '<div class="ec-perpick"><span class="ec-slot-label" id="ecPerLabel"></span><div id="ecPerMount"></div>'
-        + '<button class="ec-link" id="ecOrder">Setup Light Order →</button></div>');
-      selectedSection = Math.max(0, Math.min(sectionCount(selectedKey) - 1, selectedSection));
+        + '<button class="ec-link" id="ecSelAll">Select all</button>'
+        + (zoned ? '' : '<button class="ec-link" id="ecOrder">Setup Light Order →</button>') + '</div>');
+      // Drop any selection past the (possibly changed) count.
+      const _n = sectionCount(selectedKey);
+      setSel(selList().filter(function (i) { return i < _n; }));
+      if (anchorSection >= _n) anchorSection = 0;
       renderSections();
       mountPerPicker();
+      const selAll = document.getElementById('ecSelAll');
+      if (selAll) selAll.addEventListener('click', function () { setSel(rangeSel(0, sectionCount(selectedKey) - 1)); anchorSection = 0; renderSections(); mountPerPicker(); });
       const order = document.getElementById('ecOrder');
-      if (order) order.addEventListener('click', () => { toast('Light order lives in Light Assignment (Lights page)'); });
-      document.getElementById('ecSections').addEventListener('click', e => {
-        const s = e.target.closest('[data-i]'); if (!s) return;
-        selectedSection = +s.dataset.i; renderSections(); mountPerPicker();
-        // Clicking a bulb flashes it on the real lights so you can tell which is which.
-        if (!zoned) { callApi('identify_light', lightName(selectedSection)); toast('Identifying ' + lightName(selectedSection)); }
+      if (order) order.addEventListener('click', function () { toast('Light order lives in Light Assignment (Lights page)'); });
+
+      const grid = document.getElementById('ecSections');
+      const idxAt = e => { const s = e.target.closest('[data-i]'); return s ? +s.dataset.i : null; };
+      grid.addEventListener('pointerdown', e => {
+        const i = idxAt(e); if (i == null) return;
+        e.preventDefault();
+        if (e.shiftKey) { setSel(rangeSel(anchorSection, i)); }
+        else if (e.ctrlKey || e.metaKey) { if (selectedSet.has(i) && selectedSet.size > 1) selectedSet.delete(i); else selectedSet.add(i); anchorSection = i; }
+        else {
+          setSel([i]); anchorSection = i; dragging = true;
+          if (!zoned) { callApi('identify_light', lightName(i)); toast('Identifying ' + lightName(i)); }
+        }
+        renderSections(); mountPerPicker();
+      });
+      grid.addEventListener('pointerover', e => {
+        if (!dragging) return;
+        const i = idxAt(e); if (i == null) return;
+        setSel(rangeSel(anchorSection, i)); renderSections(); mountPerPicker();
       });
     }
     startPreview();
@@ -236,18 +270,20 @@
     let html = '';
     for (let i = 0; i < n; i++) {
       const col = secGet(selectedKey, i) || primaryHex(selectedKey);
-      if (zoned) html += '<button class="ec-zone' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '"><span class="ec-zone-n">' + (i + 1) + '</span></button>';
-      else html += '<button class="ec-dot' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(lightName(i)) + '"></button>';
+      const sel = selectedSet.has(i) ? ' sel' : '';
+      if (zoned) html += '<button class="ec-zone' + sel + '" data-i="' + i + '" style="--c:' + esc(col) + '"><span class="ec-zone-n">' + (i + 1) + '</span></button>';
+      else html += '<button class="ec-dot' + sel + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(lightName(i)) + '"></button>';
     }
     el.innerHTML = html;
   }
   function mountPerPicker() {
     const m = document.getElementById('ecPerMount'); if (!m) return; m.innerHTML = '';
-    const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = isZone(selectedKey) ? ('Zone ' + (selectedSection + 1)) : lightName(selectedSection);
+    const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = selLabel();
+    const sel = selList();
     window.createColorPicker({
-      mount: m, align: 'left', value: secGet(selectedKey, selectedSection) || primaryHex(selectedKey),
-      onInput: hex => { secSet(selectedKey, selectedSection, hex); const d = document.querySelector('#ecSections [data-i="' + selectedSection + '"]'); if (d) d.style.setProperty('--c', hex); },
-      onChange: hex => { secSet(selectedKey, selectedSection, hex); persist(); },
+      mount: m, align: 'left', value: secGet(selectedKey, firstSel()) || primaryHex(selectedKey),
+      onInput: hex => { sel.forEach(i => { secSet(selectedKey, i, hex); const d = document.querySelector('#ecSections [data-i="' + i + '"]'); if (d) d.style.setProperty('--c', hex); }); },
+      onChange: hex => { sel.forEach(i => secSet(selectedKey, i, hex)); persist(); },
     });
   }
 
@@ -295,7 +331,7 @@
   }
 
   function selectEffect(key) {
-    selectedKey = key; selectedSection = 0;
+    selectedKey = key; selectedSet = new Set([0]); anchorSection = 0; dragging = false;
     document.querySelectorAll('.ec-item').forEach(it => it.classList.toggle('sel', it.dataset.key === key));
     renderEditor();
   }
@@ -308,6 +344,7 @@
 
   root.innerHTML = '<div class="ec-wrap"><div class="ec-list" id="ecList"></div><div class="ec-editor" id="ecEditor"></div></div>';
   document.getElementById('ecList').addEventListener('click', e => { const it = e.target.closest('.ec-item'); if (it) selectEffect(it.dataset.key); });
+  document.addEventListener('pointerup', () => { dragging = false; });
 
   // Relocate the RPM-meter gradient editor here (out of Settings). Parked in a
   // hidden host so re-rendering the editor never destroys its wired DOM; moved
@@ -323,7 +360,7 @@
     return Promise.resolve(callApi('get_workshop_capabilities')).then(caps => {
       if (caps) {
         hasMultizone = !!caps.has_multizone;
-        if (caps.zones) zones = Math.max(1, Math.min(30, caps.zones));
+        if (caps.zones) zones = Math.max(1, Math.min(96, caps.zones));
         if (caps.light_count) lightCount = Math.max(1, Math.min(20, caps.light_count));
       }
     }).catch(() => {}).then(() => {
@@ -351,6 +388,6 @@
   Promise.resolve(callApi('get_gui_settings')).then(s => {
     if (s && s.effect_colors && typeof s.effect_colors === 'object') colors = s.effect_colors;
     // Persisted hint keeps Per-Zone available once a strip has ever been seen.
-    if (s && s.multizone_seen) { hasMultizone = true; if (s.multizone_zones) zones = Math.max(1, Math.min(30, s.multizone_zones)); }
+    if (s && s.multizone_seen) { hasMultizone = true; if (s.multizone_zones) zones = Math.max(1, Math.min(96, s.multizone_zones)); }
   }).catch(() => {}).then(refreshCaps).then(render).catch(render);
 })();
