@@ -1062,6 +1062,35 @@ class BridgeRunner:
             if self.bridge.nanoleaf is not None:
                 self.bridge.nanoleaf.light_assignments = self._light_assignments
 
+        # discover_lights() builds the controllers fresh, so re-apply every persisted
+        # setting now — at _ensure_bridge() bridge.lifx was still None, so those
+        # applies were skipped. Without this a saved RPM gradient / curves / effect
+        # colours / idle / stagger / multizone only took effect once the UI re-pushed
+        # them (the "restart shows it but tests as default until you change a stop" bug).
+        lifx = self.bridge.lifx
+        if lifx is not None:
+            if self._pending_rpm_gradient is not None:
+                lifx.rpm_gradient = self._module.parse_rpm_gradient(self._pending_rpm_gradient)
+            if self._pending_stagger is not None:
+                _en, _ms = self._pending_stagger
+                lifx.stagger_ms = _ms if _en else 0
+            if self._pending_idle is not None:
+                lifx.idle_hsbk, lifx.idle_pulse = self._pending_idle
+            if self._pending_mz_startlights is not None:
+                lifx.mz_startlights_direction, lifx.mz_startlights_mode = self._pending_mz_startlights
+            if self._curves:
+                lifx.curves = self._curves
+            if self._effect_colors:
+                lifx.effect_colors = self._effect_colors
+        nl = self.bridge.nanoleaf
+        if nl is not None:
+            if self._pending_mz_startlights is not None:
+                nl.mz_startlights_direction, nl.mz_startlights_mode = self._pending_mz_startlights
+            if self._curves:
+                nl.curves = self._curves
+            if self._effect_colors:
+                nl.effect_colors = self._effect_colors
+
         self._push_light_stats()
         self.on_lights_discovered(self.get_discovered_lights())
         self.on_selection_changed(self._get_active_labels())
