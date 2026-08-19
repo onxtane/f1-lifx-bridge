@@ -989,6 +989,16 @@ class LocalLifxController:
             return
 
         lights = self._effect_lights()
+        # Per-effect custom colours for the sweep: per_zone lights each zone in its
+        # own colour; per_light does the same across bulbs (by label). Only hue+sat
+        # are swapped — the per-count brightness ramp still drives the build-up.
+        _ec = self.effect_colors.get('start_lights') or {}
+        _mode = _ec.get('mode', 'all')
+        _pz = _ec.get('per_zone') if isinstance(_ec.get('per_zone'), list) else []
+        _pl = _ec.get('per_light') if isinstance(_ec.get('per_light'), dict) else {}
+        _do_pz = _mode == 'per_zone' and bool(_pz)
+        _do_pl = _mode == 'per_light' and bool(_pl)
+
         for i, light in enumerate(lights):
             try:
                 if isinstance(light, MultiZoneLight) and self.mz_startlights_mode == "sweep":
@@ -997,6 +1007,18 @@ class LocalLifxController:
                         red_s  = list(red);  red_s[2]  = self._scale_brightness(red[2])
                         dark_s = list(dark); dark_s[2] = self._scale_brightness(dark[2])
                         lit = max(0, min(zone_count, round(num_lights / 5 * zone_count)))
+
+                        if _do_pz:
+                            # Each zone lit in its own colour, dark where not yet lit.
+                            ltr = self.mz_startlights_direction == "ltr"
+                            for z in range(zone_count):
+                                is_lit = (z < lit) if ltr else (z >= zone_count - lit)
+                                if is_lit:
+                                    hx = _pz[z] if z < len(_pz) else _pz[-1]
+                                    light.set_zone_color(z, z, _override_hue_sat(red_s, hx), 40, rapid=True)
+                                else:
+                                    light.set_zone_color(z, z, dark_s, 40, rapid=True)
+                            continue
 
                         if lit == 0:
                             # All dark
@@ -1011,8 +1033,9 @@ class LocalLifxController:
                             light.set_zone_color(0,                    zone_count - lit - 1, dark_s, 40, rapid=True)
                             light.set_zone_color(zone_count - lit, zone_count - 1,           red_s,  40, rapid=True)
                         continue
-                # Regular bulb or solid-mode multizone — uniform color
-                scaled = list(red)
+                # Regular bulb or solid-mode multizone — uniform color (per-light by label)
+                base = _override_hue_sat(red, _pl.get(self.safe_label(light))) if _do_pl else red
+                scaled = list(base)
                 scaled[2] = self._scale_brightness(red[2])
                 if isinstance(light, MultiZoneLight):
                     light.set_zone_color(0, 255, scaled, 40, rapid=True)

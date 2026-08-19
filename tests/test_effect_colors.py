@@ -120,6 +120,39 @@ class TestPerTargetOverride(unittest.TestCase):
         self.assertEqual((z1[0], z1[2]), (43690, 40000))
 
 
+class TestStartLightsPerZoneSweep(unittest.TestCase):
+    """Start Lights has its own zone sweep (not set_color_all) — per-zone colours
+    must reach it so each zone lights in its own colour, not a single red."""
+
+    def _ctrl_and_strip(self, zones=4):
+        from tests.test_rpm_meter_paint import _FakeStrip, _controller
+        strip = _FakeStrip("Strip", zones=zones)
+        ctrl = _controller([strip])
+        ctrl.mz_startlights_mode = "sweep"
+        ctrl.mz_startlights_direction = "ltr"
+        return ctrl, strip
+
+    def test_each_lit_zone_takes_its_own_colour(self):
+        ctrl, strip = self._ctrl_and_strip(4)
+        ctrl.effect_colors = {"start_lights": {"mode": "per_zone",
+            "per_zone": ["#ff0000", "#00ff00", "#0000ff", "#ffffff"]}}
+        ctrl.start_lights(5)   # all five -> every zone lit
+        hue_at = {start: color[0] for (start, color, *_ ) in strip.paints}
+        sat_at = {start: color[1] for (start, color, *_ ) in strip.paints}
+        self.assertEqual(hue_at.get(0), 0)       # red
+        self.assertEqual(hue_at.get(1), 21845)   # green
+        self.assertEqual(hue_at.get(2), 43690)   # blue
+        self.assertEqual(sat_at.get(3), 0)       # white -> desaturated
+
+    def test_default_sweep_unchanged_without_custom_colours(self):
+        ctrl, strip = self._ctrl_and_strip(4)
+        ctrl.start_lights(5)
+        # No custom colours: the whole lit range is one red paint (range-based),
+        # not one-paint-per-zone.
+        reds = [c for (s, c, *_ ) in strip.paints if c[0] == 0 and c[1] == 65535]
+        self.assertTrue(reds, "default sweep should still paint red")
+
+
 class TestHexHelpers(unittest.TestCase):
     def test_hue_hex_to_rgb(self):
         self.assertEqual(_hex_to_rgb("#00ccff"), (0, 204, 255))
