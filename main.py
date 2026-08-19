@@ -161,6 +161,10 @@ class Api:
             if hue:
                 brands.add("hue")
                 light_count += len(hue)
+                # Hue gradient lightstrips are zoned (a ~7-point gradient).
+                if any(l.get("is_gradient") for l in hue):
+                    has_multizone = True
+                    zones = max(zones, 7)
         except Exception:
             pass
         # A configured Nanoleaf counts even when the bridge is stopped (no live probe).

@@ -358,11 +358,23 @@ class HueController:
 
     # ── Core colour send ─────────────────────────────────────────────────────
 
+    def _gradient_from_stops(self, stops, total_points: int = 7):
+        """Spread logical per-zone colours across a gradient strip's points."""
+        n = len(stops)
+        pts = []
+        for p in range(total_points):
+            rgb = _hex_to_rgb(stops[(p * n) // total_points]) if n else None
+            gr, gg, gb = rgb if rgb else (255, 255, 255)
+            x, y = _rgb_to_xy(gr, gg, gb)
+            pts.append({"color": {"xy": {"x": x, "y": y}}})
+        return pts
+
     def set_color(self, r: int, g: int, b: int, brightness_pct: int = 100, duration_ms: int = 0):
         """Send a colour to all selected lights via CLIP v2.
 
-        In per-light mode each bulb takes its own custom colour (keyed by name);
-        otherwise every selected light gets the same colour.
+        Per-zone paints gradient lightstrips with the zone gradient (plain bulbs
+        take the first stop, since they have no zones); per-light gives each bulb
+        its own colour; otherwise every selected light gets the same colour.
         """
         if not self._connected or not self.selected_lights:
             return
@@ -370,7 +382,28 @@ class HueController:
         default_xy = _rgb_to_xy(r, g, b)
 
         ec = self.effect_colors.get(self._current_effect_key) or {}
-        per_light = ec.get("per_light") if (ec.get("mode") == "per_light"
+        mode = ec.get("mode")
+
+        per_zone = ec.get("per_zone") if (mode == "per_zone"
+                                          and isinstance(ec.get("per_zone"), list) and ec.get("per_zone")) else None
+        if per_zone:
+            grad_ids = set(self._get_gradient_strip_ids())
+            if grad_ids:
+                pts = self._gradient_from_stops(per_zone)
+                for lid in grad_ids:
+                    self._put_gradient(lid, pts, bri, duration_ms)
+            first = _hex_to_rgb(per_zone[0])
+            bulb_xy = _rgb_to_xy(*first) if first else default_xy
+            for light_id in self.selected_lights:
+                if light_id in grad_ids:
+                    continue
+                self._put(f"{_CLIP}/light/{light_id}", {
+                    "on": {"on": True}, "color": {"xy": {"x": bulb_xy[0], "y": bulb_xy[1]}},
+                    "dimming": {"brightness": bri}, "dynamics": {"duration": duration_ms},
+                })
+            return
+
+        per_light = ec.get("per_light") if (mode == "per_light"
                                             and isinstance(ec.get("per_light"), dict)) else None
         id_to_name = {l["id"]: l["name"] for l in self._lights_cache} if per_light else {}
 

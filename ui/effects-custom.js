@@ -95,7 +95,12 @@
     return c;
   }
   // Stored mode, but per_zone collapses to Sync All when no multizone device is present.
-  function effMode(key) { const m = cfg(key).mode; return (m === 'per_zone' && !hasMultizone) ? 'all' : m; }
+  // Two-colour effects (e.g. Chequered A/B) only make sense synced — per-light /
+  // per-zone would collapse both flash colours into one. Force Sync All for them.
+  function effMode(key) {
+    if (EFFECT_META[key].slots.length > 1) return 'all';
+    const m = cfg(key).mode; return (m === 'per_zone' && !hasMultizone) ? 'all' : m;
+  }
   function isZone(key) { return effMode(key) === 'per_zone'; }
   function isPer(key) { const m = effMode(key); return m === 'per_light' || m === 'per_zone'; }
   // A strip exposes one addressable zone per LED (often dozens), which is too many
@@ -167,8 +172,9 @@
       + '<button class="btn btn-ghost btn-sm" id="ecTest"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:3px;"><path d="M8 5v14l11-7z"/></svg>Test on lights</button>'
       + (meta.idleLink ? '' : '<button class="btn btn-ghost btn-sm" id="ecReset">Reset to Default</button>')
       + '</div></div>'
-      + ((meta.idleLink || meta.rpm)
-        ? (meta.idleLink ? '<div class="ec-idle-note"><b>Neutral</b> uses your <b>Idle Color</b> from Settings. <button class="ec-link" id="ecGotoIdle">Open Idle Color →</button></div>' : '')
+      + ((meta.idleLink || meta.rpm || meta.slots.length > 1)
+        ? (meta.idleLink ? '<div class="ec-idle-note"><b>Neutral</b> uses your <b>Idle Color</b> from Settings. <button class="ec-link" id="ecGotoIdle">Open Idle Color →</button></div>'
+          : (meta.slots.length > 1 ? '<div class="ec-idle-note">This effect alternates two colours, so it\'s set for all lights together.</div>' : ''))
         : ('<div class="ec-mode">'
           + '<button class="ec-seg' + (eff === 'all' ? ' active' : '') + '" data-mode="all">Sync All</button>'
           + '<button class="ec-seg' + (eff === 'per_light' ? ' active' : '') + '" data-mode="per_light">Customize Per Light</button>'
