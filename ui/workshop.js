@@ -223,7 +223,7 @@
     previewGradient = (theme.rpm_gradient && theme.rpm_gradient.length) ? theme.rpm_gradient : (p.swatch && p.swatch.length ? p.swatch : ['#3ddc84','#f5b02e','#ff5d5d']);
     document.getElementById('wsHero').style.background = 'radial-gradient(120% 140% at 70% 10%, '+(previewGradient[previewGradient.length-1]||'#7a0f1a')+' 0%, rgba(10,7,16,.55) 55%, #0a0710 100%)';
     const badge = document.getElementById('wsBadge'); badge.src = logoFor(p.game); badge.alt = p.game_name||'';
-    document.getElementById('wsTit').innerHTML = esc(p.title||'') + (p.official ? ' '+VERIFIED(17) : '');
+    document.getElementById('wsTit').innerHTML = '<span>' + esc(p.title||'') + '</span>' + (p.official ? VERIFIED(17) : '');
     document.getElementById('wsBy').textContent = 'by ' + (p.author_name||'unknown');
     document.getElementById('wsOfficial').style.display = p.official ? 'flex' : 'none';
     document.getElementById('wsDl').textContent = fmt(p.downloads);

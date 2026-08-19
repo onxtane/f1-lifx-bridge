@@ -160,7 +160,8 @@
 #page-workshop .off { font-size:10px; font-weight:600; letter-spacing:.3px; color:var(--purple-l2); background:#241f45; border-radius:5px; padding:2px 7px; }
 /* Verified badge for official GridGlow presets */
 #page-workshop .ws-verified { flex-shrink:0; vertical-align:middle; filter:drop-shadow(0 1px 3px rgba(var(--accent-rgb),.5)); }
-#page-workshop .d-tit .ws-verified { vertical-align:-2px; margin-left:2px; }
+#page-workshop .d-tit .ws-verified { vertical-align:middle; margin-left:0; }
+#page-workshop .d-tit .ws-verified, #page-workshop .pc-titrow .ws-verified { overflow:visible; }
 #page-workshop .d-official {
     display:flex; align-items:center; gap:10px; margin:12px 0 2px; padding:9px 12px; border-radius:11px;
     background:rgba(var(--accent-rgb),0.10); border:1px solid rgba(var(--accent-rgb),0.32);
@@ -342,7 +343,7 @@
 #page-workshop .d-close { position:absolute; top:12px; right:12px; z-index:2; width:26px; height:26px; border-radius:8px;
             background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; }
 #page-workshop .d-badge { position:relative; z-index:1; }
-#page-workshop .d-tit { font-size:20px; font-weight:700; letter-spacing:-.01em; margin:14px 0 6px; }
+#page-workshop .d-tit { font-size:20px; font-weight:700; letter-spacing:-.01em; margin:14px 0 6px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; line-height:1.2; }
 #page-workshop .d-off { font-size:10px; font-weight:600; color:var(--purple-l2); background:#241f45; border-radius:5px; padding:2px 7px; vertical-align:middle; margin-left:6px; }
 #page-workshop .d-by { font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
 #page-workshop .d-by i { font-size:14px; color:var(--flag-blue); }
