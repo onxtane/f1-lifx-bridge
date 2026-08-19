@@ -1948,6 +1948,19 @@
     callApi('set_selected_lights', getCheckedLabels());
   }
 
+  // Labels of the lights currently selected for effects, mirroring the Light
+  // Assignment active set (an empty selection means every light is active).
+  // Nanoleaf/Hue are always active. Used by Effect Customization's per-light view.
+  window._getSelectedLightLabels = function () {
+    try {
+      const useActive = _activeLabels && _activeLabels.size > 0;
+      return (_discoveredLights || [])
+        .filter(l => l.type === 'nanoleaf' || l.type === 'hue' || !useActive || _activeLabels.has(l.label))
+        .map(l => l.label)
+        .filter(Boolean);
+    } catch (e) { return []; }
+  };
+
   // ---- pit-wall dashboard ----
   // All live dashboard state is derived from the existing update stream:
   // setStat totals, setBridgeRunning, and tagged log lines (via _pwIngest).

@@ -324,11 +324,17 @@
         if (caps.zones) zones = Math.max(1, Math.min(30, caps.zones));
         if (caps.light_count) lightCount = Math.max(1, Math.min(20, caps.light_count));
       }
-    }).catch(() => {}).then(() => callApi('get_discovered_lights')).then(list => {
-      if (Array.isArray(list) && list.length) {
-        lightNames = list.map(d => (d && d.label) || '');
-        lightCount = Math.max(1, Math.min(20, list.length));
-      }
+    }).catch(() => {}).then(() => {
+      // Per-light should list only the SELECTED lights (Light Assignment), not all
+      // discovered ones. Fall back to full discovery only if the selection is empty.
+      const sel = (typeof window._getSelectedLightLabels === 'function') ? (window._getSelectedLightLabels() || []) : [];
+      if (sel.length) { lightNames = sel; lightCount = Math.max(1, Math.min(20, sel.length)); return; }
+      return Promise.resolve(callApi('get_discovered_lights')).then(list => {
+        if (Array.isArray(list) && list.length) {
+          lightNames = list.map(d => (d && d.label) || '');
+          lightCount = Math.max(1, Math.min(20, list.length));
+        }
+      }).catch(() => {});
     }).catch(() => {});
   }
   const effNav = document.querySelector('.nav-btn[data-page="effects"]');
