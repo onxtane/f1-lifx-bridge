@@ -59,11 +59,12 @@
 #effectCustomRoot .ec-dot.sel { border-color: #fff; box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.6), 0 0 12px var(--c); }
 #effectCustomRoot .ec-dot-n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.55); text-shadow: 0 0 3px rgba(255,255,255,0.4); }
 
-/* multizone zone strip */
-#effectCustomRoot .ec-zonestrip { display: flex; gap: 3px; height: 46px; border-radius: 11px; padding: 4px; margin-bottom: 16px; background: rgba(0,0,0,0.28); border: 1px solid var(--glass-border); }
-#effectCustomRoot .ec-zone { --c: #8b7cf6; flex: 1; min-width: 6px; border: none; border-radius: 6px; padding: 0; cursor: pointer; background: var(--c); box-shadow: inset 0 0 7px rgba(0,0,0,0.3); outline: 2px solid transparent; transition: transform .1s; }
-#effectCustomRoot .ec-zone:hover { transform: scaleY(1.08); }
-#effectCustomRoot .ec-zone.sel { outline: 2px solid #fff; z-index: 1; box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.75), 0 0 12px var(--c); }
+/* multizone zone strip — numbered colour dots on a strip bar (matches mockup) */
+#effectCustomRoot .ec-zonestrip { display: flex; flex-wrap: wrap; gap: 9px; padding: 13px; border-radius: 14px; margin-bottom: 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); }
+#effectCustomRoot .ec-zone { --c: #8b7cf6; width: 34px; height: 34px; border-radius: 50%; padding: 0; position: relative; cursor: pointer; background: var(--c); border: 2px solid rgba(255,255,255,0.16); box-shadow: 0 0 10px var(--c); transition: transform .12s, border-color .12s; }
+#effectCustomRoot .ec-zone:hover { transform: translateY(-1px); }
+#effectCustomRoot .ec-zone.sel { border-color: #fff; box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.65), 0 0 12px var(--c); }
+#effectCustomRoot .ec-zone-n { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.6); text-shadow: 0 0 3px rgba(255,255,255,0.45); }
 
 #effectCustomRoot .ec-perpick { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 #effectCustomRoot .ec-link { background: none; border: none; color: var(--purple-l, #b3a7ff); font: inherit; font-size: 12.5px; cursor: pointer; padding: 0; }
@@ -84,3 +85,8 @@
 #effectCustomRoot .ec-prev-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 10px; }
 #effectCustomRoot .ec-prev-stage { height: 62px; border-radius: 10px; background: radial-gradient(120% 130% at 50% 130%, rgba(255,255,255,0.05), rgba(0,0,0,0.4)); display: flex; align-items: center; gap: 4px; padding: 12px; }
 #effectCustomRoot .ec-cell { flex: 1; min-width: 0; height: 32px; border-radius: 5px; background: #151b2b; transition: background .06s linear, box-shadow .06s linear; }
+
+/* the relocated RPM gradient row sits inside the colours column, not a settings page */
+#effectCustomRoot .rpm-grad-row { display: block; padding: 0; border: none; margin: 0; }
+#effectCustomRoot .rpm-grad-row > div { width: 100%; }
+#effectCustomRoot .rpm-grad-row .setting-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 4px; }

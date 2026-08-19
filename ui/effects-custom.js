@@ -41,18 +41,21 @@
     white_warning:  { icon: '⚪', name: 'White Warning',  desc: 'Penalty warning flash',            trigger: 'White Warning',  slots: [{ key: 'main', label: 'Flash colour' }],    def: { main: '#ffffff' }, anim: { style: 'Flash', speed: '0.25s', repeat: '3×' } },
     crash:          { icon: '⚡', name: 'Crash',          desc: 'Sharp impact flash',               trigger: 'Crash',          slots: [{ key: 'main', label: 'Impact colour' }],   def: { main: '#ffffff' }, anim: { style: 'Single flash', speed: '0.12s', repeat: 'Once' } },
     neutral:        { icon: '💡', name: 'Neutral',        desc: 'Reset to idle',                    trigger: 'Neutral',        slots: [], idleLink: true, def: {}, anim: { style: 'Settle', speed: '0.8s', repeat: '—' } },
+    rpm_meter:      { icon: '📊', name: 'RPM Meter',      desc: 'Zones fill as revs climb',         trigger: 'RPM Meter',      slots: [], rpm: true, def: {}, anim: { style: 'Zone fill by RPM', speed: 'Live telemetry', repeat: 'Continuous' } },
   };
-  const ORDER = ['start_lights', 'lights_out', 'yellow_flag', 'blue_flag', 'red_flag', 'fastest_lap', 'chequered_flag', 'white_warning', 'crash', 'neutral'];
+  const ORDER = ['start_lights', 'lights_out', 'yellow_flag', 'blue_flag', 'red_flag', 'fastest_lap', 'chequered_flag', 'white_warning', 'crash', 'neutral', 'rpm_meter'];
 
   // ---- state ----
   let colors = {};
   let lightCount = 5;
+  let lightNames = [];      // discovered bulb labels, for the per-light view + identify
   let zones = 16;
   let hasMultizone = false;
   let selectedKey = null;
   let selectedSection = 0;
   let gameEvents = null;
   let previewRaf = 0;
+  function lightName(i) { return lightNames[i] || ('Light ' + (i + 1)); }
 
   function toast(msg) { if (window.showToast) window.showToast(msg); }
   function gdef() { return (window._GAME_DEFS && window._currentGame) ? window._GAME_DEFS[window._currentGame] : null; }
@@ -88,7 +91,10 @@
     if (!meta.slots.length) return iconFor(key).color || '#f6c66a';
     return cfg(key).colors[meta.slots[0].key] || meta.def[meta.slots[0].key] || '#8b7cf6';
   }
-  function iconColor(key) { return EFFECT_META[key].slots.length ? primaryHex(key) : (iconFor(key).color || '#f6c66a'); }
+  function iconColor(key) {
+    if (EFFECT_META[key].rpm) return '#38bdf8';
+    return EFFECT_META[key].slots.length ? primaryHex(key) : (iconFor(key).color || '#f6c66a');
+  }
   function persist() { callApi('save_gui_settings', { effect_colors: colors }); }
 
   // ---- list (left) ----
@@ -116,6 +122,7 @@
   function renderEditor() {
     const ed = document.getElementById('ecEditor');
     if (!ed || !selectedKey) return;
+    parkRpm();
     const meta = EFFECT_META[selectedKey];
     const c = cfg(selectedKey);
     const ic = iconFor(selectedKey);
@@ -129,8 +136,8 @@
       + '<button class="btn btn-ghost btn-sm" id="ecTest"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:3px;"><path d="M8 5v14l11-7z"/></svg>Test on lights</button>'
       + (meta.idleLink ? '' : '<button class="btn btn-ghost btn-sm" id="ecReset">Reset to Default</button>')
       + '</div></div>'
-      + (meta.idleLink
-        ? '<div class="ec-idle-note"><b>Neutral</b> uses your <b>Idle Color</b> from Settings. <button class="ec-link" id="ecGotoIdle">Open Idle Color →</button></div>'
+      + ((meta.idleLink || meta.rpm)
+        ? (meta.idleLink ? '<div class="ec-idle-note"><b>Neutral</b> uses your <b>Idle Color</b> from Settings. <button class="ec-link" id="ecGotoIdle">Open Idle Color →</button></div>' : '')
         : ('<div class="ec-mode">'
           + '<button class="ec-seg' + (eff === 'all' ? ' active' : '') + '" data-mode="all">Sync All</button>'
           + '<button class="ec-seg' + (eff === 'per_light' ? ' active' : '') + '" data-mode="per_light">Customize Per Light</button>'
@@ -150,7 +157,10 @@
       + '</div></div>';
 
     const test = document.getElementById('ecTest');
-    if (test) test.addEventListener('click', () => { callApi('trigger_effect', meta.trigger); toast('Triggered ' + nameFor(selectedKey)); });
+    if (test) test.addEventListener('click', () => {
+      if (meta.rpm) { callApi('test_multizone'); toast('Testing RPM zones'); }
+      else { callApi('trigger_effect', meta.trigger); toast('Triggered ' + nameFor(selectedKey)); }
+    });
     const reset = document.getElementById('ecReset');
     if (reset) reset.addEventListener('click', () => {
       const cc = cfg(selectedKey); cc.colors = Object.assign({}, meta.def); cc.per_light = []; cc.per_zone = [];
@@ -174,7 +184,12 @@
     if (!box) return;
     const meta = EFFECT_META[selectedKey];
     const c = cfg(selectedKey);
+    parkRpm();                 // rescue the RPM block before we clear the container
     box.innerHTML = '';
+    if (meta.rpm) {            // RPM Meter: show the relocated gradient editor
+      if (rpmBlock) { box.appendChild(rpmBlock); } else box.insertAdjacentHTML('beforeend', '<p class="ec-empty">RPM gradient editor unavailable.</p>');
+      startPreview(); return;
+    }
     if (meta.idleLink) { box.innerHTML = '<p class="ec-empty">No colour to set — Neutral follows your Idle Color.</p>'; startPreview(); return; }
 
     if (effMode(selectedKey) === 'all') {
@@ -204,6 +219,8 @@
       document.getElementById('ecSections').addEventListener('click', e => {
         const s = e.target.closest('[data-i]'); if (!s) return;
         selectedSection = +s.dataset.i; renderSections(); mountPerPicker();
+        // Clicking a bulb flashes it on the real lights so you can tell which is which.
+        if (!zoned) { callApi('identify_light', lightName(selectedSection)); toast('Identifying ' + lightName(selectedSection)); }
       });
     }
     startPreview();
@@ -215,14 +232,14 @@
     let html = '';
     for (let i = 0; i < n; i++) {
       const col = arr[i] || primaryHex(selectedKey);
-      if (zoned) html += '<button class="ec-zone' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '"></button>';
-      else html += '<button class="ec-dot' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '"><span class="ec-dot-n">' + (i + 1) + '</span></button>';
+      if (zoned) html += '<button class="ec-zone' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '"><span class="ec-zone-n">' + (i + 1) + '</span></button>';
+      else html += '<button class="ec-dot' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(lightName(i)) + '"></button>';
     }
     el.innerHTML = html;
   }
   function mountPerPicker() {
     const m = document.getElementById('ecPerMount'); if (!m) return; m.innerHTML = '';
-    const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = (isZone(selectedKey) ? 'Zone ' : 'Light ') + (selectedSection + 1);
+    const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = isZone(selectedKey) ? ('Zone ' + (selectedSection + 1)) : lightName(selectedSection);
     const arr = sectionArr(selectedKey);
     window.createColorPicker({
       mount: m, align: 'left', value: arr[selectedSection] || primaryHex(selectedKey),
@@ -243,9 +260,10 @@
     const OFF = '#151b2b';
     const arr = sectionArr(selectedKey);
     function colAt(i) {
-      if (meta.idleLink) return primaryHex(selectedKey);
+      if (meta.idleLink || meta.rpm || !meta.slots.length) return primaryHex(selectedKey);
       if (isPer(selectedKey)) return arr[i] || primaryHex(selectedKey);
-      return c.colors[meta.slots[0].key] || meta.def[meta.slots[0].key] || primaryHex(selectedKey);
+      const s = meta.slots[0];
+      return c.colors[s.key] || meta.def[s.key] || primaryHex(selectedKey);
     }
     cells.forEach((cell, i) => { const col = colAt(i); cell.style.background = col; cell.style.boxShadow = '0 0 8px ' + col; });
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -289,6 +307,14 @@
   root.innerHTML = '<div class="ec-wrap"><div class="ec-list" id="ecList"></div><div class="ec-editor" id="ecEditor"></div></div>';
   document.getElementById('ecList').addEventListener('click', e => { const it = e.target.closest('.ec-item'); if (it) selectEffect(it.dataset.key); });
 
+  // Relocate the RPM-meter gradient editor here (out of Settings). Parked in a
+  // hidden host so re-rendering the editor never destroys its wired DOM; moved
+  // into view only while "RPM Meter" is selected.
+  const rpmBlock = document.querySelector('.rpm-grad-row');
+  let rpmHost = null;
+  if (rpmBlock) { rpmHost = document.createElement('div'); rpmHost.style.display = 'none'; root.appendChild(rpmHost); rpmHost.appendChild(rpmBlock); }
+  function parkRpm() { if (rpmBlock && rpmHost && rpmBlock.parentNode !== rpmHost) rpmHost.appendChild(rpmBlock); }
+
   // Re-fetch capabilities (device detection is live) whenever the Effects page opens,
   // so a strip discovered after mount enables Per-Zone without a restart.
   function refreshCaps() {
@@ -297,6 +323,11 @@
         hasMultizone = !!caps.has_multizone;
         if (caps.zones) zones = Math.max(1, Math.min(30, caps.zones));
         if (caps.light_count) lightCount = Math.max(1, Math.min(20, caps.light_count));
+      }
+    }).catch(() => {}).then(() => callApi('get_discovered_lights')).then(list => {
+      if (Array.isArray(list) && list.length) {
+        lightNames = list.map(d => (d && d.label) || '');
+        lightCount = Math.max(1, Math.min(20, list.length));
       }
     }).catch(() => {});
   }
