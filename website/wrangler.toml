@@ -32,3 +32,6 @@ migrations_dir = "migrations"
 # The Workshop verifies Discord/Supabase access tokens against
 # <SUPABASE_URL>/auth/v1/.well-known/jwks.json (ES256). No shared JWT secret.
 SUPABASE_URL = "https://upvbmoseimgiathprtsj.supabase.co"
+# Public (not a secret): the GridGlow team account's Supabase user id(s),
+# comma-separated. Presets owned by these users get the verified/official badge.
+OFFICIAL_USER_IDS = "bc8cd1ef-509f-4d0f-9d19-a608c51f93b6"
