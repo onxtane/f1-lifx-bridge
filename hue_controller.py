@@ -359,19 +359,33 @@ class HueController:
     # ── Core colour send ─────────────────────────────────────────────────────
 
     def set_color(self, r: int, g: int, b: int, brightness_pct: int = 100, duration_ms: int = 0):
-        """Send a colour to all selected lights via CLIP v2."""
+        """Send a colour to all selected lights via CLIP v2.
+
+        In per-light mode each bulb takes its own custom colour (keyed by name);
+        otherwise every selected light gets the same colour.
+        """
         if not self._connected or not self.selected_lights:
             return
-        x, y = _rgb_to_xy(r, g, b)
         bri = self._scale_brightness(brightness_pct)
-        body = {
-            "on":      {"on": True},
-            "color":   {"xy": {"x": x, "y": y}},
-            "dimming": {"brightness": bri},
-            "dynamics": {"duration": duration_ms},
-        }
+        default_xy = _rgb_to_xy(r, g, b)
+
+        ec = self.effect_colors.get(self._current_effect_key) or {}
+        per_light = ec.get("per_light") if (ec.get("mode") == "per_light"
+                                            and isinstance(ec.get("per_light"), dict)) else None
+        id_to_name = {l["id"]: l["name"] for l in self._lights_cache} if per_light else {}
+
         for light_id in self.selected_lights:
-            self._put(f"{_CLIP}/light/{light_id}", body)
+            xy = default_xy
+            if per_light:
+                rgb = _hex_to_rgb(per_light.get(id_to_name.get(light_id, "")))
+                if rgb:
+                    xy = _rgb_to_xy(*rgb)
+            self._put(f"{_CLIP}/light/{light_id}", {
+                "on":       {"on": True},
+                "color":    {"xy": {"x": xy[0], "y": xy[1]}},
+                "dimming":  {"brightness": bri},
+                "dynamics": {"duration": duration_ms},
+            })
 
     def set_color_all(self, hsbk: list, duration_ms: int = 50, stagger: bool = True):
         """Bridge-compatible interface — accepts LIFX HSBK and converts to Hue XY.
@@ -440,11 +454,10 @@ class HueController:
         ec = self.effect_colors.get(key)
         if not ec:
             return default_rgb
-        hex_ = (ec.get("colors") or {}).get(slot)
-        if not hex_ and slot == "main":
-            arr = ec.get("per_zone") or ec.get("per_light") or []
-            hex_ = arr[0] if arr else None
-        return _hex_to_rgb(hex_) or default_rgb if hex_ else default_rgb
+        if ec.get("mode", "all") == "all":
+            return _hex_to_rgb((ec.get("colors") or {}).get(slot)) or default_rgb
+        # per_light / per_zone: default here; set_color() paints each bulb by label.
+        return default_rgb
 
     def neutral(self):
         self.clear_active_effect()

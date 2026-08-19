@@ -14,7 +14,7 @@ import types
 import unittest
 
 from tests import harness  # noqa: F401 — sets sys.path for the app modules
-from bridge_core import LocalLifxController          # noqa: E402
+from bridge_core import LocalLifxController, _override_hue_sat  # noqa: E402
 from nanoleaf_controller import NanoleafController, _hex_to_hue_sat  # noqa: E402
 from hue_controller import HueController, _hex_to_rgb  # noqa: E402
 
@@ -77,21 +77,47 @@ class TestSlotsAndModes(unittest.TestCase):
         self.assertEqual(a[0], 0)          # red hue
         self.assertEqual(b[0], 43690)      # blue hue
 
-    def test_per_light_uses_first_stop_as_single_colour(self):
-        ec = {"start_lights": {"mode": "per_light", "per_light": ["#00ff00", "#123456"]}}
-        out = lifx_fx(ec, "start_lights", [0, 65535, 50000, 3500])
-        self.assertEqual(out[0], GREEN_HUE)
-        self.assertEqual(out[2], 50000)    # brightness untouched
+    def test_per_light_mode_leaves_default_for_fx(self):
+        # In per modes _fx keeps the effect default; per-target painting recolours
+        # each light/zone in set_color_all (uncustomized targets = default).
+        ec = {"start_lights": {"mode": "per_light", "per_light": {"Desk": "#00ff00"}}}
+        d = [0, 65535, 50000, 3500]
+        self.assertEqual(lifx_fx(ec, "start_lights", d), d)
+        self.assertEqual(nl_fx(ec, "start_lights", d), d)
 
-    def test_per_zone_uses_first_stop(self):
+    def test_per_zone_mode_leaves_default_for_fx(self):
         ec = {"start_lights": {"mode": "per_zone", "per_zone": ["#0000ff"]}}
-        out = nl_fx(ec, "start_lights", [0, 65535, 65535, 3500])
-        self.assertEqual(out[0], 43690)    # blue
+        d = [0, 65535, 65535, 3500]
+        self.assertEqual(nl_fx(ec, "start_lights", d), d)
 
     def test_hue_rgb_slots(self):
         ec = {"chequered_flag": {"mode": "all", "colors": {"a": "#ffffff", "b": "#0000ff"}}}
         self.assertEqual(hue_fx(ec, "chequered_flag", (255, 255, 255), "a"), (255, 255, 255))
         self.assertEqual(hue_fx(ec, "chequered_flag", (0, 200, 0), "b"), (0, 0, 255))
+
+
+class TestPerTargetOverride(unittest.TestCase):
+    """The per-light/per-zone painter recolours each target via _override_hue_sat:
+    hue+sat from the target's stop, brightness/kelvin from the animation frame."""
+
+    def test_override_replaces_hue_sat_keeps_brightness(self):
+        out = _override_hue_sat([0, 65535, 8000, 3500], "#0000ff")   # dim red frame -> blue
+        self.assertEqual(out[0], 43690)   # blue hue
+        self.assertEqual(out[2], 8000)    # dim brightness preserved (per-target pulse)
+        self.assertEqual(out[3], 3500)
+
+    def test_override_none_or_bad_is_identity(self):
+        frame = [10922, 65535, 65535, 3500]
+        self.assertEqual(_override_hue_sat(frame, None), frame)      # uncustomized target
+        self.assertEqual(_override_hue_sat(frame, "nope"), frame)
+
+    def test_zone_stops_map_by_index(self):
+        # A per-zone strip: zone 0 -> red, zone 1 -> blue; frame brightness kept.
+        stops = ["#ff0000", "#0000ff"]
+        z0 = _override_hue_sat([0, 0, 40000, 4500], stops[0])
+        z1 = _override_hue_sat([0, 0, 40000, 4500], stops[1])
+        self.assertEqual((z0[0], z0[2]), (0, 40000))
+        self.assertEqual((z1[0], z1[2]), (43690, 40000))
 
 
 class TestHexHelpers(unittest.TestCase):

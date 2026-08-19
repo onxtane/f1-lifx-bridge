@@ -669,14 +669,35 @@ class NanoleafController:
             t = min(1.0, (time.monotonic() - self._curve_start) / self._curve_dur)
             b = max(1, min(65535, int(b * self._eval_curve(self._curve_pts, t))))
         b_scaled = self._scale_brightness(b)
+
+        # Per-effect custom colours: per_zone recolours each panel; per_light
+        # recolours the whole device by its label. Hue+sat only; brightness kept.
+        _ec = self.effect_colors.get(self._current_effect_key) or {}
+        _mode = _ec.get("mode", "all")
+        _per_zone = _ec.get("per_zone") if isinstance(_ec.get("per_zone"), list) else []
+        _per_light = _ec.get("per_light") if isinstance(_ec.get("per_light"), dict) else {}
+        if _mode == "per_light" and self.label in _per_light:
+            hs = _hex_to_hue_sat(_per_light.get(self.label))
+            if hs:
+                h, s = hs
+
+        def _panel_hs(idx):
+            if _mode == "per_zone" and _per_zone:
+                hx = _per_zone[idx] if idx < len(_per_zone) else _per_zone[-1]
+                return _hex_to_hue_sat(hx) or (h, s)
+            return (h, s)
+
         try:
             if self._panel_ids:
-                r, g, bl = _hsbk_to_rgb(h, s, b_scaled)
                 n = len(self._panel_ids)
                 # animType "custom" with numFrames=1: "<numPanels> <panelId> 1 <R> <G> <B> <W> <transTime> ..."
-                anim_data = f"{n} " + " ".join(
-                    f"{pid} 1 {r} {g} {bl} 0 1" for pid in self._panel_ids
-                )
+                _parts = []
+                for _idx, pid in enumerate(self._panel_ids):
+                    _ph, _ps = _panel_hs(_idx)
+                    _pr, _pg, _pbl = _hsbk_to_rgb(_ph, _ps, b_scaled)
+                    _parts.append(f"{pid} 1 {_pr} {_pg} {_pbl} 0 1")
+                r, g, bl = _hsbk_to_rgb(h, s, b_scaled)   # for the /state fallback below
+                anim_data = f"{n} " + " ".join(_parts)
                 url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
                 resp = _requests.put(url, json={
                     "write": {
@@ -726,16 +747,15 @@ class NanoleafController:
         ec = self.effect_colors.get(key)
         if not ec:
             return default_hsbk
-        hex_ = (ec.get("colors") or {}).get(slot)
-        if not hex_ and slot == "main":
-            arr = ec.get("per_zone") or ec.get("per_light") or []
-            hex_ = arr[0] if arr else None
-        hs = _hex_to_hue_sat(hex_) if hex_ else None
-        if not hs:
+        if ec.get("mode", "all") == "all":
+            hs = _hex_to_hue_sat((ec.get("colors") or {}).get(slot))
+            if hs:
+                out = list(default_hsbk)
+                out[0], out[1] = hs
+                return out
             return default_hsbk
-        out = list(default_hsbk)
-        out[0], out[1] = hs
-        return out
+        # per_light / per_zone: default here; set_color_all() paints per panel/label.
+        return default_hsbk
 
     def neutral(self):
         if not self._is_assigned("neutral"):

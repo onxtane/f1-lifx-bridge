@@ -251,6 +251,19 @@ def hex_to_hsv(hex_color):
     return int(h * 65535), int(s * 65535), max_c
 
 
+def _override_hue_sat(default_hsbk, hex_):
+    """Return default_hsbk with hue+saturation replaced from `hex_`, keeping the
+    effect's own brightness and kelvin. Falls back to default on a bad/blank hex."""
+    if not hex_:
+        return default_hsbk
+    hsv = hex_to_hsv(hex_)
+    if not hsv:
+        return default_hsbk
+    out = list(default_hsbk)
+    out[0], out[1] = hsv[0], hsv[1]
+    return out
+
+
 def parse_rpm_gradient(stops):
     """Hex stops -> [(hue, sat, value)], falling back to the default ramp.
 
@@ -767,18 +780,11 @@ class LocalLifxController:
         ec = self.effect_colors.get(key)
         if not ec:
             return default_hsbk
-        hex_ = (ec.get("colors") or {}).get(slot)
-        if not hex_ and slot == "main":
-            arr = ec.get("per_zone") or ec.get("per_light") or []
-            hex_ = arr[0] if arr else None
-        if not hex_:
-            return default_hsbk
-        hsv = hex_to_hsv(hex_)
-        if not hsv:
-            return default_hsbk
-        out = list(default_hsbk)
-        out[0], out[1] = hsv[0], hsv[1]   # hue + sat from the custom colour
-        return out
+        if ec.get("mode", "all") == "all":
+            return _override_hue_sat(default_hsbk, (ec.get("colors") or {}).get(slot))
+        # per_light / per_zone: keep the default here (uncustomized fallback);
+        # set_color_all() recolours each light/zone from its own stop.
+        return default_hsbk
 
     def _scale_brightness(self, b: int) -> int:
         """Scale a brightness value into [brightness_min, brightness_max].
@@ -879,14 +885,32 @@ class LocalLifxController:
                 lights = [l for l in lights if not isinstance(l, MultiZoneLight)]
         _dbg = self.debug_timing
 
+        # Per-effect custom colours: distribute across zones (per_zone, ordered) or
+        # bulbs (per_light, keyed by label). Only hue+sat are overridden — the
+        # brightness computed above (curves + range) still drives the animation.
+        _ec = self.effect_colors.get(self._current_effect_key) or {}
+        _mode = _ec.get("mode", "all")
+        _per_light = _ec.get("per_light") if isinstance(_ec.get("per_light"), dict) else {}
+        _per_zone = _ec.get("per_zone") if isinstance(_ec.get("per_zone"), list) else []
+        _do_pl = _mode == "per_light" and bool(_per_light)
+        _do_pz = _mode == "per_zone" and bool(_per_zone)
+
         def _send(light):
             label = self.safe_label(light)
             t0 = time.perf_counter() if _dbg else None
             try:
                 if isinstance(light, MultiZoneLight):
-                    light.set_zone_color(0, 255, scaled, duration_ms, rapid=True)
+                    zc = self.get_zone_count(light) or 0
+                    if _do_pz and zc > 0:
+                        for z in range(zc):
+                            hx = _per_zone[z] if z < len(_per_zone) else _per_zone[-1]
+                            light.set_zone_color(z, z + 1, _override_hue_sat(scaled, hx), duration_ms, rapid=True)
+                    else:
+                        hx = _per_light.get(label) if _do_pl else None
+                        light.set_zone_color(0, 255, _override_hue_sat(scaled, hx), duration_ms, rapid=True)
                 else:
-                    light.set_color(scaled, duration_ms, rapid=True)
+                    hx = _per_light.get(label) if _do_pl else (_per_zone[0] if _do_pz else None)
+                    light.set_color(_override_hue_sat(scaled, hx), duration_ms, rapid=True)
             except Exception as exc:
                 msg = f"[LIFX ERROR] {label}: {exc}"
                 print(msg)

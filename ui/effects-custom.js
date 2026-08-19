@@ -75,7 +75,8 @@
     const c = colors[key];
     if (['all', 'per_light', 'per_zone'].indexOf(c.mode) < 0) c.mode = 'all';
     if (!c.colors || typeof c.colors !== 'object') c.colors = Object.assign({}, EFFECT_META[key].def);
-    if (!Array.isArray(c.per_light)) c.per_light = [];
+    // per_light is a {label: hex} map; per_zone is an ordered [hex] array.
+    if (!c.per_light || typeof c.per_light !== 'object' || Array.isArray(c.per_light)) c.per_light = {};
     if (!Array.isArray(c.per_zone)) c.per_zone = [];
     return c;
   }
@@ -83,8 +84,11 @@
   function effMode(key) { const m = cfg(key).mode; return (m === 'per_zone' && !hasMultizone) ? 'all' : m; }
   function isZone(key) { return effMode(key) === 'per_zone'; }
   function isPer(key) { const m = effMode(key); return m === 'per_light' || m === 'per_zone'; }
-  function sectionArr(key) { return cfg(key)[isZone(key) ? 'per_zone' : 'per_light']; }
   function sectionCount(key) { return isZone(key) ? Math.max(1, Math.min(30, zones)) : Math.max(1, Math.min(20, lightCount)); }
+  // Per-zone colours are index-keyed (zones are ordered); per-light colours are
+  // keyed by light LABEL so they map to the right bulb regardless of order.
+  function secGet(key, i) { const c = cfg(key); return isZone(key) ? c.per_zone[i] : c.per_light[lightName(i)]; }
+  function secSet(key, i, hex) { const c = cfg(key); if (isZone(key)) c.per_zone[i] = hex; else c.per_light[lightName(i)] = hex; }
 
   function primaryHex(key) {
     const meta = EFFECT_META[key];
@@ -228,10 +232,10 @@
 
   function renderSections() {
     const el = document.getElementById('ecSections'); if (!el) return;
-    const arr = sectionArr(selectedKey), n = sectionCount(selectedKey), zoned = isZone(selectedKey);
+    const n = sectionCount(selectedKey), zoned = isZone(selectedKey);
     let html = '';
     for (let i = 0; i < n; i++) {
-      const col = arr[i] || primaryHex(selectedKey);
+      const col = secGet(selectedKey, i) || primaryHex(selectedKey);
       if (zoned) html += '<button class="ec-zone' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '"><span class="ec-zone-n">' + (i + 1) + '</span></button>';
       else html += '<button class="ec-dot' + (i === selectedSection ? ' sel' : '') + '" data-i="' + i + '" style="--c:' + esc(col) + '" title="' + esc(lightName(i)) + '"></button>';
     }
@@ -240,11 +244,10 @@
   function mountPerPicker() {
     const m = document.getElementById('ecPerMount'); if (!m) return; m.innerHTML = '';
     const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = isZone(selectedKey) ? ('Zone ' + (selectedSection + 1)) : lightName(selectedSection);
-    const arr = sectionArr(selectedKey);
     window.createColorPicker({
-      mount: m, align: 'left', value: arr[selectedSection] || primaryHex(selectedKey),
-      onInput: hex => { arr[selectedSection] = hex; const d = document.querySelector('#ecSections [data-i="' + selectedSection + '"]'); if (d) d.style.setProperty('--c', hex); },
-      onChange: hex => { arr[selectedSection] = hex; persist(); },
+      mount: m, align: 'left', value: secGet(selectedKey, selectedSection) || primaryHex(selectedKey),
+      onInput: hex => { secSet(selectedKey, selectedSection, hex); const d = document.querySelector('#ecSections [data-i="' + selectedSection + '"]'); if (d) d.style.setProperty('--c', hex); },
+      onChange: hex => { secSet(selectedKey, selectedSection, hex); persist(); },
     });
   }
 
@@ -258,10 +261,9 @@
     const cells = [];
     for (let i = 0; i < n; i++) { const d = document.createElement('div'); d.className = 'ec-cell'; stage.appendChild(d); cells.push(d); }
     const OFF = '#151b2b';
-    const arr = sectionArr(selectedKey);
     function colAt(i) {
       if (meta.idleLink || meta.rpm || !meta.slots.length) return primaryHex(selectedKey);
-      if (isPer(selectedKey)) return arr[i] || primaryHex(selectedKey);
+      if (isPer(selectedKey)) return secGet(selectedKey, i) || primaryHex(selectedKey);
       const s = meta.slots[0];
       return c.colors[s.key] || meta.def[s.key] || primaryHex(selectedKey);
     }
