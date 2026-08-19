@@ -460,6 +460,8 @@ class Api:
             gs["rpm_gradient"] = theme["rpm_gradient"]
         if isinstance(theme.get("curves"), dict):
             gs["curves"] = theme["curves"]
+        if isinstance(theme.get("effect_colors"), dict):
+            gs["effect_colors"] = theme["effect_colors"]
         return gs
 
     # ---- Community Workshop (write path — all require a Supabase login) ----
@@ -534,6 +536,13 @@ class Api:
         "red_flag", "yellow_flag", "blue_flag", "black_flag", "chequered_flag",
     })
 
+    # Effects that carry custom colours (Effect Customization). neutral = Idle
+    # Color and rpm_meter = gradient are shared through their own theme fields.
+    _EFFECT_COLOR_KEYS = frozenset({
+        "start_lights", "lights_out", "yellow_flag", "blue_flag", "red_flag",
+        "fastest_lap", "chequered_flag", "white_warning", "crash",
+    })
+
     @classmethod
     def _gui_settings_to_theme(cls, gs: dict) -> dict:
         """Map the app's flat gui_settings keys → the backend `theme` shape (the inverse
@@ -573,7 +582,42 @@ class Api:
                 theme["rpm_gradient"] = stops
         if isinstance(gs.get("curves"), dict):
             theme["curves"] = gs["curves"]
+        ec = cls._sanitize_effect_colors(gs.get("effect_colors"))
+        if ec:
+            theme["effect_colors"] = ec
         return theme
+
+    @classmethod
+    def _sanitize_effect_colors(cls, ec) -> dict:
+        """Device-agnostic effect colours for sharing: keep the Sync-All colours and
+        per-zone stops (both portable) and drop per-light — it's keyed by the user's
+        own light labels, which are device-specific and rejected by the validator.
+        A per-light effect collapses to its Sync-All colour."""
+        out: dict = {}
+        if not isinstance(ec, dict):
+            return out
+        for key, conf in ec.items():
+            if key not in cls._EFFECT_COLOR_KEYS or not isinstance(conf, dict):
+                continue
+            entry: dict = {}
+            colors = {}
+            for slot, hx in (conf.get("colors") or {}).items():
+                nh = cls._norm_hex(hx)
+                if nh and isinstance(slot, str) and slot in ("main", "a", "b"):
+                    colors[slot] = nh
+            if colors:
+                entry["colors"] = colors
+            pz = conf.get("per_zone")
+            if isinstance(pz, list):
+                stops = [cls._norm_hex(c) for c in pz]
+                stops = [c for c in stops if c][:96]
+                if stops:
+                    entry["per_zone"] = stops
+            if not (entry.get("colors") or entry.get("per_zone")):
+                continue
+            entry["mode"] = "per_zone" if (conf.get("mode") == "per_zone" and entry.get("per_zone")) else "all"
+            out[key] = entry
+        return out
 
     @staticmethod
     def _norm_hex(v) -> "str | None":
