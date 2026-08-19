@@ -48,6 +48,10 @@
 
 #effectCustomRoot .ec-colors-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 12px; }
 #effectCustomRoot .ec-colors-title .ec-sub { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-muted); opacity: .8; margin-left: 8px; }
+#effectCustomRoot .ec-zsteps { float: right; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
+#effectCustomRoot .ec-zsteps b { color: var(--text-main); min-width: 18px; text-align: center; display: inline-block; }
+#effectCustomRoot .ec-zbtn { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(var(--surface-rgb),0.06); color: var(--text-main); font-size: 15px; line-height: 1; cursor: pointer; padding: 0; }
+#effectCustomRoot .ec-zbtn:hover { background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.4); }
 #effectCustomRoot .ec-slot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 #effectCustomRoot .ec-slot-label { font-size: 13px; color: var(--text-soft, var(--text-main)); }
 #effectCustomRoot .ec-empty { font-size: 13px; color: var(--text-muted); }

@@ -920,10 +920,14 @@ class LocalLifxController:
             try:
                 if isinstance(light, MultiZoneLight):
                     zc = self.get_zone_count(light) or 0
-                    if _do_pz and zc > 0:
-                        for z in range(zc):
-                            hx = _per_zone[z] if z < len(_per_zone) else _per_zone[-1]
-                            light.set_zone_color(z, z + 1, _override_hue_sat(scaled, hx), duration_ms, rapid=True)
+                    if _do_pz and zc > 0 and _per_zone:
+                        # Spread the logical zone colours evenly across the strip's
+                        # physical zones — one contiguous range painted per colour.
+                        ng = len(_per_zone)
+                        for g in range(ng):
+                            lo, hi = (g * zc) // ng, ((g + 1) * zc) // ng - 1
+                            if hi >= lo:
+                                light.set_zone_color(lo, hi, _override_hue_sat(scaled, _per_zone[g]), duration_ms, rapid=True)
                     else:
                         hx = _per_light.get(label) if _do_pl else None
                         light.set_zone_color(0, 255, _override_hue_sat(scaled, hx), duration_ms, rapid=True)
@@ -1033,7 +1037,7 @@ class LocalLifxController:
                             for z in range(zone_count):
                                 is_lit = (z < lit) if ltr else (z >= zone_count - lit)
                                 if is_lit:
-                                    hx = _pz[z] if z < len(_pz) else _pz[-1]
+                                    hx = _pz[(z * len(_pz)) // zone_count]   # logical colour for this physical zone
                                     light.set_zone_color(z, z, _override_hue_sat(red_s, hx), 40, rapid=True)
                                 else:
                                     light.set_zone_color(z, z, dark_s, 40, rapid=True)

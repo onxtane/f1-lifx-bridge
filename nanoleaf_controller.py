@@ -681,9 +681,11 @@ class NanoleafController:
             if hs:
                 h, s = hs
 
+        _ptotal = len(self._panel_ids or [])
         def _panel_hs(idx):
-            if _mode == "per_zone" and _per_zone:
-                hx = _per_zone[idx] if idx < len(_per_zone) else _per_zone[-1]
+            # Spread the logical zone colours across the panels.
+            if _mode == "per_zone" and _per_zone and _ptotal:
+                hx = _per_zone[(idx * len(_per_zone)) // _ptotal]
                 return _hex_to_hue_sat(hx) or (h, s)
             return (h, s)
 

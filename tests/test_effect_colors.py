@@ -144,6 +144,19 @@ class TestStartLightsPerZoneSweep(unittest.TestCase):
         self.assertEqual(hue_at.get(2), 43690)   # blue
         self.assertEqual(sat_at.get(3), 0)       # white -> desaturated
 
+    def test_logical_zones_spread_across_physical_zones(self):
+        # 2 logical colours on an 8-zone strip -> two contiguous ranges (0-3, 4-7).
+        from tests.test_rpm_meter_paint import _FakeStrip, _controller
+        strip = _FakeStrip("Strip", zones=8)
+        ctrl = _controller([strip])
+        ctrl._current_effect_key = "yellow_flag"
+        ctrl.effect_colors = {"yellow_flag": {"mode": "per_zone", "per_zone": ["#ff0000", "#0000ff"]}}
+        ctrl.set_color_all([10922, 65535, 65535, 3500], duration_ms=40)
+        starts = [p[0] for p in strip.paints]
+        hues = [p[1][0] for p in strip.paints]
+        self.assertEqual(starts, [0, 4])          # two ranges, split evenly
+        self.assertEqual(hues, [0, 43690])        # red then blue
+
     def test_default_sweep_unchanged_without_custom_colours(self):
         ctrl, strip = self._ctrl_and_strip(4)
         ctrl.start_lights(5)

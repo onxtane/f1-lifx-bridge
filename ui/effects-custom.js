@@ -49,7 +49,8 @@
   let colors = {};
   let lightCount = 5;
   let lightNames = [];      // discovered bulb labels, for the per-light view + identify
-  let zones = 16;
+  let zones = 16;           // device's physical addressable-zone count
+  let zoneGroups = 0;       // user-chosen number of logical zones (0 = auto)
   let hasMultizone = false;
   let selectedKey = null;
   let selectedSet = new Set([0]);   // selected zone/light indices (multi-select)
@@ -97,13 +98,24 @@
   function effMode(key) { const m = cfg(key).mode; return (m === 'per_zone' && !hasMultizone) ? 'all' : m; }
   function isZone(key) { return effMode(key) === 'per_zone'; }
   function isPer(key) { const m = effMode(key); return m === 'per_light' || m === 'per_zone'; }
-  // Zones reflect the device's real addressable-zone count (LIFX strips expose one
-  // per LED segment). Cap only guards against an absurd DOM; bulbs cap lower.
-  function sectionCount(key) { return isZone(key) ? Math.max(1, Math.min(96, zones)) : Math.max(1, Math.min(40, lightCount)); }
+  // A strip exposes one addressable zone per LED (often dozens), which is too many
+  // to colour usefully. `zoneGroups` lets the user divide it into N logical zones;
+  // the backend spreads those colours across the physical zones. 0 = auto default.
+  function physZones() { return Math.max(1, Math.min(96, zones)); }
+  function zoneDotCount() { const p = physZones(); return zoneGroups > 0 ? Math.max(1, Math.min(p, zoneGroups)) : (p <= 16 ? p : 8); }
+  function sectionCount(key) { return isZone(key) ? zoneDotCount() : Math.max(1, Math.min(40, lightCount)); }
   // Per-zone colours are index-keyed (zones are ordered); per-light colours are
   // keyed by light LABEL so they map to the right bulb regardless of order.
   function secGet(key, i) { const c = cfg(key); return isZone(key) ? c.per_zone[i] : c.per_light[lightName(i)]; }
   function secSet(key, i, hex) { const c = cfg(key); if (isZone(key)) c.per_zone[i] = hex; else c.per_light[lightName(i)] = hex; }
+  function setZoneGroups(n) {
+    zoneGroups = Math.max(1, Math.min(physZones(), n));
+    callApi('save_gui_settings', { zone_groups: zoneGroups });
+    const total = sectionCount(selectedKey);
+    setSel(selList().filter(function (i) { return i < total; }));
+    if (anchorSection >= total) anchorSection = 0;
+    renderColors();
+  }
 
   function primaryHex(key) {
     const meta = EFFECT_META[key];
@@ -226,7 +238,9 @@
     } else {
       const zoned = isZone(selectedKey), word = zoned ? 'Zone' : 'Light';
       box.insertAdjacentHTML('beforeend',
-        '<div class="ec-colors-title">Per ' + word + ' Colours <span class="ec-sub">Click, shift-click or drag to select · then pick a colour</span></div>'
+        '<div class="ec-colors-title">Per ' + word + ' Colours <span class="ec-sub">Click, shift-click or drag to select · then pick a colour</span>'
+        + (zoned ? '<span class="ec-zsteps" title="Number of zones to divide the strip into">Zones <button class="ec-zbtn" id="ecZMinus" type="button">−</button><b id="ecZn">' + zoneDotCount() + '</b><button class="ec-zbtn" id="ecZPlus" type="button">+</button></span>' : '')
+        + '</div>'
         + (zoned ? '<div class="ec-zonestrip" id="ecSections"></div>' : '<div class="ec-dots" id="ecSections"></div>')
         + '<div class="ec-perpick"><span class="ec-slot-label" id="ecPerLabel"></span><div id="ecPerMount"></div>'
         + '<button class="ec-link" id="ecSelAll">Select all</button>'
@@ -241,6 +255,10 @@
       if (selAll) selAll.addEventListener('click', function () { setSel(rangeSel(0, sectionCount(selectedKey) - 1)); anchorSection = 0; renderSections(); mountPerPicker(); });
       const order = document.getElementById('ecOrder');
       if (order) order.addEventListener('click', function () { toast('Light order lives in Light Assignment (Lights page)'); });
+      const zMinus = document.getElementById('ecZMinus');
+      if (zMinus) zMinus.addEventListener('click', function () { setZoneGroups(zoneDotCount() - 1); });
+      const zPlus = document.getElementById('ecZPlus');
+      if (zPlus) zPlus.addEventListener('click', function () { setZoneGroups(zoneDotCount() + 1); });
 
       const grid = document.getElementById('ecSections');
       const idxAt = e => { const s = e.target.closest('[data-i]'); return s ? +s.dataset.i : null; };
@@ -387,6 +405,7 @@
 
   Promise.resolve(callApi('get_gui_settings')).then(s => {
     if (s && s.effect_colors && typeof s.effect_colors === 'object') colors = s.effect_colors;
+    if (s && s.zone_groups) zoneGroups = Math.max(1, Math.min(96, s.zone_groups));
     // Persisted hint keeps Per-Zone available once a strip has ever been seen.
     if (s && s.multizone_seen) { hasMultizone = true; if (s.multizone_zones) zones = Math.max(1, Math.min(96, s.multizone_zones)); }
   }).catch(() => {}).then(refreshCaps).then(render).catch(render);
