@@ -179,5 +179,33 @@ class SwatchTests(unittest.TestCase):
                 self.assertGreaterEqual(len(rpm_gradient_swatch(None, samples)), 2)
 
 
+class RpmGradientPersistenceTests(unittest.TestCase):
+    """A saved gradient must be seeded into the pending state at construction, so
+    the bridge picks it up when it's built — rather than running the default until
+    the UI re-pushes it (the 'restart shows the stops but tests as default' bug).
+    """
+
+    def _runner_with_saved(self, saved):
+        import bridge_runner
+        orig = bridge_runner.BridgeRunner._read_json
+        bridge_runner.BridgeRunner._read_json = (
+            lambda self, path, default=None:
+                dict(saved) if path == bridge_runner.GUI_SETTINGS_FILE
+                else ({} if default is None else default))
+        try:
+            return bridge_runner.BridgeRunner()
+        finally:
+            bridge_runner.BridgeRunner._read_json = orig
+
+    def test_saved_gradient_seeds_pending(self):
+        stops = ["#112233", "#445566", "#778899"]
+        r = self._runner_with_saved({"rpm_gradient": stops})
+        self.assertEqual(r._pending_rpm_gradient, stops)
+
+    def test_no_saved_gradient_leaves_pending_none(self):
+        r = self._runner_with_saved({})
+        self.assertIsNone(r._pending_rpm_gradient)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -160,6 +160,12 @@ class BridgeRunner:
         self._curves: dict    = _saved.get('curves', {})
         self._effect_colors: dict = _saved.get('effect_colors', {})  # per-effect custom colours
         self._game_mode: str  = _saved.get('last_game', 'f1_25')
+        # Seed the pending RPM gradient from the saved setting so it's applied when
+        # the bridge is built, regardless of whether the UI's set_rpm_gradient push
+        # has landed yet — otherwise the meter runs the default until a stop changes.
+        _saved_grad = _saved.get('rpm_gradient')
+        if isinstance(_saved_grad, list) and _saved_grad:
+            self._pending_rpm_gradient = list(_saved_grad)
 
         self._nanoleaf_settings: dict = load_nanoleaf_settings()
         self._hue_settings: dict = load_hue_settings()
