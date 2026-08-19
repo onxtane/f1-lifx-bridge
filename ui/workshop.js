@@ -442,6 +442,23 @@
     if (empty) empty.classList.toggle('show', items.length===0);
   }
 
+  // Representative colour for an effect, taken from the preset's custom
+  // effect_colors, falling back to the built-in defaults (mirrors the
+  // EFFECT_META.def map in effects-custom.js). Per-zone presets preview their
+  // first zone colour; per-light presets are device-specific so they aren't
+  // shared and fall back to the default here.
+  const FX_DEF = { start_lights:'#ff2828', lights_out:'#22e04a', yellow_flag:'#ffcc00', blue_flag:'#2f6bff', red_flag:'#ff2020', fastest_lap:'#b14bff', chequered_a:'#ffffff', chequered_b:'#22e04a', white_warning:'#ffffff', crash:'#ffffff' };
+  function fxColor(key, slot) {
+    slot = slot || 'main';
+    const ec = currentPreset && currentPreset.theme && currentPreset.theme.effect_colors && currentPreset.theme.effect_colors[key];
+    if (ec) {
+      if (ec.mode === 'per_zone' && Array.isArray(ec.per_zone) && ec.per_zone.length) return ec.per_zone[0];
+      if (ec.colors && ec.colors[slot]) return ec.colors[slot];
+    }
+    return FX_DEF[key === 'chequered_flag' ? 'chequered_' + (slot === 'b' ? 'b' : 'a') : key] || '#8b7cf6';
+  }
+  function hexA(hex, a) { const h = (hex || '').replace('#', ''); if (h.length < 6) return 'rgba(140,124,246,' + a + ')'; const n = parseInt(h, 16); return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
+
   // ---- preview LED loop ----
   function initPreview() {
     const strip = document.getElementById('wsStrip'), flag = document.getElementById('wsFlag'), cap = document.getElementById('wsCap');
@@ -451,20 +468,20 @@
     const colourAt = i => sampleGradient(previewGradient, i/(N-1));
     let phase='start', rpm=0, dir=1, last=0, t0=0, flagIdx=0, running=false, raf=0;
     const FLAG_MS=1300, STEP_MS=650;
-    const flags=[{c:'rgba(109,178,255,.55)',label:'Blue flag · car behind'},{c:'rgba(245,176,46,.55)',label:'Yellow flag · caution'},{c:'rgba(61,220,132,.5)',label:'Green flag · track clear'}];
+    const flags=[{k:'blue_flag',label:'Blue flag · car behind'},{k:'yellow_flag',label:'Yellow flag · caution'},{k:'lights_out',label:'Green flag · track clear'}];
     const clear = () => cells.forEach(c=>{ c.style.background='#1c2438'; c.style.color=''; c.style.height='18px'; c.classList.remove('lit'); });
     const idle = () => { flag.style.opacity=0; clear(); cap.textContent='Idle · press play'; };
     function frame(now) {
       if (!running) return;
       const dt = Math.min(64, now-last); last = now;
       if (phase==='start') { const el=now-t0, HE=5*STEP_MS+750, OE=HE+450;
-        if (el<HE){ const step=Math.min(5,Math.floor(el/STEP_MS)), lit=Math.round(step/5*N); cells.forEach((c,i)=>{const on=i<lit; c.style.color='#ff5d5d'; c.style.background=on?'#ff3b3b':'#1c2438'; c.style.height=on?'28px':'18px'; c.classList.toggle('lit',on);}); cap.textContent=step<5?'Start lights · '+step+'/5':'Lights set…'; }
+        if (el<HE){ const step=Math.min(5,Math.floor(el/STEP_MS)), lit=Math.round(step/5*N), sc=fxColor('start_lights'); cells.forEach((c,i)=>{const on=i<lit; c.style.color=sc; c.style.background=on?sc:'#1c2438'; c.style.height=on?'28px':'18px'; c.classList.toggle('lit',on);}); cap.textContent=step<5?'Start lights · '+step+'/5':'Lights set…'; }
         else if (el<OE){ clear(); cap.textContent='Lights out — GO!'; } else { phase='rev'; rpm=0; dir=1; t0=now; } }
       else if (phase==='rev') { rpm+=dir*dt/1400; if(rpm>=1){rpm=1;phase='shift';t0=now;} const lit=Math.round(rpm*N); cells.forEach((c,i)=>{const on=i<lit,col=colourAt(i); c.style.color=col; c.style.background=on?col:'#1c2438'; c.style.height=on?(22+(i/(N-1))*10)+'px':'18px'; c.classList.toggle('lit',on);}); cap.textContent=rpm>0.8?'RPM · redline':rpm>0.5?'RPM · building':'RPM · on throttle'; }
-      else if (phase==='shift') { const on=(Math.floor(now/70)%2)===0; cells.forEach(c=>{const col=on?'#c4b5fd':'#ff5d5d'; c.style.color=col; c.style.background=col; c.style.height='30px'; c.classList.add('lit');}); cap.textContent='Shift ▲'; if(now-t0>520){phase='fall';t0=now;} }
+      else if (phase==='shift') { const on=(Math.floor(now/70)%2)===0, redline=previewGradient[previewGradient.length-1]||'#ff5d5d'; cells.forEach(c=>{const col=on?'#ffffff':redline; c.style.color=col; c.style.background=col; c.style.height='30px'; c.classList.add('lit');}); cap.textContent='Shift ▲'; if(now-t0>520){phase='fall';t0=now;} }
       else if (phase==='fall') { rpm-=dt/500; if(rpm<=0){rpm=0;phase='fastest';t0=now;} const lit=Math.round(Math.max(0,rpm)*N); cells.forEach((c,i)=>{const on=i<lit,col=colourAt(i); c.style.color=col; c.style.background=on?col:'#1c2438'; c.style.height=on?'24px':'18px'; c.classList.toggle('lit',on);}); cap.textContent='Lift · coasting'; }
-      else if (phase==='fastest') { const el=now-t0,on=(Math.floor(el/165)%2)===0; cells.forEach(c=>{c.style.color='#c4b5fd'; c.style.background=on?'#a855f7':'#1c2438'; c.style.height=on?'30px':'18px'; c.classList.toggle('lit',on);}); cap.textContent='Fastest lap ⏱'; if(el>1350){phase='flags';flagIdx=0;t0=now;} }
-      else if (phase==='flags') { const el=now-t0,fk=flags[flagIdx],pulse=(Math.floor(el/180)%2)===0; flag.style.background=fk.c; flag.style.opacity=pulse?0.9:0.28; clear(); cap.textContent=fk.label; if(el>FLAG_MS){flagIdx++;t0=now; if(flagIdx>=flags.length){flag.style.opacity=0;phase='start';}} }
+      else if (phase==='fastest') { const el=now-t0,on=(Math.floor(el/165)%2)===0,fc=fxColor('fastest_lap'); cells.forEach(c=>{c.style.color=fc; c.style.background=on?fc:'#1c2438'; c.style.height=on?'30px':'18px'; c.classList.toggle('lit',on);}); cap.textContent='Fastest lap ⏱'; if(el>1350){phase='flags';flagIdx=0;t0=now;} }
+      else if (phase==='flags') { const el=now-t0,fk=flags[flagIdx],pulse=(Math.floor(el/180)%2)===0; flag.style.background=hexA(fxColor(fk.k),0.55); flag.style.opacity=pulse?0.9:0.28; clear(); cap.textContent=fk.label; if(el>FLAG_MS){flagIdx++;t0=now; if(flagIdx>=flags.length){flag.style.opacity=0;phase='start';}} }
       raf = requestAnimationFrame(frame);
     }
     const btn = document.getElementById('wsPlay'), lbl = document.getElementById('wsPlayLbl');
