@@ -372,6 +372,11 @@ class LocalLifxController:
         # Intensity curves: {label: {points: [[t,v],...], duration_ms: int}}
         # Applied as a brightness multiplier in set_color_all during effects.
         self.curves: dict = {}
+
+        # Per-effect custom colours (Effect Customization). Shape per key:
+        #   {mode, colors:{slot:hex}, per_light:[hex...], per_zone:[hex...]}.
+        # _fx() recolours an effect's default HSBK from this, keeping brightness.
+        self.effect_colors: dict = {}
         self._curve_pts: list | None = None
         self._curve_start: float | None = None
         self._curve_dur: float = 2.0  # seconds
@@ -749,6 +754,32 @@ class LocalLifxController:
         """Return cached zone count for a light, 0 if not multizone."""
         return self._zone_counts.get(getattr(light, 'mac_addr', None), 0)
 
+    def _fx(self, key, default_hsbk, slot="main"):
+        """Recolour an effect's default HSBK with the user's custom colour for
+        (effect key, slot) — overriding hue+saturation only, so the effect keeps
+        its own brightness dynamics and kelvin. Returns default_hsbk unchanged
+        when the effect isn't customized.
+
+        Phase 2a resolves a single colour per effect: the Sync-All colour, or the
+        first per-light/per-zone stop as a stand-in (true per-device painting is a
+        later pass). A bad/blank hex always falls back to the default.
+        """
+        ec = self.effect_colors.get(key)
+        if not ec:
+            return default_hsbk
+        hex_ = (ec.get("colors") or {}).get(slot)
+        if not hex_ and slot == "main":
+            arr = ec.get("per_zone") or ec.get("per_light") or []
+            hex_ = arr[0] if arr else None
+        if not hex_:
+            return default_hsbk
+        hsv = hex_to_hsv(hex_)
+        if not hsv:
+            return default_hsbk
+        out = list(default_hsbk)
+        out[0], out[1] = hsv[0], hsv[1]   # hue + sat from the custom colour
+        return out
+
     def _scale_brightness(self, b: int) -> int:
         """Scale a brightness value into [brightness_min, brightness_max].
         Values ≤ 500 are treated as intentional dark/off frames and left alone."""
@@ -904,7 +935,7 @@ class LocalLifxController:
         thread.start()
 
     def yellow_flash_loop(self):
-        yellow = [10922, 65535, 65535, 3500]
+        yellow = self._fx('yellow_flag', [10922, 65535, 65535, 3500])
         dark = [0, 0, 1, 3500]
 
         while self.is_effect_active("yellow_flash"):
@@ -924,7 +955,7 @@ class LocalLifxController:
         num_lights = max(0, min(5, num_lights))
 
         brightness_by_count = {0: 8000, 1: 16000, 2: 26000, 3: 38000, 4: 50000, 5: 65535}
-        red  = [0, 65535, brightness_by_count[num_lights], 3500]
+        red  = self._fx('start_lights', [0, 65535, brightness_by_count[num_lights], 3500])
         dark = [0, 0, 100, 3500]
 
         print(f"[START LIGHTS] {num_lights}/5")
@@ -1199,7 +1230,7 @@ class LocalLifxController:
         self._activate_curve('lights_out')
         print("[LIGHTS OUT]")
 
-        green = [21845, 65535, 65535, 3500]
+        green = self._fx('lights_out', [21845, 65535, 65535, 3500])
         dark = [0, 0, 1, 3500]
         white = [0, 0, 50000, 4500]
 
@@ -1260,8 +1291,8 @@ class LocalLifxController:
         threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
 
     def _blue_pulse_loop(self):
-        bright = [43690, 65535, 65535, 3500]
-        dim    = [43690, 65535, 8000,  3500]
+        bright = self._fx('blue_flag', [43690, 65535, 65535, 3500])
+        dim    = self._fx('blue_flag', [43690, 65535, 8000,  3500])
         while self.is_effect_active("blue_pulse"):
             self.set_color_all(bright, duration_ms=600, stagger=False)
             for _ in range(7):
@@ -1283,8 +1314,8 @@ class LocalLifxController:
         threading.Thread(target=self._red_pulse_loop, daemon=True).start()
 
     def _red_pulse_loop(self):
-        bright = [0, 65535, 65535, 3500]
-        dim    = [0, 65535, 8000,  3500]
+        bright = self._fx('red_flag', [0, 65535, 65535, 3500])
+        dim    = self._fx('red_flag', [0, 65535, 8000,  3500])
         while self.is_effect_active("red_pulse"):
             self.set_color_all(bright, duration_ms=600, stagger=False)
             for _ in range(7):
@@ -1315,7 +1346,7 @@ class LocalLifxController:
         # Not a severity prefix: this is the white-flag effect firing, and the UI
         # raises a banner for any [WARNING] line that reaches the log.
         print("[EFFECT] White flashing")
-        white = [0, 0, 65535, 4500]
+        white = self._fx('white_warning', [0, 0, 65535, 4500])
         dark = [0, 0, 1, 3500]
         self.flash_colors([white, dark], loops=3, hold_ms=250)
         self._deactivate_curve()
@@ -1326,7 +1357,7 @@ class LocalLifxController:
         self._current_effect_key = 'crash'
         print("[EVENT] Crash impact flash")
         # Single sharp white burst — distinct from white_warning's 3-pulse pattern
-        white = [0, 0, 65535, 5500]
+        white = self._fx('crash', [0, 0, 65535, 5500])
         dark  = [0, 0, 0, 3500]
         self.flash_colors([white, dark], loops=1, hold_ms=120)
         self.neutral()
@@ -1337,7 +1368,7 @@ class LocalLifxController:
         print("[EVENT] Fastest lap - purple flash")
         _dbg = self.debug_timing
         t0 = time.perf_counter() if _dbg else None
-        purple = [54613, 65535, 65535, 3500]
+        purple = self._fx('fastest_lap', [54613, 65535, 65535, 3500])
         dark = [0, 0, 1, 3500]
         self.flash_colors([purple, dark], loops=3, hold_ms=200)
         if _dbg:
@@ -1352,8 +1383,8 @@ class LocalLifxController:
         print("[FLAG] Chequered")
         _dbg = self.debug_timing
         t0 = time.perf_counter() if _dbg else None
-        white = [0, 0, 65535, 4500]
-        green = [21845, 65535, 65535, 3500]
+        white = self._fx('chequered_flag', [0, 0, 65535, 4500], 'a')
+        green = self._fx('chequered_flag', [21845, 65535, 65535, 3500], 'b')
         self.flash_colors([white, green], loops=5, hold_ms=300)
         if _dbg:
             print(f"[DBG] chequered_flag flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)

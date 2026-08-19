@@ -62,6 +62,21 @@ def _hsbk_to_rgb(h: int, s: int, b: int) -> tuple[int, int, int]:
     )
 
 
+def _hex_to_rgb(hex_color) -> "tuple[int, int, int] | None":
+    """'#rrggbb' / '#rgb' -> (r, g, b) 0-255, or None if unusable."""
+    if not isinstance(hex_color, str):
+        return None
+    t = hex_color.strip().lstrip('#')
+    if len(t) == 3:
+        t = ''.join(c * 2 for c in t)
+    if len(t) != 6:
+        return None
+    try:
+        return int(t[0:2], 16), int(t[2:4], 16), int(t[4:6], 16)
+    except ValueError:
+        return None
+
+
 def _rgb_to_xy(r: int, g: int, b: int) -> tuple[float, float]:
     """Convert sRGB (0-255) to CIE 1931 xy for Hue CLIP v2."""
     r_f = r / 255.0
@@ -191,6 +206,10 @@ class HueController:
         self._active_effect: str | None = None
         self._current_effect_key: str | None = None
         self._connected = False
+
+        # Per-effect custom colours (Effect Customization). _fx_rgb() maps an
+        # effect's default RGB to the user's colour, keeping brightness behaviour.
+        self.effect_colors: dict = {}
 
         # Cache of discovered lights: [{id, name, type, is_gradient}, ...]
         self._lights_cache: list[dict] = []
@@ -415,6 +434,18 @@ class HueController:
 
     # ── Effects ──────────────────────────────────────────────────────────────
 
+    def _fx_rgb(self, key, default_rgb, slot="main"):
+        """The user's custom RGB for (effect key, slot), or default_rgb when the
+        effect isn't customized. Phase 2a resolves a single colour per effect."""
+        ec = self.effect_colors.get(key)
+        if not ec:
+            return default_rgb
+        hex_ = (ec.get("colors") or {}).get(slot)
+        if not hex_ and slot == "main":
+            arr = ec.get("per_zone") or ec.get("per_light") or []
+            hex_ = arr[0] if arr else None
+        return _hex_to_rgb(hex_) or default_rgb if hex_ else default_rgb
+
     def neutral(self):
         self.clear_active_effect()
         self._current_effect_key = "neutral"
@@ -448,8 +479,9 @@ class HueController:
         threading.Thread(target=self._yellow_flash_loop, daemon=True).start()
 
     def _yellow_flash_loop(self):
+        yr, yg, yb = self._fx_rgb('yellow_flag', (255, 180, 0))
         while self.is_effect_active("yellow_flash"):
-            self.set_color(255, 180, 0, brightness_pct=100)
+            self.set_color(yr, yg, yb, brightness_pct=100)
             time.sleep(0.45)
             if not self.is_effect_active("yellow_flash"):
                 break
@@ -463,13 +495,14 @@ class HueController:
         threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
 
     def _blue_pulse_loop(self):
+        br, bg, bb = self._fx_rgb('blue_flag', (0, 100, 255))
         while self.is_effect_active("blue_pulse"):
-            self.set_color(0, 100, 255, brightness_pct=100)
+            self.set_color(br, bg, bb, brightness_pct=100)
             for _ in range(7):
                 if not self.is_effect_active("blue_pulse"):
                     return
                 time.sleep(0.1)
-            self.set_color(0, 100, 255, brightness_pct=20)
+            self.set_color(br, bg, bb, brightness_pct=20)
             for _ in range(7):
                 if not self.is_effect_active("blue_pulse"):
                     return
@@ -482,13 +515,14 @@ class HueController:
         threading.Thread(target=self._red_pulse_loop, daemon=True).start()
 
     def _red_pulse_loop(self):
+        rr, rg, rb = self._fx_rgb('red_flag', (255, 0, 0))
         while self.is_effect_active("red_pulse"):
-            self.set_color(255, 0, 0, brightness_pct=100)
+            self.set_color(rr, rg, rb, brightness_pct=100)
             for _ in range(7):
                 if not self.is_effect_active("red_pulse"):
                     return
                 time.sleep(0.1)
-            self.set_color(255, 0, 0, brightness_pct=15)
+            self.set_color(rr, rg, rb, brightness_pct=15)
             for _ in range(7):
                 if not self.is_effect_active("red_pulse"):
                     return
@@ -497,16 +531,18 @@ class HueController:
     def white_warning(self):
         self.clear_active_effect()
         self._current_effect_key = "white_warning"
+        wr, wg, wb = self._fx_rgb('white_warning', (255, 255, 255))
         self.flash_colors([
-            (255, 255, 255, 100),
+            (wr, wg, wb, 100),
             (0, 0, 0, 1),
         ], loops=3, hold_ms=250)
         self.neutral()
 
     def fastest_lap(self):
         self._current_effect_key = "fastest_lap"
+        pr, pg, pb = self._fx_rgb('fastest_lap', (180, 0, 255))
         self.flash_colors([
-            (180, 0, 255, 100),
+            (pr, pg, pb, 100),
             (0, 0, 0, 1),
         ], loops=3, hold_ms=200)
         self.neutral()
@@ -514,15 +550,18 @@ class HueController:
     def chequered_flag(self):
         self.clear_active_effect()
         self._current_effect_key = "chequered_flag"
+        ar, ag, ab = self._fx_rgb('chequered_flag', (255, 255, 255), 'a')
+        br, bg, bb = self._fx_rgb('chequered_flag', (0, 200, 0), 'b')
         self.flash_colors([
-            (255, 255, 255, 100),
-            (0, 200, 0, 100),
+            (ar, ag, ab, 100),
+            (br, bg, bb, 100),
         ], loops=5, hold_ms=300)
         self.neutral()
 
     def _flash_gradient_strips_green(self, bri: int):
-        """Send a full-green gradient to all gradient strips in selected_lights."""
-        gx, gy = _rgb_to_xy(0, 255, 0)
+        """Send a full lights-out-colour gradient to all gradient strips."""
+        r, g, b = self._fx_rgb('lights_out', (0, 255, 0))
+        gx, gy = _rgb_to_xy(r, g, b)
         pts = [{"color": {"xy": {"x": gx, "y": gy}}} for _ in range(7)]
         for lid in self._get_gradient_strip_ids():
             self._put_gradient(lid, pts, bri, duration_ms=0)
@@ -532,8 +571,9 @@ class HueController:
         self._current_effect_key = "lights_out"
         # Green flash — gradient strips get a full-green gradient to immediately
         # replace the start-lights red pattern; regular bulbs use set_color.
+        gr, gg, gb = self._fx_rgb('lights_out', (0, 255, 0))
         self._flash_gradient_strips_green(self._scale_brightness(100))
-        self._snap_and_wait(0, 255, 0, 100, 200)   # also covers regular bulbs
+        self._snap_and_wait(gr, gg, gb, 100, 200)   # also covers regular bulbs
         self._snap_and_wait(0, 0, 0, 1, 150)
         self._flash_gradient_strips_green(self._scale_brightness(100))
         self._snap_and_wait(0, 255, 0, 100, 350)

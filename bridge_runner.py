@@ -158,6 +158,7 @@ class BridgeRunner:
         # Load persisted settings so they survive restarts.
         _saved = self._read_json(GUI_SETTINGS_FILE, {})
         self._curves: dict    = _saved.get('curves', {})
+        self._effect_colors: dict = _saved.get('effect_colors', {})  # per-effect custom colours
         self._game_mode: str  = _saved.get('last_game', 'f1_25')
 
         self._nanoleaf_settings: dict = load_nanoleaf_settings()
@@ -322,6 +323,8 @@ class BridgeRunner:
             self.bridge.lifx.light_assignments = self._light_assignments
         if self._curves and self.bridge.lifx is not None:
             self.bridge.lifx.curves = self._curves
+        if self._effect_colors and self.bridge.lifx is not None:
+            self.bridge.lifx.effect_colors = self._effect_colors
 
         self._connect_nanoleaf_if_configured()  # nanoleaf assigned/curves below after connection
         self._connect_hue_if_configured()
@@ -509,6 +512,8 @@ class BridgeRunner:
             selected = cfg.get("selected_lights", [])
             if selected:
                 ctrl.selected_lights = selected
+            if self._effect_colors:
+                ctrl.effect_colors = self._effect_colors
 
     def get_hue_settings(self) -> dict:
         safe = dict(self._hue_settings)
@@ -602,6 +607,8 @@ class BridgeRunner:
                 ctrl.light_assignments = self._light_assignments
             if self._curves:
                 ctrl.curves = self._curves
+            if self._effect_colors:
+                ctrl.effect_colors = self._effect_colors
             if ctrl.device_info:
                 cfg["device_info"] = ctrl.device_info
                 self._nanoleaf_settings = cfg
@@ -865,6 +872,18 @@ class BridgeRunner:
             if self.bridge.nanoleaf is not None:
                 self.bridge.nanoleaf.curves = self._curves
 
+    def set_effect_colors(self, cfg: dict):
+        """Per-effect custom colours (Effect Customization). Pushed live to every
+        controller so triggers/telemetry/replays paint with them."""
+        self._effect_colors = cfg or {}
+        if self.bridge is not None:
+            if self.bridge.lifx is not None:
+                self.bridge.lifx.effect_colors = self._effect_colors
+            if self.bridge.nanoleaf is not None:
+                self.bridge.nanoleaf.effect_colors = self._effect_colors
+            if self.bridge.hue is not None:
+                self.bridge.hue.effect_colors = self._effect_colors
+
     def set_enabled_events(self, names: list[str] | None):
         """Pass None to enable everything, or a list of event key strings to restrict."""
         enabled = frozenset(names) if names is not None else None
@@ -944,6 +963,8 @@ class BridgeRunner:
             self._write_json(GUI_SETTINGS_FILE, current)
         if 'curves' in data:
             self.set_curves(data['curves'])
+        if 'effect_colors' in data:
+            self.set_effect_colors(data['effect_colors'])
 
     # ---- background workers ----
 
