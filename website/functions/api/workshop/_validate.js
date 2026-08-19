@@ -19,6 +19,15 @@ const KNOWN_EVENTS = new Set([
 
 const KNOWN_DEVICES = new Set(["lifx", "hue", "nanoleaf"]);
 
+// Effects that carry custom colours (Effect Customization). per_light isn't
+// portable (keyed by the sharer's own light labels), so it's rejected here —
+// only the Sync-All colours and per-zone stops travel.
+const KNOWN_EFFECT_COLOR_KEYS = new Set([
+  "start_lights", "lights_out", "yellow_flag", "blue_flag", "red_flag",
+  "fastest_lap", "chequered_flag", "white_warning", "crash",
+]);
+const EFFECT_COLOR_SLOTS = new Set(["main", "a", "b"]);
+
 // §4.3.3 portability guard — a shared preset must be device-agnostic. Reject any
 // theme carrying device/network identity, whatever the nesting.
 const FORBIDDEN_KEYS = new Set([
@@ -59,7 +68,7 @@ function validateTheme(theme) {
 
   const {
     enabled_events, brightness_range, stagger,
-    idle_state, mz_startlights, rpm_gradient, curves,
+    idle_state, mz_startlights, rpm_gradient, curves, effect_colors,
   } = theme;
 
   if (enabled_events != null) {
@@ -99,6 +108,30 @@ function validateTheme(theme) {
       for (const p of c.points) {
         if (!Array.isArray(p) || p.length !== 2 || typeof p[0] !== "number" || typeof p[1] !== "number") return `curve '${name}' points must be [t, v] number pairs`;
       }
+    }
+  }
+
+  if (effect_colors != null) {
+    if (!isPlainObject(effect_colors)) return "effect_colors must be an object";
+    const keys = Object.keys(effect_colors);
+    if (keys.length > 12) return "effect_colors has too many effects";
+    for (const [k, e] of Object.entries(effect_colors)) {
+      if (!KNOWN_EFFECT_COLOR_KEYS.has(k)) return `unknown effect_colors key: ${k}`;
+      if (!isPlainObject(e)) return `effect_colors '${k}' must be an object`;
+      if (e.mode != null && !["all", "per_zone"].includes(e.mode)) return `effect_colors '${k}' mode must be all|per_zone`;
+      if ("per_light" in e) return `effect_colors '${k}' per_light is not shareable (device-specific)`;
+      if (e.colors != null) {
+        if (!isPlainObject(e.colors)) return `effect_colors '${k}'.colors must be an object`;
+        for (const [slot, hex] of Object.entries(e.colors)) {
+          if (!EFFECT_COLOR_SLOTS.has(slot)) return `effect_colors '${k}' unknown slot: ${slot}`;
+          if (!HEX.test(hex || "")) return `effect_colors '${k}'.${slot} not #RRGGBB`;
+        }
+      }
+      if (e.per_zone != null) {
+        if (!Array.isArray(e.per_zone) || e.per_zone.length < 1 || e.per_zone.length > 96) return `effect_colors '${k}'.per_zone must be 1–96 hex stops`;
+        for (const c of e.per_zone) if (!HEX.test(c)) return `effect_colors '${k}'.per_zone stop not #RRGGBB: ${c}`;
+      }
+      if (e.colors == null && e.per_zone == null) return `effect_colors '${k}' needs colours or per_zone`;
     }
   }
 
