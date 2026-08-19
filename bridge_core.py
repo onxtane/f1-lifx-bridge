@@ -567,11 +567,9 @@ class LocalLifxController:
         self._zone_counts = {}
         for light in discovered_lights:
             if isinstance(light, MultiZoneLight):
-                try:
-                    zones = light.get_color_zones(0, 255)
-                    self._zone_counts[light.mac_addr] = len(zones) if zones else 0
-                except Exception:
-                    self._zone_counts[light.mac_addr] = 0
+                zc = self._probe_zone_count(light)
+                self._zone_counts[light.mac_addr] = zc
+                print(f"[LIFX] Multizone {self.safe_label(light)}: {zc} zones")
 
         self.discovered_lights = discovered_lights
 
@@ -762,6 +760,27 @@ class LocalLifxController:
             return light.get_label()
         except Exception:
             return getattr(light, 'mac_addr', None) or "Unknown LIFX"
+
+    @staticmethod
+    def _probe_zone_count(light) -> int:
+        """The device's true number of addressable zones.
+
+        Prefer the extended multizone API — its response length is the real
+        zones_count. The classic get_color_zones() over-reports on some firmware
+        (it returns the padded requested range), which showed up as an inflated
+        zone count in the UI. Falls back to classic when extended isn't supported.
+        """
+        try:
+            ext = light.extended_get_color_zones()
+            if ext:
+                return len(ext)
+        except Exception:
+            pass
+        try:
+            zones = light.get_color_zones(0, 255)
+            return len(zones) if zones else 0
+        except Exception:
+            return 0
 
     def get_zone_count(self, light) -> int:
         """Return cached zone count for a light, 0 if not multizone."""
@@ -1063,13 +1082,9 @@ class LocalLifxController:
         zc = self.get_zone_count(light)
         if zc >= 1:
             return zc
-        try:
-            zones = light.get_color_zones(0, 255)
-            zc = len(zones) if zones else 0
-            if zc:
-                self._zone_counts[light.mac_addr] = zc
-        except Exception:
-            zc = 0
+        zc = self._probe_zone_count(light)
+        if zc:
+            self._zone_counts[light.mac_addr] = zc
         return zc
 
     def sector_status(self, sector_flags):
