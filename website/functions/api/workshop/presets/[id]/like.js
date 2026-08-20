@@ -27,14 +27,20 @@ export async function onRequestPost({ request, params, env }) {
 
   let liked;
   if (existing) {
-    // Toggle off: decrement only while the row still exists, then remove it. The
-    // guard makes concurrent unlikes idempotent (no double-decrement).
+    // Toggle off: decrement/remove only while the preset is still public and the
+    // like row exists — so an unlike can't touch a preset hidden mid-request.
+    // Counter and row stay in sync (both no-op when hidden).
     await env.DB.batch([
       env.DB.prepare(
         `UPDATE presets SET likes = MAX(likes - 1, 0)
-         WHERE id = ? AND EXISTS (SELECT 1 FROM likes WHERE preset_id = ? AND token = ?)`,
+         WHERE id = ? AND status = 'public'
+           AND EXISTS (SELECT 1 FROM likes WHERE preset_id = ? AND token = ?)`,
       ).bind(params.id, params.id, user.id),
-      env.DB.prepare(`DELETE FROM likes WHERE preset_id = ? AND token = ?`).bind(params.id, user.id),
+      env.DB.prepare(
+        `DELETE FROM likes
+         WHERE preset_id = ? AND token = ?
+           AND EXISTS (SELECT 1 FROM presets WHERE id = ? AND status = 'public')`,
+      ).bind(params.id, user.id, params.id),
     ]);
     liked = false;
   } else {
@@ -56,6 +62,7 @@ export async function onRequestPost({ request, params, env }) {
     liked = true;
   }
 
-  const after = await env.DB.prepare(`SELECT likes FROM presets WHERE id = ?`).bind(params.id).first();
-  return json({ ok: true, liked, likes: after?.likes ?? 0 });
+  const after = await env.DB.prepare(`SELECT likes, status FROM presets WHERE id = ?`).bind(params.id).first();
+  if (!after || after.status !== "public") return error("Preset not found", 404);
+  return json({ ok: true, liked, likes: after.likes });
 }
