@@ -34,7 +34,7 @@ export async function onRequestPost({ request, params, env }) {
 
   // Atomic: bump the counter only when this is a new (preset, user) download, then
   // record it — one batch (transaction) so the counter and join row can't drift.
-  const results = await env.DB.batch([
+  await env.DB.batch([
     env.DB.prepare(
       `UPDATE presets SET downloads = downloads + 1
        WHERE id = ? AND NOT EXISTS (SELECT 1 FROM downloads WHERE preset_id = ? AND token = ?)`,
@@ -43,8 +43,7 @@ export async function onRequestPost({ request, params, env }) {
       `INSERT OR IGNORE INTO downloads (preset_id, token, created_at) VALUES (?, ?, ?)`,
     ).bind(params.id, user.id, nowMs()),
   ]);
-  const incremented = (results[0]?.meta?.changes ?? 0) > 0;
-  const downloads = row.downloads + (incremented ? 1 : 0);
-
-  return json({ ok: true, downloads, theme });
+  // Re-read the persisted count so the response reflects concurrent downloads too.
+  const after = await env.DB.prepare(`SELECT downloads FROM presets WHERE id = ?`).bind(params.id).first();
+  return json({ ok: true, downloads: after?.downloads ?? row.downloads, theme });
 }

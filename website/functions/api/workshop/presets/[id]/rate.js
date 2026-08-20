@@ -1,6 +1,7 @@
 // POST /api/workshop/presets/:id/rate — submit or change a 1–5 star rating.
-// Body: { stars: 1..5 }. One rating per (preset, token); re-rating overwrites and
-// adjusts the aggregate by the delta so the average stays correct.
+// Body: { stars: 1..5 }. One rating per (preset, token); re-rating overwrites,
+// and the preset's rating_sum/rating_count are recomputed from the ratings table
+// so the average stays correct under concurrency.
 
 import { json, error, preflight, readJson, ratingOf, nowMs } from "../../_shared.js";
 import { getUser } from "../../_auth.js";
@@ -24,39 +25,22 @@ export async function onRequestPost({ request, params, env }) {
   const row = await env.DB.prepare(`SELECT status FROM presets WHERE id = ?`).bind(params.id).first();
   if (!row || row.status !== "public") return error("Preset not found", 404);
 
-  const prev = await env.DB
-    .prepare(`SELECT stars FROM ratings WHERE preset_id = ? AND token = ?`)
-    .bind(params.id, user.id)
-    .first();
   const ts = nowMs();
-
-  if (prev) {
-    const delta = stars - prev.stars;
-    await env.DB.batch([
-      env.DB.prepare(`UPDATE ratings SET stars = ?, created_at = ? WHERE preset_id = ? AND token = ?`).bind(stars, ts, params.id, user.id),
-      env.DB.prepare(`UPDATE presets SET rating_sum = rating_sum + ? WHERE id = ?`).bind(delta, params.id),
-    ]);
-  } else {
-    // Race-safe first rating: only bump the aggregate if WE created the row.
-    const ins = await env.DB
-      .prepare(`INSERT OR IGNORE INTO ratings (preset_id, token, stars, created_at) VALUES (?, ?, ?, ?)`)
-      .bind(params.id, user.id, stars, ts)
-      .run();
-    if ((ins.meta?.changes ?? 0) > 0) {
-      await env.DB
-        .prepare(`UPDATE presets SET rating_sum = rating_sum + ?, rating_count = rating_count + 1 WHERE id = ?`)
-        .bind(stars, params.id).run();
-    } else {
-      // Lost the insert race — a concurrent request created the row. Treat as an
-      // update: adjust rating_sum by the delta from the now-stored value.
-      const cur = await env.DB.prepare(`SELECT stars FROM ratings WHERE preset_id = ? AND token = ?`).bind(params.id, user.id).first();
-      const delta = stars - (cur?.stars ?? stars);
-      await env.DB.batch([
-        env.DB.prepare(`UPDATE ratings SET stars = ?, created_at = ? WHERE preset_id = ? AND token = ?`).bind(stars, ts, params.id, user.id),
-        env.DB.prepare(`UPDATE presets SET rating_sum = rating_sum + ? WHERE id = ?`).bind(delta, params.id),
-      ]);
-    }
-  }
+  // Upsert the caller's rating, then recompute the aggregate from the ratings
+  // table. Deriving rating_sum/rating_count from source (not delta math) keeps
+  // them correct under concurrent re-rates; both run in one batch (transaction).
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO ratings (preset_id, token, stars, created_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(preset_id, token) DO UPDATE SET stars = excluded.stars, created_at = excluded.created_at`,
+    ).bind(params.id, user.id, stars, ts),
+    env.DB.prepare(
+      `UPDATE presets SET
+         rating_sum = (SELECT COALESCE(SUM(stars), 0) FROM ratings WHERE preset_id = ?),
+         rating_count = (SELECT COUNT(*) FROM ratings WHERE preset_id = ?)
+       WHERE id = ?`,
+    ).bind(params.id, params.id, params.id),
+  ]);
 
   const after = await env.DB
     .prepare(`SELECT rating_sum, rating_count FROM presets WHERE id = ?`)

@@ -20,3 +20,9 @@ INSERT INTO ratings_new (preset_id, token, stars, created_at)
   SELECT preset_id, token, stars, created_at FROM ratings WHERE stars BETWEEN 1 AND 5;
 DROP TABLE ratings;
 ALTER TABLE ratings_new RENAME TO ratings;
+
+-- Recompute the denormalized aggregates from the cleaned table so they can't
+-- still reflect any discarded (out-of-range) rows.
+UPDATE presets SET
+  rating_sum   = COALESCE((SELECT SUM(stars) FROM ratings WHERE ratings.preset_id = presets.id), 0),
+  rating_count = COALESCE((SELECT COUNT(*)   FROM ratings WHERE ratings.preset_id = presets.id), 0);

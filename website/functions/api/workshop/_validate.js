@@ -37,6 +37,10 @@ const FORBIDDEN_KEYS = new Set([
 
 const fail = (status, error) => ({ ok: false, status, error });
 
+// Byte length as stored (D1 is UTF-8), not UTF-16 code units — so the cap counts
+// what actually gets persisted, including multi-byte characters.
+const utf8Bytes = (s) => new TextEncoder().encode(s).length;
+
 // Trim + strip anything angle-bracketed; collapse whitespace; cap length.
 function cleanStr(v, max) {
   return String(v == null ? "" : v)
@@ -167,10 +171,10 @@ export function validatePreset(body) {
   const game = cleanStr(body.game, 40) || "*";
   if (!isKnownGame(game)) return fail(422, `unknown game slug: ${game}`);
 
-  // Size cap FIRST — before the recursive theme walk — so an oversized or deeply
-  // nested payload is rejected cheaply instead of driving the walk to a blow-up.
+  // Early size guard (UTF-8 bytes) — reject an oversized payload before the
+  // (depth-bounded) theme walk, so a huge theme doesn't burn CPU in validation.
   const themeText = isPlainObject(body.theme) ? JSON.stringify(body.theme) : "";
-  if (themeText.length > THEME_MAX_BYTES) return fail(413, "theme too large");
+  if (utf8Bytes(themeText) > THEME_MAX_BYTES) return fail(413, "theme too large");
 
   const themeErr = validateTheme(body.theme);
   if (themeErr) return fail(422, themeErr);
@@ -183,21 +187,21 @@ export function validatePreset(body) {
   let devices = Array.isArray(body.devices) ? body.devices : [];
   devices = [...new Set(devices.map((d) => cleanStr(d, 12).toLowerCase()))].filter((d) => KNOWN_DEVICES.has(d));
 
+  // Build the stored envelope, then apply the authoritative cap to ITS UTF-8 size
+  // (it adds envelope fields on top of the theme).
+  const appMin = cleanStr(body.app_min_version, 20) || "0.10.0";
+  const themeJson = JSON.stringify({ gridglow_preset: 1, app_min_version: appMin, game, theme: body.theme });
+  if (utf8Bytes(themeJson) > THEME_MAX_BYTES) return fail(413, "theme too large");
+
   const value = {
     title,
     description: cleanStr(body.description, 500),
     game,
     author_name: cleanStr(body.author_name, 40) || "Anonymous",
-    app_min_version: cleanStr(body.app_min_version, 20) || "0.10.0",
+    app_min_version: appMin,
     tags: JSON.stringify(tags),
     devices: JSON.stringify(devices),
-    // Store the full validated envelope verbatim (what the read path returns).
-    theme_json: JSON.stringify({
-      gridglow_preset: 1,
-      app_min_version: cleanStr(body.app_min_version, 20) || "0.10.0",
-      game,
-      theme: body.theme,
-    }),
+    theme_json: themeJson, // full validated envelope verbatim (what the read path returns)
   };
   return { ok: true, value };
 }
