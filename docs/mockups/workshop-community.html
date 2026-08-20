@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GridGlow — Community Workshop concept</title>
+<!-- Design mockup. Community Workshop: view / share / download community lighting presets.
+     Rebuilt in GridGlow's palette from a ChatGPT rough render. Open directly in a browser. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<!-- Inter (trial look). PROD: bundle Inter locally rather than loading from Google Fonts. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Supabase JS (Discord auth). PROD: pin a version / bundle locally. Anon key is public/client-safe. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --purple:#8b7cf6; --purple-l:#a78bfa; --purple-l2:#b3a7ff; --purple-l3:#c4b5fd;
+    --accent-rgb:139,124,246; --surface-rgb:255,255,255; --shadow-rgb:0,0,0;
+    --bg:#0b1020; --glass-fill:#151c2f; --card-inner:#101728;
+    --glass-border:rgba(255,255,255,.09); --hairline:rgba(255,255,255,.08);
+    --text-main:#eef1f7; --text-muted:#7c87a0; --text-soft:#c3cbdd;
+    --green:#3ddc84; --amber:#f5b02e; --flag-red:#ff5d5d; --flag-blue:#6db2ff;
+    --mono:Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:#070a14;
+    display:flex; align-items:center; justify-content:center; padding:36px;
+    font-family:'Inter',-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text-main);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    font-feature-settings:"cv11";   /* Inter: single-storey lowercase a, cleaner UI look */
+  }
+  .win{
+    width:1280px; height:1044px; background:var(--bg);
+    border:1px solid rgba(255,255,255,.10); border-radius:14px; overflow:hidden;
+    display:flex; flex-direction:column; position:relative;
+    box-shadow:0 40px 120px rgba(0,0,0,.6);
+  }
+
+  /* window chrome */
+  .chrome{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 14px; border-bottom:1px solid var(--hairline); flex-shrink:0;
+  }
+  .brand-dots{ display:flex; gap:3px; }
+  .brand-dots span{ width:5px; height:5px; border-radius:50%; background:#3ddc84; opacity:1; box-shadow:0 0 5px #3ddc84; }
+  .chrome .name{ font-size:13px; font-weight:600; }
+  .chrome .badge{ font-size:11px; padding:2px 8px; border-radius:5px; background:#241f45; color:var(--purple-l2); font-weight:500; }
+  .chrome .grow{ flex:1; }
+  .chrome i{ font-size:15px; color:var(--text-muted); }
+
+  .body{ flex:1; display:flex; min-height:0; }
+
+  /* icon rail */
+  .rail{
+    width:48px; flex-shrink:0; display:flex; flex-direction:column; align-items:center;
+    gap:8px; padding:12px 0; border-right:1px solid var(--hairline);
+  }
+  .nv{
+    width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted); font-size:19px;
+  }
+  .nv.active{ background:#241f45; color:var(--purple-l2); }
+  .rail .grow{ flex:1; }
+  .rail .pill{
+    width:28px; height:44px; border-radius:14px; background:rgba(255,255,255,.06);
+    border:1px solid var(--glass-border); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:5px;
+  }
+  .rail .pill .dot{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); }
+  .rail .pill span{ font-size:9px; font-weight:600; color:var(--text-muted); }
+
+  /* main */
+  .main{ flex:1; min-width:0; display:flex; flex-direction:column; padding:22px 26px 0; overflow:hidden; }
+
+  /* header */
+  .hd{ display:flex; align-items:flex-start; gap:20px; flex-shrink:0; }
+  .hd h1{ margin:0; font-size:25px; font-weight:700; letter-spacing:-.02em; }
+  .hd .sub{ margin:6px 0 0; font-size:13px; color:var(--text-muted); }
+  .hd .grow{ flex:1; }
+  .search{
+    display:flex; align-items:center; gap:9px; width:340px;
+    background:var(--glass-fill); border:1px solid var(--glass-border);
+    border-radius:10px; padding:9px 12px; margin-top:2px;
+  }
+  .search:focus-within{ border-color:rgba(var(--accent-rgb),.5); }
+  .search i{ font-size:16px; color:var(--text-muted); flex-shrink:0; }
+  .search .ph{ font-size:13px; color:#6b7688; flex:1; }
+  .search-input{ flex:1; min-width:0; background:none; border:none; outline:none;
+                 color:var(--text-main); font-family:inherit; font-size:13px; }
+  .search-input::placeholder{ color:#6b7688; }
+  .search-clear{ display:none; flex-shrink:0; width:20px; height:20px; border-radius:6px; padding:0;
+                 align-items:center; justify-content:center; border:none; background:rgba(var(--surface-rgb),.08);
+                 color:var(--text-muted); cursor:pointer; font-size:13px; }
+  .search-clear:hover{ background:rgba(var(--surface-rgb),.16); color:var(--text-main); }
+  .search.has-q .search-clear{ display:inline-flex; }
+  .search.has-q .kbd{ display:none; }
+  .search .kbd{ font-size:10px; font-family:var(--mono); color:var(--text-muted); border:1px solid var(--glass-border); border-radius:5px; padding:2px 6px; flex-shrink:0; }
+  .btn{ border:none; border-radius:999px; padding:10px 18px; font-size:13px; font-weight:600; color:#fff; display:inline-flex; align-items:center; gap:7px; cursor:pointer; }
+  .btn i{ font-size:16px; }
+  .btn-primary{ background:linear-gradient(135deg,#9d8cf8,#6f5be0); }
+  .btn-ghost{ background:rgba(255,255,255,.06); border:1px solid var(--glass-border); color:var(--text-main); }
+
+  /* ---- Discord auth (Supabase) ---- */
+  .auth-area{ display:flex; align-items:center; }
+  .auth-signin{ display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:999px;
+                cursor:pointer; background:var(--glass-fill); border:1px solid var(--glass-border); color:var(--text-main);
+                font-family:inherit; font-size:13px; font-weight:600; }
+  .auth-signin:hover{ background:rgba(var(--surface-rgb),.10); border-color:rgba(var(--surface-rgb),.22); }
+  /* sign-in form (reuses the .up-modal shell) */
+  .lg-msg{ font-size:12px; color:#ff8b8b; min-height:16px; margin:2px 0 10px; line-height:1.5; }
+  .lg-msg.ok{ color:#5fe39a; }
+  .lg-switch{ background:none; border:none; color:var(--purple-l2); font-family:inherit; font-size:12px; font-weight:500; cursor:pointer; padding:0; }
+  .lg-switch:hover{ text-decoration:underline; }
+  /* write-action toast */
+  .ws-toast{ position:absolute; bottom:18px; left:50%; z-index:120; transform:translateX(-50%) translateY(10px);
+             background:#1a1f35; border:1px solid var(--glass-border); border-radius:10px; padding:10px 16px;
+             font-size:13px; color:var(--text-main); box-shadow:0 12px 40px rgba(var(--shadow-rgb),.5);
+             opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; }
+  .ws-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .ws-toast.ok{ border-color:rgba(61,220,132,.45); }
+  .ws-toast.err{ border-color:rgba(255,93,93,.45); }
+  /* star rating input (detail) */
+  .d-rate{ display:flex; align-items:center; gap:4px; }
+  .d-rate .star-in{ font-size:19px; color:var(--text-muted); cursor:pointer; line-height:1; background:none; border:none; padding:0; }
+  .d-rate .star-in.on{ color:var(--amber); }
+  .d-rate .rate-note{ font-size:11px; color:var(--text-muted); margin-left:8px; }
+  .auth-user{ display:inline-flex; align-items:center; gap:9px; padding:4px 10px 4px 5px; border-radius:999px;
+              background:var(--glass-fill); border:1px solid var(--glass-border); cursor:pointer; font-family:inherit; }
+  .auth-user:hover{ background:rgba(var(--surface-rgb),.10); border-color:rgba(var(--surface-rgb),.22); }
+  .auth-caret{ font-size:14px; color:var(--text-muted); }
+  .auth-avatar{ width:28px; height:28px; border-radius:50%; object-fit:cover; flex-shrink:0;
+                background:#241f45; display:flex; align-items:center; justify-content:center; color:var(--purple-l2); font-size:13px; font-weight:700; }
+  .auth-name{ font-size:13px; font-weight:500; color:var(--text-main); max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .auth-signout{ width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                 background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; }
+  .auth-signout:hover{ background:rgba(var(--surface-rgb),.08); color:var(--text-main); }
+
+  /* tabs */
+  .tabs{ display:flex; gap:26px; margin:20px 0 0; border-bottom:1px solid var(--hairline); flex-shrink:0; }
+  .tab{ font-size:14px; color:var(--text-muted); padding:0 0 12px; position:relative; cursor:pointer; }
+  .tab.active{ color:var(--text-main); font-weight:600; }
+  .tab.active::after{ content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; border-radius:2px; background:var(--purple); }
+
+  /* filter row */
+  .filters{ display:flex; gap:10px; margin:16px 0 14px; flex-shrink:0; }
+  .fdrop{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 13px; border-radius:10px;
+    background:var(--glass-fill); border:1px solid var(--glass-border);
+    font-size:12px; font-weight:500; color:var(--text-soft); cursor:pointer;
+  }
+  .fdrop{ position:relative; user-select:none; transition:border-color .15s; }
+  .fdrop:hover{ border-color:rgba(var(--surface-rgb),.22); }
+  .fdrop.open{ border-color:rgba(var(--accent-rgb),.5); }
+  .fdrop i{ font-size:15px; color:var(--text-muted); }
+  .fdrop .chev{ font-size:14px; transition:transform .18s ease; }
+  .fdrop.open .chev{ transform:rotate(180deg); }
+  .fdrop.hot i{ color:var(--amber); }
+  .filters .grow{ flex:1; }
+  /* dropdown menu */
+  .fmenu{ position:absolute; top:calc(100% + 6px); left:0; z-index:40; min-width:100%; white-space:nowrap;
+          background:var(--glass-fill); border:1px solid var(--glass-border); border-radius:11px; padding:5px;
+          box-shadow:0 14px 44px rgba(var(--shadow-rgb),.5); display:none; }
+  .fdrop.open .fmenu{ display:block; animation:fmenuIn .14s ease; }
+  @keyframes fmenuIn{ from{ opacity:0; transform:translateY(-5px); } to{ opacity:1; transform:translateY(0); } }
+  .fmenu-item{ display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:8px;
+               font-size:12px; font-weight:500; color:var(--text-soft); cursor:pointer; }
+  .fmenu-item:hover{ background:rgba(var(--surface-rgb),.06); }
+  .fmenu-item.active{ background:rgba(var(--accent-rgb),.16); color:var(--purple-l2); }
+  .fmenu-item .ck{ margin-left:auto; font-size:15px; color:var(--purple-l2); opacity:0; }
+  .fmenu-item.active .ck{ opacity:1; }
+  .list-empty{ display:none; text-align:center; color:var(--text-muted); font-size:13px; padding:40px 0; }
+  .list-state{ text-align:center; color:var(--text-muted); font-size:13px; padding:48px 20px; margin:auto 0; }
+  .list-state .ls-title{ color:var(--text-main); font-weight:600; font-size:15px; margin-bottom:8px; }
+  .list-state .ls-sub{ line-height:1.6; max-width:380px; margin:0 auto; }
+  .list-state code{ font-family:var(--mono); font-size:12px; background:var(--card-inner); border:1px solid var(--glass-border); border-radius:5px; padding:1px 6px; color:var(--text-soft); }
+  .list-empty.show{ display:block; }
+
+  /* tab panels */
+  .tab-panel{ display:none; flex:1; min-height:0; flex-direction:column; }
+  .tab-panel.active{ display:flex; }
+
+  /* content split */
+  .split{ flex:1; display:grid; grid-template-columns:1fr 372px; gap:16px; min-height:0; }
+
+  /* ---- management panels: My Uploads / Downloads / Liked ---- */
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; margin:16px 0 14px; flex-shrink:0; }
+  .panel-head .ph-title{ font-size:14px; font-weight:600; }
+  .panel-head .ph-sub{ font-size:12px; color:var(--text-muted); }
+  .mgrid{ display:flex; flex-direction:column; gap:10px; overflow-y:auto; min-height:0; padding-right:2px; }
+  .mrow{ display:flex; align-items:center; gap:14px; padding:12px 14px; flex-shrink:0;
+         background:var(--glass-fill); border:1px solid var(--glass-border); border-radius:14px; }
+  .mrow-info{ flex:1; min-width:0; }
+  .mrow-titrow{ display:flex; align-items:center; gap:8px; }
+  .mrow-tit{ font-size:14px; font-weight:600; }
+  .mrow-game{ font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .mrow-meta{ display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; font-size:11px; color:var(--text-soft); font-variant-numeric:tabular-nums; }
+  .mrow-meta .mi{ display:inline-flex; align-items:center; gap:5px; }
+  .mrow-meta i{ font-size:13px; color:var(--text-muted); }
+  .arc-mini{ width:140px; height:34px; flex-shrink:0; }
+  .arc-mini svg{ width:100%; height:100%; overflow:visible; }
+  .mrow-act{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .mbtn{ display:inline-flex; align-items:center; gap:6px; padding:8px 13px; border-radius:999px;
+         font-size:12px; font-weight:600; font-family:inherit; cursor:pointer;
+         border:1px solid var(--glass-border); background:rgba(var(--surface-rgb),.05); color:var(--text-main); }
+  .mbtn:hover{ background:rgba(var(--surface-rgb),.10); }
+  .mbtn i{ font-size:15px; }
+  .mbtn svg{ display:block; }
+  .mbtn.primary{ background:linear-gradient(135deg,#9d8cf8,#6f5be0); border:none; color:#fff; }
+  .mbtn.danger{ color:#ff8b8b; }
+  .mbtn.danger:hover{ background:rgba(255,93,93,.12); border-color:rgba(255,93,93,.32); }
+  .vbadge{ font-size:10px; font-weight:600; padding:2px 8px; border-radius:5px; }
+  .vbadge.public{ background:#11331f; color:#5fe39a; }
+  .vbadge.unlisted{ background:rgba(var(--surface-rgb),.08); color:var(--text-muted); }
+  .ubadge{ font-size:10px; font-weight:600; padding:2px 8px; border-radius:5px; background:#3a2c10; color:var(--amber); }
+  .panel-empty{ display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+                gap:10px; padding:56px 0; margin:auto 0; color:var(--text-muted); }
+  .panel-empty.show{ display:flex; }
+  .panel-empty .pe-ic{ width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                       color:var(--purple-l2); background:rgba(var(--accent-rgb),.10); border:1px solid rgba(var(--accent-rgb),.28); }
+  .panel-empty h4{ margin:6px 0 0; font-size:15px; font-weight:600; color:var(--text-main); }
+  .panel-empty p{ margin:0; font-size:13px; line-height:1.6; max-width:340px; }
+  .panel-empty .btn{ margin-top:6px; }
+
+  /* preset list */
+  .list{ display:flex; flex-direction:column; gap:10px; overflow:hidden; padding-right:2px; }
+  .pc{
+    display:flex; align-items:center; gap:14px; padding:12px 14px;
+    background:var(--glass-fill); border:1px solid var(--glass-border);
+    border-radius:14px;
+  }
+  .pc.sel{ border-color:rgba(var(--accent-rgb),.55); box-shadow:0 0 0 1px rgba(var(--accent-rgb),.35), 0 8px 30px rgba(var(--accent-rgb),.14); }
+  /* backgroundless logo plate — the real game logo sits directly on the card, sized up */
+  .thumb{
+    width:112px; height:64px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .thumb .tg{ font-size:10px; font-weight:800; letter-spacing:.4px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  .thumb-logo{ max-width:100%; max-height:90%; object-fit:contain;
+               filter:drop-shadow(0 1px 4px rgba(0,0,0,.5)); }
+  .pc-info{ flex:1; min-width:0; }
+  .pc-titrow{ display:flex; align-items:center; gap:8px; }
+  .pc-tit{ font-size:14px; font-weight:600; }
+  .off{ font-size:10px; font-weight:600; letter-spacing:.3px; color:var(--purple-l2); background:#241f45; border-radius:5px; padding:2px 7px; }
+  .pc-game{ font-size:11px; color:var(--text-muted); margin:3px 0 0; }
+  .pc-by{ display:inline-flex; align-items:center; gap:4px; }
+  .pc-by i{ font-size:12px; color:var(--flag-blue); }
+  .pc-desc{ font-size:12px; color:var(--text-soft); margin:7px 0 0; line-height:1.5; max-width:330px;
+            display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+  /* LED zone preview strip (on-brand replacement for the render's waveform) */
+  /* per-card preset preview: a curved rev-gauge arc of colour beads (shows the colour range) */
+  .zones{ width:164px; height:36px; flex-shrink:0; display:flex; align-items:center; }
+  .zones svg{ width:100%; height:100%; overflow:visible; }
+
+  /* ---- Upload Preset modal ---- */
+  .up-backdrop{ position:absolute; inset:0; z-index:60; display:none; align-items:center; justify-content:center;
+                padding:26px; background:rgba(6,8,16,.62); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .up-backdrop.open{ display:flex; }
+  .up-modal{ width:524px; max-width:100%; max-height:100%; overflow-y:auto;
+             background:var(--glass-fill); border:1px solid rgba(255,255,255,.12); border-radius:18px;
+             padding:22px 24px; box-shadow:0 30px 90px rgba(0,0,0,.6); }
+  .up-head{ display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+  .up-head h3{ margin:0; font-size:19px; font-weight:700; letter-spacing:-.01em; }
+  .up-head p{ margin:5px 0 0; font-size:12px; color:var(--text-muted); }
+  .up-x{ width:30px; height:30px; border-radius:8px; background:rgba(255,255,255,.05);
+         border:1px solid var(--glass-border); color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .up-x:hover{ background:rgba(255,255,255,.1); color:var(--text-main); }
+
+  .up-preview{ display:flex; align-items:center; gap:14px; margin-bottom:18px; padding:12px 14px;
+               border:1px solid var(--glass-border); border-radius:12px;
+               background:radial-gradient(120% 160% at 50% 0%, #16101f 0%, #0a0710 78%); }
+  .up-arc{ width:184px; height:42px; flex-shrink:0; }
+  .up-arc svg{ width:100%; height:100%; overflow:visible; }
+  .up-preview-label{ display:block; font-size:12px; color:var(--text-soft); font-weight:500; }
+  .up-zones-count{ display:block; font-size:11px; color:var(--text-muted); font-family:var(--mono); margin-top:3px; }
+
+  .up-field{ display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
+  .up-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .up-lbl{ font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); font-weight:500; }
+  .up-input{ width:100%; background:var(--card-inner); border:1px solid var(--glass-border); border-radius:10px;
+             color:var(--text-main); font-family:inherit; font-size:13px; padding:10px 12px; outline:none; }
+  .up-input:focus{ border-color:rgba(var(--accent-rgb),.6); }
+  .up-textarea{ resize:none; line-height:1.55; }
+  .up-select{ display:flex; align-items:center; justify-content:space-between; cursor:pointer;
+              background:var(--card-inner); border:1px solid var(--glass-border); border-radius:10px;
+              color:var(--text-main); font-size:13px; padding:10px 12px; }
+  .up-select i{ color:var(--text-muted); font-size:16px; }
+  #upGame{ position:relative; }
+  #upGame .fmenu{ z-index:80; max-height:220px; overflow-y:auto; }
+  #upGame.gopen .fmenu{ display:block; }
+  #upGame.gopen{ border-color:rgba(var(--accent-rgb),.5); }
+
+  .up-seg{ display:flex; gap:3px; background:var(--card-inner); border:1px solid var(--glass-border); border-radius:10px; padding:3px; }
+  .up-seg-btn{ flex:1; padding:7px 10px; border:none; background:none; color:var(--text-muted);
+               font-family:inherit; font-size:12px; font-weight:500; border-radius:7px; cursor:pointer; }
+  .up-seg-btn.active{ background:rgba(var(--accent-rgb),.18); color:var(--purple-l2); }
+
+  .up-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .up-chip{ display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:12px; font-weight:500;
+            padding:7px 13px; border-radius:99px; cursor:pointer;
+            border:1px solid var(--glass-border); background:rgba(255,255,255,.04); color:var(--text-muted); }
+  .up-chip .d{ width:8px; height:8px; border-radius:50%; background:currentColor; opacity:.5; }
+  .up-chip.on .d{ opacity:1; }
+  .up-chip.on.dev-hue { background:#3a2c10; color:var(--amber);     border-color:transparent; }
+  .up-chip.on.dev-nano{ background:#11331f; color:#5fe39a;          border-color:transparent; }
+  .up-chip.on.dev-lifx{ background:#12294a; color:var(--flag-blue); border-color:transparent; }
+
+  .up-tags{ display:flex; flex-wrap:wrap; gap:7px; align-items:center;
+            background:var(--card-inner); border:1px solid var(--glass-border); border-radius:10px; padding:8px 10px; }
+  .up-tag{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--purple-l2);
+           background:#241f45; border-radius:99px; padding:4px 7px 4px 11px; }
+  .up-tag i{ font-size:13px; opacity:.7; cursor:pointer; }
+  .up-tag i:hover{ opacity:1; }
+  .up-tag-input{ flex:1; min-width:90px; background:none; border:none; outline:none;
+                 color:var(--text-main); font-family:inherit; font-size:12px; padding:4px; }
+  .up-tag-input::placeholder{ color:#5b6680; }
+
+  .up-foot{ display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+
+  /* ---- detail: compatibility badge + recommended-device ownership ---- */
+  .d-compat{ display:flex; gap:10px; align-items:flex-start; margin:12px 0 2px; padding:11px 13px;
+             border-radius:11px; font-size:12px; line-height:1.5; }
+  .d-compat.warn{ background:rgba(245,176,46,.10); border:1px solid rgba(245,176,46,.28); }
+  .d-compat.ok{ background:rgba(61,220,132,.10); border:1px solid rgba(61,220,132,.28); }
+  .d-compat-dot{ width:9px; height:9px; border-radius:50%; margin-top:3px; flex-shrink:0; }
+  .d-compat.warn .d-compat-dot{ background:var(--amber); box-shadow:0 0 7px var(--amber); }
+  .d-compat.ok   .d-compat-dot{ background:var(--green); box-shadow:0 0 7px var(--green); }
+  .d-compat b{ color:var(--text-main); }
+  .d-compat .sub{ display:block; color:var(--text-muted); margin-top:2px; }
+  .chip.missing{ opacity:.4; }
+  .chip .own{ font-size:12px; margin-left:1px; }
+
+  /* ---- Apply Preset modal (map preset → your lights) ---- */
+  .ap-backdrop{ position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center;
+                padding:26px; background:rgba(6,8,16,.62); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .ap-backdrop.open{ display:flex; }
+  .ap-modal{ width:560px; max-width:100%; max-height:100%; overflow-y:auto;
+             background:var(--glass-fill); border:1px solid rgba(255,255,255,.12); border-radius:18px;
+             padding:22px 24px; box-shadow:0 30px 90px rgba(0,0,0,.6); }
+  .ap-compat{ display:flex; gap:11px; align-items:flex-start; padding:12px 14px; border-radius:12px;
+              font-size:12px; line-height:1.55; margin-bottom:18px; }
+  .ap-compat.warn{ background:rgba(245,176,46,.10); border:1px solid rgba(245,176,46,.28); }
+  .ap-compat b{ color:var(--text-main); }
+  .ap-compat-badge{ flex-shrink:0; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+                    padding:3px 9px; border-radius:99px; background:rgba(245,176,46,.18); color:var(--amber); }
+
+  .ap-map{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .ap-role{ display:flex; align-items:center; gap:12px; justify-content:space-between;
+            padding:11px 13px; border-radius:11px; background:var(--card-inner); border:1px solid var(--hairline); }
+  .ap-role-name{ font-size:13px; font-weight:500; }
+  .ap-role-req{ margin-top:5px; }
+  .req{ font-size:10px; font-weight:600; letter-spacing:.3px; padding:2px 8px; border-radius:99px; }
+  .req.mz { background:rgba(245,176,46,.14); color:var(--amber); }
+  .req.any{ background:rgba(255,255,255,.06); color:var(--text-muted); }
+  .ap-role-ctl{ flex-shrink:0; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .ap-pick{ display:flex; align-items:center; gap:10px; min-width:158px; justify-content:space-between; cursor:pointer;
+            background:var(--glass-fill); border:1px solid var(--glass-border); border-radius:9px; padding:8px 11px;
+            font-size:12px; color:var(--text-soft); }
+  .ap-pick i{ color:var(--text-muted); font-size:15px; }
+  .ap-fallback{ display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--text-soft); cursor:pointer; }
+
+  .tog2{ width:34px; height:19px; border-radius:99px; background:#2a3350; position:relative; flex-shrink:0; transition:background .15s; cursor:pointer; }
+  .tog2::after{ content:''; position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%; background:#fff; transition:left .15s; }
+  .tog2.on{ background:var(--purple); }
+  .tog2.on::after{ left:17px; }
+
+  .ap-soon{ display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:12px; margin-bottom:16px;
+            font-size:12px; line-height:1.55; color:var(--text-muted);
+            background:rgba(var(--accent-rgb),.07); border:1px dashed rgba(var(--accent-rgb),.35); }
+  .ap-soon i{ font-size:17px; color:var(--purple-l2); margin-top:1px; flex-shrink:0; }
+  .ap-soon b{ color:var(--purple-l2); }
+
+  /* ---- download progress on the button pill (fill bar + live %) ---- */
+  .is-dl{ position:relative; overflow:hidden; pointer-events:none; }
+  .dl-fill{ position:absolute; left:0; top:0; bottom:0; width:0; z-index:0;
+            background:rgba(var(--accent-rgb),.55); transition:width .08s linear; }
+  .btn-primary.is-dl .dl-fill{ background:rgba(255,255,255,.30); }
+  .dl-done .dl-fill{ background:rgba(61,220,132,.55); }
+  .dl-lbl{ position:relative; z-index:1; display:inline-flex; align-items:center; gap:6px;
+           font-variant-numeric:tabular-nums; }
+  .dl-lbl svg{ width:14px; height:14px; }
+
+  /* ---- modal entrance: fade backdrop, rise + settle the card (subtle bounce) ---- */
+  @keyframes modalFade{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes modalPop{ from{ opacity:0; transform:translateY(12px) scale(.965); }
+                       to{   opacity:1; transform:translateY(0)    scale(1);    } }
+  .up-backdrop.open, .ap-backdrop.open{ animation:modalFade .18s ease both; }
+  .up-backdrop.open .up-modal,
+  .ap-backdrop.open .ap-modal{ animation:modalPop .30s cubic-bezier(.34,1.45,.5,1) both; }
+  @media (prefers-reduced-motion: reduce){
+    .up-backdrop.open, .ap-backdrop.open,
+    .up-backdrop.open .up-modal, .ap-backdrop.open .ap-modal{ animation:none; }
+  }
+
+  /* ---- like: subtle bounce + eased clockwise rotation on the heart ---- */
+  @keyframes heartLike{
+    0%  { transform:scale(1)    rotate(0deg); }
+    30% { transform:scale(1.22) rotate(8deg); }    /* gentle pop + soft clockwise lean */
+    55% { transform:scale(1.0)  rotate(4deg); }    /* eases back, no counter-swing */
+    78% { transform:scale(1.04) rotate(1deg); }    /* whisper of a second bounce */
+    100%{ transform:scale(1)    rotate(0deg); }
+  }
+  .heart-pop{ display:inline-block; transform-origin:center; animation:heartLike .55s cubic-bezier(.33,.9,.34,1); }
+  /* liking swaps in a checkered flag that waves in, then morphs back to the heart */
+  @keyframes flagWave{
+    0%  { transform:scale(.78) rotate(-6deg); opacity:0; }
+    45% { transform:scale(1.1) rotate(4deg);  opacity:1; }
+    100%{ transform:scale(1.03) rotate(0deg); opacity:1; }
+  }
+  .flag-pop{ display:inline-block; transform-origin:center; animation:flagWave .42s cubic-bezier(.33,.9,.34,1); }
+  @media (prefers-reduced-motion: reduce){ .heart-pop, .flag-pop{ animation:none; } }
+
+  .pc-stats{ display:flex; flex-direction:column; gap:6px; font-size:11px; font-weight:500; color:var(--text-muted); width:70px; flex-shrink:0; font-variant-numeric:tabular-nums; }
+  .pc-stats .s{ display:flex; align-items:center; gap:5px; }
+  .pc-stats i{ font-size:13px; }
+  .pc-stats .star{ color:var(--amber); }
+
+  .pc-act{ display:flex; flex-direction:column; gap:8px; flex-shrink:0; }
+  .dl{ display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:999px;
+       background:rgba(255,255,255,.06); border:1px solid var(--glass-border); color:var(--text-main);
+       font-size:12px; font-weight:600; cursor:pointer; }
+  .dl i{ font-size:15px; }
+  .heart{ width:36px; height:34px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+          background:rgba(255,255,255,.04); border:1px solid var(--glass-border); color:var(--text-muted); }
+  .heart i{ font-size:16px; }
+  .heart.on{ border-color:rgba(255,93,93,.45); background:rgba(255,93,93,.12); }
+  .heart.on i{ color:#ff5d5d; }
+
+  /* pagination */
+  .pager{ display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 0 4px; margin-top:auto; flex-shrink:0; }
+  .pg{ min-width:28px; height:28px; padding:0 8px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+       font-size:12px; color:var(--text-muted); background:rgba(255,255,255,.04); border:1px solid transparent; }
+  .pg.active{ background:#241f45; color:var(--purple-l2); }
+  .pg i{ font-size:15px; }
+
+  /* detail panel */
+  .detail{
+    background:var(--glass-fill); border:1px solid var(--glass-border); border-radius:16px;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .d-scroll{ overflow-y:auto; overflow-x:hidden; padding:0 18px 18px; }
+  .d-hero{ position:relative; height:134px; margin:0 -18px 0; display:flex; align-items:flex-end; padding:14px 18px; }
+  .d-hero::after{ content:''; position:absolute; inset:0; background:linear-gradient(to top, rgba(11,16,32,.95), rgba(11,16,32,.15) 60%, transparent); }
+  .d-close{ position:absolute; top:12px; right:12px; z-index:2; width:26px; height:26px; border-radius:8px;
+            background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; }
+  .d-badge{ position:relative; z-index:1; }
+  .d-tit{ font-size:20px; font-weight:700; letter-spacing:-.01em; margin:14px 0 6px; }
+  .d-off{ font-size:10px; font-weight:600; color:var(--purple-l2); background:#241f45; border-radius:5px; padding:2px 7px; vertical-align:middle; margin-left:6px; }
+  .d-by{ font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+  .d-by i{ font-size:14px; color:var(--flag-blue); }
+
+  .d-actions{ display:flex; gap:8px; margin:16px 0 4px; }
+  .d-actions .btn-primary{ flex:1; justify-content:center; }
+  .d-icons{ display:flex; gap:6px; }
+  .d-iconbtn{ display:inline-flex; align-items:center; gap:6px; padding:0 14px; border-radius:999px; height:38px;
+              background:rgba(255,255,255,.06); border:1px solid var(--glass-border); color:var(--text-soft); font-size:12px; font-weight:600; }
+  .d-iconbtn i{ font-size:16px; }
+
+  .d-statgrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:14px 0; padding:12px 0; border-top:1px solid var(--hairline); border-bottom:1px solid var(--hairline); }
+  .d-stat .k{ font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; }
+  .d-stat .v{ font-size:14px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
+  .d-stat .v.star{ color:var(--amber); }
+
+  .d-lbl{ font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin:12px 0 8px; }
+  /* clickable preset tags — searches the term on click */
+  .d-tag{ font-size:11px; font-family:inherit; padding:5px 11px; border-radius:99px; cursor:pointer;
+          border:1px solid var(--glass-border); background:rgba(var(--surface-rgb),.05); color:var(--text-soft);
+          transition:background .12s, border-color .12s, color .12s; }
+  .d-tag::before{ content:'#'; opacity:.5; margin-right:1px; }
+  .d-tag:hover{ background:rgba(var(--accent-rgb),.16); border-color:rgba(var(--accent-rgb),.42); color:var(--purple-l2); }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{ font-size:11px; padding:5px 10px; border-radius:99px; border:1px solid var(--glass-border);
+         background:rgba(255,255,255,.04); color:var(--text-soft); display:inline-flex; align-items:center; gap:6px; }
+  .chip.dev-hue{ background:#3a2c10; color:var(--amber); border-color:transparent; }
+  .chip.dev-nano{ background:#11331f; color:#5fe39a; border-color:transparent; }
+  .chip.dev-lifx{ background:#12294a; color:var(--flag-blue); border-color:transparent; }
+  .chip .d{ width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .d-desc{ font-size:12px; color:var(--text-soft); line-height:1.65; }
+  .d-more{ color:var(--purple-l2); font-size:12px; margin-top:6px; display:inline-flex; align-items:center; gap:3px; }
+
+  /* LED-zone preview loop — demonstrates the preset instead of a fake video; user-started */
+  .lp-btn{ display:inline-flex; align-items:center; gap:6px; padding:4px 12px 4px 9px; border-radius:999px;
+           background:rgba(var(--accent-rgb),.16); border:1px solid rgba(var(--accent-rgb),.42);
+           color:var(--purple-l2); font-family:inherit; font-size:11px; font-weight:600; letter-spacing:.5px; cursor:pointer; }
+  .lp-btn:hover{ background:rgba(var(--accent-rgb),.26); }
+  .lp-btn svg{ width:12px; height:12px; }
+  .d-preview{ margin-top:8px; height:100px; border-radius:12px; position:relative; overflow:hidden;
+              display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+              border:1px solid var(--glass-border); background:radial-gradient(120% 160% at 50% 0%, #16101f 0%, #0a0710 70%); }
+  .lp-flag{ position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .12s linear; z-index:2; }
+  .lp-strip{ display:flex; gap:3px; align-items:center; height:34px; padding:0 4px; z-index:1; }
+  .lp-cell{ width:9px; height:24px; border-radius:3px; background:#1c2438; transition:height .05s linear;
+            box-shadow:inset 0 0 0 1px rgba(255,255,255,.03); }
+  .lp-cell.lit{ box-shadow:0 0 8px currentColor, 0 0 2px #fff9; }
+  .lp-caption{ font-size:11px; color:var(--text-muted); font-family:var(--mono); letter-spacing:.3px; z-index:1; }
+
+  .d-share{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .d-share .lnk{ flex:1; font-size:11px; font-family:var(--mono); color:var(--text-muted);
+                 background:var(--card-inner); border:1px solid var(--glass-border); border-radius:9px;
+                 padding:9px 11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .d-copy{ font-size:12px; font-weight:600; color:var(--text-main); background:rgba(255,255,255,.06);
+           border:1px solid var(--glass-border); border-radius:9px; padding:9px 13px; display:inline-flex; align-items:center; gap:6px; }
+</style>
+</head>
+<body>
+<div class="win">
+
+  <!-- window chrome -->
+  <div class="chrome">
+    <span class="brand-dots"><span></span><span></span><span></span><span></span><span></span></span>
+    <span class="name">GridGlow</span>
+    <span class="badge">concept</span>
+    <span class="grow"></span>
+    <i class="ti ti-minus"></i>
+    <i class="ti ti-x"></i>
+  </div>
+
+  <div class="body">
+    <!-- icon rail -->
+    <div class="rail">
+      <div class="nv"><i class="ti ti-layout-dashboard"></i></div>
+      <div class="nv"><i class="ti ti-bulb"></i></div>
+      <div class="nv"><i class="ti ti-sparkles"></i></div>
+      <div class="nv"><i class="ti ti-list-details"></i></div>
+      <div class="nv"><i class="ti ti-device-gamepad-2"></i></div>
+      <div class="nv active"><i class="ti ti-world-share"></i></div>
+      <span class="grow"></span>
+      <div class="nv"><i class="ti ti-settings"></i></div>
+      <div class="pill"><span class="dot"></span><span>ON</span></div>
+    </div>
+
+    <!-- main -->
+    <div class="main">
+      <!-- header -->
+      <div class="hd">
+        <div>
+          <h1>Community Workshop</h1>
+          <p class="sub">Discover, share, and download community lighting presets for your favourite games.</p>
+        </div>
+        <span class="grow"></span>
+        <div class="search">
+          <i class="ti ti-search"></i>
+          <input id="searchInput" class="search-input" type="text" placeholder="Search presets, games, creators…" autocomplete="off" spellcheck="false">
+          <button id="searchClear" class="search-clear" type="button" title="Clear" aria-label="Clear search"><i class="ti ti-x"></i></button>
+          <span class="kbd">Ctrl K</span>
+        </div>
+        <button class="btn btn-primary" id="uploadBtn" style="margin-top:2px;"><i class="ti ti-upload"></i> Upload Preset</button>
+        <div class="auth-area" id="authArea" style="margin-top:2px;"></div>
+      </div>
+
+      <!-- tabs -->
+      <div class="tabs">
+        <div class="tab active" data-tab="discover">Discover</div>
+        <div class="tab" data-tab="uploads">My Uploads</div>
+        <div class="tab" data-tab="downloads">My Downloads</div>
+        <div class="tab" data-tab="liked">Liked</div>
+      </div>
+
+      <!-- ===== DISCOVER panel ===== -->
+      <div class="tab-panel active" data-panel="discover">
+      <!-- filters -->
+      <div class="filters">
+        <div class="fdrop" data-key="game"><i class="ti ti-device-gamepad-2"></i> <span class="fdrop-lbl">All Games</span> <i class="ti ti-chevron-down chev"></i></div>
+        <div class="fdrop" data-key="device"><i class="ti ti-bulb"></i> <span class="fdrop-lbl">All Devices</span> <i class="ti ti-chevron-down chev"></i></div>
+        <div class="fdrop hot" data-key="sort"><i class="ti ti-flame"></i> <span class="fdrop-lbl">Popular</span> <i class="ti ti-chevron-down chev"></i></div>
+        <div class="fdrop" data-key="time"><i class="ti ti-clock"></i> <span class="fdrop-lbl">All Time</span> <i class="ti ti-chevron-down chev"></i></div>
+        <span class="grow"></span>
+        <div class="fdrop" id="resetFilters"><i class="ti ti-adjustments-horizontal"></i> Reset</div>
+      </div>
+
+      <!-- split -->
+      <div class="split">
+        <!-- preset list (rendered from GET /api/workshop/presets) -->
+        <div class="list" id="presetList">
+          <div class="list-state" id="listLoading">Loading presets…</div>
+          <div class="list-state" id="listError" style="display:none;">
+            <div class="ls-title">Can't reach the Workshop API</div>
+            <div class="ls-sub">Start it with <code>npx wrangler pages dev --port 8788</code> in <code>website/</code>, then retry.</div>
+            <button class="btn btn-ghost btn-sm" id="listRetry" type="button" style="margin-top:12px;">Retry</button>
+          </div>
+
+          <!-- .pc cards are rendered here from the API by renderCard() -->
+
+          <div class="list-empty" id="listEmpty">No presets match these filters.</div>
+
+          <!-- pager -->
+          <div class="pager">
+            <div class="pg"><i class="ti ti-chevron-left"></i></div>
+            <div class="pg active">1</div>
+            <div class="pg">2</div>
+            <div class="pg">3</div>
+            <div class="pg">…</div>
+            <div class="pg">15</div>
+            <div class="pg"><i class="ti ti-chevron-right"></i></div>
+          </div>
+        </div>
+
+        <!-- detail panel -->
+        <div class="detail">
+          <div class="d-scroll">
+            <div class="d-hero" id="dHero">
+              <div class="d-close"><i class="ti ti-x"></i></div>
+              <img class="d-badge" id="dBadge" src="../../ui/logos/f1_25.png" alt="" style="height:26px;width:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));">
+            </div>
+
+            <div class="d-tit" id="dTit"></div>
+            <div class="d-by" id="dBy"></div>
+
+            <div class="d-actions">
+              <button class="btn btn-primary" id="dDownload"><i class="ti ti-download"></i> Download</button>
+              <div class="d-icons">
+                <div class="d-iconbtn like" id="dLike"><svg class="hx" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.9-10-9.2C.4 8.9 1.6 5.5 4.8 4.8 7 4.3 9 5.5 12 8c3-2.5 5-3.7 7.2-3.2 3.2.7 4.4 4.1 2.8 7C19.5 16.1 12 21 12 21z"/></svg> <span class="lc" id="dLikeCount">0</span></div>
+                <div class="d-iconbtn" id="dShare"><i class="ti ti-share-3"></i> Share</div>
+              </div>
+            </div>
+
+            <!-- compatibility with the viewer's own setup (capability-based, not device count) -->
+            <div class="d-compat warn" id="dCompat">
+              <span class="d-compat-dot"></span>
+              <div id="dCompatText"></div>
+            </div>
+
+            <div class="d-statgrid">
+              <div class="d-stat"><div class="k">Downloads</div><div class="v" id="dStatDl">–</div></div>
+              <div class="d-stat"><div class="k">Likes</div><div class="v" id="dStatLikes">–</div></div>
+              <div class="d-stat"><div class="k">Rating</div><div class="v star" id="dStatRating">–</div></div>
+              <div class="d-stat"><div class="k">Updated</div><div class="v" id="dStatUpdated">–</div></div>
+            </div>
+
+            <div class="d-lbl">Compatible Games</div>
+            <div class="chips" id="dGames"></div>
+
+            <div class="d-lbl">Recommended Devices</div>
+            <div class="chips" id="dDevices"></div>
+
+            <div class="d-lbl">Description</div>
+            <div class="d-desc" id="dDesc"></div>
+
+            <div class="d-lbl">Your rating</div>
+            <div class="d-rate" id="dRate"></div>
+
+            <div class="d-lbl" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>Preview</span>
+              <button class="lp-btn" id="lpBtn" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span id="lpBtnLabel">Play</span></button>
+            </div>
+            <div class="d-preview">
+              <div class="lp-flag" id="lpFlag"></div>
+              <div class="lp-strip" id="lpStrip"></div>
+              <div class="lp-caption" id="lpCaption">Idle · press play</div>
+            </div>
+
+            <div class="d-lbl">Tags</div>
+            <div class="chips d-tags" id="dTags"></div>
+
+            <div class="d-lbl">Share Preset</div>
+            <div class="d-share">
+              <div class="lnk" id="dShareLink">gridglow.app/w/…</div>
+              <div class="d-copy"><i class="ti ti-copy" style="font-size:15px;"></i> Copy</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div><!-- /DISCOVER panel -->
+
+      <!-- ===== MY UPLOADS panel ===== -->
+      <div class="tab-panel" data-panel="uploads">
+        <div class="panel-head">
+          <div class="ph-title">Your published presets</div>
+          <div class="ph-sub">3 presets · 15.5k downloads · 1.4k likes</div>
+        </div>
+        <div class="mgrid">
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/f1_25.png" alt="F1 24"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Race Day Dynamic</span><span class="vbadge public">Public</span><span class="off">Official</span></div>
+              <div class="mrow-game">F1 24</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> 12.4k</span><span class="mi"><i class="ti ti-heart"></i> 1.2k</span><span class="mi"><i class="ti ti-star-filled" style="color:var(--amber)"></i> 4.8</span><span class="mi"><i class="ti ti-clock"></i> Updated May 2</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#3ddc84,#f5b02e,#ff5d5d,#ff5d5d,#8b7cf6"></div>
+            <div class="mrow-act">
+              <button class="mbtn" data-edit><i class="ti ti-pencil"></i> Edit</button>
+              <button class="mbtn danger" data-remove><i class="ti ti-trash"></i></button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/acc.png" alt="Assetto Corsa Competizione"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Midnight Sprint</span><span class="vbadge public">Public</span></div>
+              <div class="mrow-game">Assetto Corsa Competizione</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> 3.1k</span><span class="mi"><i class="ti ti-heart"></i> 210</span><span class="mi"><i class="ti ti-star-filled" style="color:var(--amber)"></i> 4.6</span><span class="mi"><i class="ti ti-clock"></i> Updated Jun 14</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#12294a,#1c3a63,#6db2ff,#eef1f7,#6db2ff"></div>
+            <div class="mrow-act">
+              <button class="mbtn" data-edit><i class="ti ti-pencil"></i> Edit</button>
+              <button class="mbtn danger" data-remove><i class="ti ti-trash"></i></button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/forza.png" alt="Forza Horizon 5"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Garage Chill</span><span class="vbadge unlisted">Unlisted</span></div>
+              <div class="mrow-game">Forza Horizon 5</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> 42</span><span class="mi"><i class="ti ti-heart"></i> 5</span><span class="mi"><i class="ti ti-clock"></i> Updated Aug 2</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#f5b02e,#ff8b5d,#e0568f,#8b7cf6,#f5b02e"></div>
+            <div class="mrow-act">
+              <button class="mbtn" data-edit><i class="ti ti-pencil"></i> Edit</button>
+              <button class="mbtn danger" data-remove><i class="ti ti-trash"></i></button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-empty">
+          <div class="pe-ic"><i class="ti ti-upload"></i></div>
+          <h4>No uploads yet</h4>
+          <p>Publish a preset from your current setup to share it with the community.</p>
+          <button class="btn btn-primary btn-sm" data-open-upload><i class="ti ti-upload"></i> Upload Preset</button>
+        </div>
+      </div>
+
+      <!-- ===== MY DOWNLOADS panel ===== -->
+      <div class="tab-panel" data-panel="downloads">
+        <div class="panel-head">
+          <div class="ph-title">Downloaded presets</div>
+          <div class="ph-sub">Apply any of these to your lights anytime</div>
+        </div>
+        <div class="mgrid">
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/acc.png" alt="Assetto Corsa Competizione"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Night Racer</span></div>
+              <div class="mrow-game">Assetto Corsa Competizione · by LightBrake</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-check" style="color:var(--green)"></i> Applied</span><span class="mi"><i class="ti ti-clock"></i> 2 days ago</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#12294a,#1c3a63,#6db2ff,#eef1f7,#6db2ff"></div>
+            <div class="mrow-act">
+              <button class="mbtn primary" data-apply><i class="ti ti-bulb"></i> Apply</button>
+              <button class="mbtn danger" data-remove><i class="ti ti-trash"></i></button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/dr2.png" alt="DiRT Rally 2.0"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Rally Stage Intensity</span><span class="ubadge">Update available</span></div>
+              <div class="mrow-game">DiRT Rally 2.0 · by RallyFanatic</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> Downloaded</span><span class="mi"><i class="ti ti-clock"></i> 3 weeks ago</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#f5b02e,#c8551b,#8b5a2b,#f5b02e,#c8551b"></div>
+            <div class="mrow-act">
+              <button class="mbtn" data-download><i class="ti ti-refresh"></i> Update</button>
+              <button class="mbtn primary" data-apply><i class="ti ti-bulb"></i> Apply</button>
+              <button class="mbtn danger" data-remove><i class="ti ti-trash"></i></button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/forza.png" alt="Forza Horizon 5"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Sunset Cruise</span></div>
+              <div class="mrow-game">Forza Horizon 5 · by AmbientRacer</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> Downloaded</span><span class="mi"><i class="ti ti-clock"></i> Jul 30</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#e0568f,#a855f7,#8b7cf6,#f5b02e,#ff8b5d"></div>
+            <div class="mrow-act">
+              <button class="mbtn primary" data-apply><i class="ti ti-bulb"></i> Apply</button>
+              <button class="mbtn danger" data-remove><i class="ti ti-trash"></i></button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-empty">
+          <div class="pe-ic"><i class="ti ti-download"></i></div>
+          <h4>Nothing downloaded yet</h4>
+          <p>Presets you download from Discover show up here, ready to re-apply.</p>
+        </div>
+      </div>
+
+      <!-- ===== LIKED panel ===== -->
+      <div class="tab-panel" data-panel="liked">
+        <div class="panel-head">
+          <div class="ph-title">Liked presets</div>
+          <div class="ph-sub">Presets you've hearted</div>
+        </div>
+        <div class="mgrid">
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/f1_25.png" alt="F1 24"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Race Day Dynamic</span><span class="off">Official</span></div>
+              <div class="mrow-game">F1 24 · by GridGlow Official</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> 12.4k</span><span class="mi"><i class="ti ti-star-filled" style="color:var(--amber)"></i> 4.8</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#3ddc84,#f5b02e,#ff5d5d,#ff5d5d,#8b7cf6"></div>
+            <div class="mrow-act">
+              <button class="mbtn primary" data-download><i class="ti ti-download"></i> Download</button>
+              <button class="mbtn danger" data-remove title="Unlike"><svg viewBox="0 0 24 24" width="15" height="15" fill="#ff5d5d"><path d="M12 21s-7.5-4.9-10-9.2C.4 8.9 1.6 5.5 4.8 4.8 7 4.3 9 5.5 12 8c3-2.5 5-3.7 7.2-3.2 3.2.7 4.4 4.1 2.8 7C19.5 16.1 12 21 12 21z"/></svg></button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/dr2.png" alt="DiRT Rally 2.0"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Rally Stage Intensity</span></div>
+              <div class="mrow-game">DiRT Rally 2.0 · by RallyFanatic</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> 6.2k</span><span class="mi"><i class="ti ti-star-filled" style="color:var(--amber)"></i> 4.9</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#f5b02e,#c8551b,#8b5a2b,#f5b02e,#c8551b"></div>
+            <div class="mrow-act">
+              <button class="mbtn primary" data-download><i class="ti ti-download"></i> Download</button>
+              <button class="mbtn danger" data-remove title="Unlike"><svg viewBox="0 0 24 24" width="15" height="15" fill="#ff5d5d"><path d="M12 21s-7.5-4.9-10-9.2C.4 8.9 1.6 5.5 4.8 4.8 7 4.3 9 5.5 12 8c3-2.5 5-3.7 7.2-3.2 3.2.7 4.4 4.1 2.8 7C19.5 16.1 12 21 12 21z"/></svg></button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="thumb"><img class="thumb-logo" src="../../ui/logos/pcars2.png" alt="Project CARS 2"></div>
+            <div class="mrow-info">
+              <div class="mrow-titrow"><span class="mrow-tit">Track Focused</span></div>
+              <div class="mrow-game">Project CARS 2 · by Oversteer_86</div>
+              <div class="mrow-meta"><span class="mi"><i class="ti ti-download"></i> 4.3k</span><span class="mi"><i class="ti ti-star-filled" style="color:var(--amber)"></i> 4.6</span></div>
+            </div>
+            <div class="arc-mini" data-cols="#3ddc84,#3ddc84,#6db2ff,#8b7cf6,#3ddc84"></div>
+            <div class="mrow-act">
+              <button class="mbtn primary" data-download><i class="ti ti-download"></i> Download</button>
+              <button class="mbtn danger" data-remove title="Unlike"><svg viewBox="0 0 24 24" width="15" height="15" fill="#ff5d5d"><path d="M12 21s-7.5-4.9-10-9.2C.4 8.9 1.6 5.5 4.8 4.8 7 4.3 9 5.5 12 8c3-2.5 5-3.7 7.2-3.2 3.2.7 4.4 4.1 2.8 7C19.5 16.1 12 21 12 21z"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-empty">
+          <div class="pe-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.9-10-9.2C.4 8.9 1.6 5.5 4.8 4.8 7 4.3 9 5.5 12 8c3-2.5 5-3.7 7.2-3.2 3.2.7 4.4 4.1 2.8 7C19.5 16.1 12 21 12 21z"/></svg></div>
+          <h4>No liked presets</h4>
+          <p>Tap the heart on any preset to save it here for later.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Upload Preset modal (open by default so the flow is visible) ===== -->
+  <!-- DEV: fields map to the upload payload → { name, description, game, visibility,
+       devices:[], tags:[], colors:[] (from the user's active setup) }. -->
+  <div class="up-backdrop" id="upBackdrop">
+    <div class="up-modal">
+      <div class="up-head">
+        <div>
+          <h3>Upload Preset</h3>
+          <p>Share your lighting setup with the community.</p>
+        </div>
+        <button class="up-x" id="upClose" type="button"><i class="ti ti-x"></i></button>
+      </div>
+
+      <!-- live colour preview, pulled from the user's current setup -->
+      <div class="up-preview">
+        <div class="up-arc" id="zUpload"></div>
+        <div class="up-preview-meta">
+          <span class="up-preview-label">Colours from your current setup</span>
+          <span class="up-zones-count">5 zones · LIFX Z + Nanoleaf</span>
+        </div>
+      </div>
+
+      <label class="up-field">
+        <span class="up-lbl">Preset name</span>
+        <input class="up-input" id="upName" type="text" value="Race Day Dynamic">
+      </label>
+
+      <label class="up-field">
+        <span class="up-lbl">Description</span>
+        <textarea class="up-input up-textarea" id="upDesc" rows="3">Immersion-first preset with reactive accents for race start, overtakes, DRS and pit stops.</textarea>
+      </label>
+
+      <div class="up-row">
+        <label class="up-field">
+          <span class="up-lbl">Game</span>
+          <div class="up-select" id="upGame" data-game="f1_25">F1 24 <i class="ti ti-chevron-down"></i></div>
+        </label>
+        <div class="up-field">
+          <span class="up-lbl">Visibility</span>
+          <div class="up-seg">
+            <button class="up-seg-btn active" type="button">Public</button>
+            <button class="up-seg-btn" type="button">Unlisted</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="up-field">
+        <span class="up-lbl">Supported devices</span>
+        <div class="up-chips">
+          <button class="up-chip on dev-hue"  type="button"><span class="d"></span> Philips Hue</button>
+          <button class="up-chip on dev-nano" type="button"><span class="d"></span> Nanoleaf</button>
+          <button class="up-chip on dev-lifx" type="button"><span class="d"></span> LIFX</button>
+        </div>
+      </div>
+
+      <div class="up-field">
+        <span class="up-lbl">Tags</span>
+        <div class="up-tags">
+          <span class="up-tag">Immersive <i class="ti ti-x"></i></span>
+          <span class="up-tag">Race <i class="ti ti-x"></i></span>
+          <span class="up-tag">Dynamic <i class="ti ti-x"></i></span>
+          <input class="up-tag-input" placeholder="Add tag…">
+        </div>
+      </div>
+
+      <div class="up-foot">
+        <button class="btn btn-ghost btn-sm" id="upCancel" type="button">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="upPublish" type="button"><i class="ti ti-upload"></i> Publish preset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Apply Preset modal — map the preset onto the user's own lights ===== -->
+  <!-- Scenario shown: user has 4 Philips Hue bulbs, 0 multizone strips.
+       DEV: role list comes from the preset's effects; each effect declares
+       { requires:'multizone'|'any', fallback:<how to degrade> }. Any-bulb effects get a
+       device picker; multizone effects with no strip present offer an approximate-on-a-bulb
+       fallback. Nothing here is gated on matching device COUNT — unused roles are fine. -->
+  <div class="ap-backdrop" id="apBackdrop">
+    <div class="ap-modal">
+      <div class="up-head">
+        <div>
+          <h3>Apply Preset</h3>
+          <p>Race Day Dynamic → map it to your lights</p>
+        </div>
+        <button class="up-x" id="apClose" type="button"><i class="ti ti-x"></i></button>
+      </div>
+
+      <div class="ap-compat warn">
+        <span class="ap-compat-badge">Partial</span>
+        <div>Your <b>theme</b> — colours, curves and events — applies to all 4 of your lights.
+          <b>2 effects</b> need a multizone strip you don't have; approximate them on a single bulb or skip.</div>
+      </div>
+
+      <div class="up-lbl" style="margin-bottom:10px;">Map effects to your lights</div>
+      <div class="ap-map">
+
+        <div class="ap-role">
+          <div class="ap-role-info">
+            <div class="ap-role-name">RPM rev meter</div>
+            <div class="ap-role-req"><span class="req mz">Needs multizone</span></div>
+          </div>
+          <div class="ap-role-ctl">
+            <label class="ap-fallback"><span class="tog2 on" data-tog></span> Approximate on 1 bulb</label>
+            <div class="ap-pick">Hue · Desk Left <i class="ti ti-chevron-down"></i></div>
+          </div>
+        </div>
+
+        <div class="ap-role">
+          <div class="ap-role-info">
+            <div class="ap-role-name">Start lights</div>
+            <div class="ap-role-req"><span class="req mz">Needs multizone</span></div>
+          </div>
+          <div class="ap-role-ctl">
+            <label class="ap-fallback"><span class="tog2 on" data-tog></span> Sequence across bulbs</label>
+            <div class="ap-pick">4 lights <i class="ti ti-chevron-down"></i></div>
+          </div>
+        </div>
+
+        <div class="ap-role">
+          <div class="ap-role-info">
+            <div class="ap-role-name">Track-status flags</div>
+            <div class="ap-role-req"><span class="req any">Any light</span></div>
+          </div>
+          <div class="ap-role-ctl">
+            <div class="ap-pick">Hue · TV <i class="ti ti-chevron-down"></i></div>
+          </div>
+        </div>
+
+        <div class="ap-role">
+          <div class="ap-role-info">
+            <div class="ap-role-name">Fastest-lap flash</div>
+            <div class="ap-role-req"><span class="req any">Any light</span></div>
+          </div>
+          <div class="ap-role-ctl">
+            <div class="ap-pick">All 4 lights <i class="ti ti-chevron-down"></i></div>
+          </div>
+        </div>
+
+        <div class="ap-role">
+          <div class="ap-role-info">
+            <div class="ap-role-name">Idle / ambient</div>
+            <div class="ap-role-req"><span class="req any">Any light</span></div>
+          </div>
+          <div class="ap-role-ctl">
+            <div class="ap-pick">Hue · Shelf +1 <i class="ti ti-chevron-down"></i></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PLANNED (not built) — forward-looking, per user: match colours per light -->
+      <div class="ap-soon">
+        <i class="ti ti-color-swatch"></i>
+        <div><b>Planned — match colours per light.</b> Assign each of your lights to a specific colour
+          from the preset (e.g. Light&nbsp;2 → red, Light&nbsp;3 → pink, Light&nbsp;4 → yellow) instead of
+          role-based mapping. Not built yet.</div>
+      </div>
+
+      <div class="up-foot">
+        <button class="btn btn-ghost btn-sm" id="apCancel" type="button">Cancel</button>
+        <button class="btn btn-primary btn-sm" type="button"><i class="ti ti-check"></i> Apply preset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Per-card preset preview: a lit addressable-LED strip. Equal-height pixels blend smoothly
+  // through the preset's colour stops, so each card shows its COLOUR RANGE (not a waveform).
+  // DEV: these palettes are placeholders — in the build, feed each strip the uploaded
+  // preset's actual zone colours (same requirement as the live preview below).
+  const palettes = {
+    z1:['#3ddc84','#f5b02e','#ff5d5d','#ff5d5d','#8b7cf6'],   // race: green→amber→red→purple
+    z2:['#12294a','#1c3a63','#6db2ff','#eef1f7','#6db2ff'],   // night: cool blues + brake white
+    z3:['#f5b02e','#c8551b','#8b5a2b','#f5b02e','#c8551b'],   // rally: earthy amber
+    z4:['#e0568f','#a855f7','#8b7cf6','#f5b02e','#ff8b5d'],   // sunset: pink→purple→warm
+    z5:['#3ddc84','#3ddc84','#6db2ff','#8b7cf6','#3ddc84'],   // minimal: calm greens/blue
+  };
+  const hex2rgb = h => { h=h.replace('#',''); return [0,2,4].map(k=>parseInt(h.substr(k,2),16)); };
+  // Reusable arc renderer — one source for the card strips AND the upload preview.
+  // A shallow arch of round colour beads (dashed thick stroke) that reads as an F1 rev gauge.
+  let _arcSeq = 0;
+  function renderArc(el, cols){
+    if(!el || !cols) return;
+    const gid   = 'grad_' + (_arcSeq++);   // unique per arc, no element id required
+    const stops = cols.map((c,i)=>`<stop offset="${(i/(cols.length-1)*100).toFixed(1)}%" stop-color="${c}"/>`).join('');
+    const m     = hex2rgb(cols[Math.floor(cols.length/2)]);   // mid-tone drives the glow
+    el.innerHTML =
+      `<svg viewBox="0 0 164 36" preserveAspectRatio="none" style="filter:drop-shadow(0 1px 6px rgba(${m[0]},${m[1]},${m[2]},.5))">`+
+        `<defs><linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="10" y1="0" x2="154" y2="0">${stops}</linearGradient></defs>`+
+        `<path d="M10 27 Q82 5 154 27" fill="none" stroke="url(#${gid})" stroke-width="11" stroke-linecap="round" stroke-dasharray="1.3 4.6"/>`+
+      `</svg>`;
+  }
+  // colour interpolation shared by the card arcs and the live preview loop
+  const lerpRgb = (a,b,t)=> a.map((v,i)=> Math.round(v + (b[i]-v)*t));
+  function sampleGradient(stops, t){
+    if(!stops || !stops.length) return '#8b7cf6';
+    if(stops.length === 1) return stops[0];
+    const s = stops.map(hex2rgb);
+    const seg = Math.max(0, Math.min(1, t)) * (s.length - 1);
+    const k = Math.min(s.length - 2, Math.floor(seg));
+    const c = lerpRgb(s[k], s[k+1], seg - k);
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+  // Discover cards + detail preview are DYNAMIC: colours come from each preset's rpm_gradient
+  // (list `swatch` / detail `theme.rpm_gradient`). This is the ⚠ dynamic-colour requirement.
+  let previewGradient = ['#3ddc84','#f5b02e','#ff5d5d'];   // replaced per selected preset
+  renderArc(document.getElementById('zUpload'), palettes.z1);   // upload preview = user's active colours
+  document.querySelectorAll('.arc-mini[data-cols]').forEach(el=> renderArc(el, el.dataset.cols.split(',')));
+
+  // ---- Upload Preset modal wiring ----
+  const upBackdrop = document.getElementById('upBackdrop');
+  document.getElementById('uploadBtn').addEventListener('click', ()=> upBackdrop.classList.add('open'));
+  document.getElementById('upClose').addEventListener('click', ()=> upBackdrop.classList.remove('open'));
+  document.getElementById('upCancel').addEventListener('click', ()=> upBackdrop.classList.remove('open'));
+  upBackdrop.addEventListener('click', e=>{ if(e.target===upBackdrop) upBackdrop.classList.remove('open'); });
+  document.querySelectorAll('.up-chip').forEach(c=> c.addEventListener('click', ()=> c.classList.toggle('on')));
+
+  // tag chips — remove on × click, add on Enter/comma, backspace deletes the last
+  const upTags = upBackdrop.querySelector('.up-tags');
+  const upTagInput = upBackdrop.querySelector('.up-tag-input');
+  upTags.addEventListener('click', e=>{ const x = e.target.closest('.up-tag i'); if(x) x.closest('.up-tag').remove(); });
+  upTagInput.addEventListener('keydown', e=>{
+    if(e.key==='Enter' || e.key===','){
+      e.preventDefault();
+      const v = upTagInput.value.replace(/,+$/,'').trim();
+      if(v){ const chip=document.createElement('span'); chip.className='up-tag'; chip.innerHTML = esc(v) + ' <i class="ti ti-x"></i>'; upTags.insertBefore(chip, upTagInput); }
+      upTagInput.value='';
+    } else if(e.key==='Backspace' && !upTagInput.value){
+      const last = [...upTags.querySelectorAll('.up-tag')].pop(); if(last) last.remove();
+    }
+  });
+
+  // game dropdown
+  const UP_GAMES = [['f1_25','F1 24'],['acc','Assetto Corsa Competizione'],['ac','Assetto Corsa'],['dr2','DiRT Rally 2.0'],['forza','Forza Horizon 5'],['pcars2','Project CARS 2'],['iracing','iRacing'],['wrc','EA SPORTS WRC']];
+  const upGame = document.getElementById('upGame');
+  const gmenu = document.createElement('div'); gmenu.className = 'fmenu up-game-menu';
+  gmenu.innerHTML = UP_GAMES.map(([slug,name])=> '<div class="fmenu-item" data-slug="'+slug+'">'+esc(name)+'</div>').join('');
+  upGame.appendChild(gmenu);
+  upGame.addEventListener('click', e=>{ if(e.target.closest('.fmenu')) return; upGame.classList.toggle('gopen'); });
+  gmenu.addEventListener('click', e=>{ const it = e.target.closest('.fmenu-item'); if(!it) return; upGame.dataset.game = it.dataset.slug; upGame.firstChild.textContent = it.textContent + ' '; upGame.classList.remove('gopen'); });
+  document.addEventListener('click', e=>{ if(!e.target.closest('#upGame')) upGame.classList.remove('gopen'); });
+
+  document.getElementById('upPublish').addEventListener('click', async ()=>{
+    if(!requireLogin()) return;
+    const devSlug = { 'dev-hue':'hue', 'dev-nano':'nanoleaf', 'dev-lifx':'lifx' };
+    const devices = [...upBackdrop.querySelectorAll('.up-chip.on')]
+      .map(c=> devSlug[[...c.classList].find(k=> k.startsWith('dev-'))]).filter(Boolean);
+    const tags = [...upBackdrop.querySelectorAll('.up-tag')]
+      .map(t=> (t.firstChild && t.firstChild.textContent || '').trim()).filter(Boolean);
+    const body = {
+      title: (document.getElementById('upName').value.trim() || 'Untitled preset'),
+      description: document.getElementById('upDesc').value.trim(),
+      game: document.getElementById('upGame').dataset.game || 'f1_25',
+      visibility: (upBackdrop.querySelector('.up-seg-btn.active')?.textContent.trim().toLowerCase()) || 'public',
+      tags, devices,
+      gridglow_preset: 1,
+      app_min_version: '0.10.0',
+      theme: SAMPLE_THEME,          // app sends real get_gui_settings(); mockup sends the sample
+    };
+    const pub = document.getElementById('upPublish'); pub.disabled = true;
+    const r = await workshopWrite('/api/workshop/presets', 'POST', body);
+    pub.disabled = false;
+    if(r.ok){ upBackdrop.classList.remove('open'); toast('Preset published!', 'ok'); loadWorkshop(); }
+    else if(r.status) toast('Upload failed (' + r.status + ')', 'err');
+  });
+  document.querySelectorAll('.up-seg-btn').forEach(b=> b.addEventListener('click', ()=>{
+    b.parentElement.querySelectorAll('.up-seg-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+  }));
+
+  // ---- Apply Preset modal wiring ----
+  const apBackdrop = document.getElementById('apBackdrop');
+  const openApply  = ()=> apBackdrop.classList.add('open');
+  const closeApply = ()=> apBackdrop.classList.remove('open');
+  // Download → animate the pill (fill + live %), land on "Downloaded ✓", then open Apply.
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>';
+  function runDownload(btn){
+    if(btn.dataset.dl==='1') return;             // ignore re-clicks mid-download
+    if(!requireLogin()) return;                  // download requires a login
+    const card = btn.closest('.pc');
+    const id = (card && card.dataset.id) || currentPresetId;
+    // fetch the real theme via the download endpoint (in parallel with the animation)
+    if(id) workshopWrite('/api/workshop/presets/' + id + '/download', 'POST')
+      .then(r=>{ if(r.ok && r.data) pendingApplyTheme = r.data.theme || r.data; });
+    btn.dataset.dl = '1';
+    const orig = btn.innerHTML;
+    btn.classList.add('is-dl');
+    btn.innerHTML = '<span class="dl-fill"></span><span class="dl-lbl">Downloading 0%</span>';
+    const fill = btn.querySelector('.dl-fill');
+    const lbl  = btn.querySelector('.dl-lbl');
+    const DUR = 1600, t0 = performance.now();
+    function step(now){
+      const frac = Math.min(1, (now - t0) / DUR);
+      const eased = 1 - Math.pow(1 - frac, 2);   // ease-out so it decelerates near 100%
+      const pct = Math.round(eased * 100);
+      fill.style.width = (eased * 100) + '%';
+      lbl.textContent = 'Downloading ' + pct + '%';
+      if(frac < 1){ requestAnimationFrame(step); }
+      else {
+        fill.style.width = '100%';
+        btn.classList.add('dl-done');
+        lbl.innerHTML = CHECK + ' Downloaded';
+        setTimeout(()=>{
+          btn.classList.remove('is-dl','dl-done');
+          btn.innerHTML = orig;
+          btn.dataset.dl = '';
+          openApply();                            // hand off to the map-to-your-lights step
+        }, 850);
+      }
+    }
+    requestAnimationFrame(step);
+  }
+  document.getElementById('dDownload').addEventListener('click', function(){ runDownload(this); });
+  document.getElementById('apClose').addEventListener('click', closeApply);
+  document.getElementById('apCancel').addEventListener('click', closeApply);
+  apBackdrop.addEventListener('click', e=>{ if(e.target===apBackdrop) closeApply(); });
+  document.querySelectorAll('.tog2[data-tog]').forEach(t=> t.addEventListener('click', ()=> t.classList.toggle('on')));
+
+  // ---- like: heart → checkered flag → heart flourish ----
+  const HEART_PATH = 'M12 21s-7.5-4.9-10-9.2C.4 8.9 1.6 5.5 4.8 4.8 7 4.3 9 5.5 12 8c3-2.5 5-3.7 7.2-3.2 3.2.7 4.4 4.1 2.8 7C19.5 16.1 12 21 12 21z';
+  const HEART_FILLED  = '<svg class="hx" viewBox="0 0 24 24" width="16" height="16" fill="#ff5d5d"><path d="'+HEART_PATH+'"/></svg>';
+  const HEART_OUTLINE = '<i class="ti ti-heart hx"></i>';
+  const FLAG = '<svg class="hx flag-pop" viewBox="0 0 24 24" width="16" height="16">'
+    + '<rect x="5" y="3" width="1.6" height="18" rx=".8" fill="#cdd3e0"/>'      // pole
+    + '<rect x="6.6" y="3.5" width="13" height="10" fill="#fff"/>'              // flag base
+    + '<g fill="#0e1424">'                                                      // dark checker squares
+    +   '<rect x="6.6" y="3.5" width="3.25" height="3.33"/><rect x="13.1" y="3.5" width="3.25" height="3.33"/>'
+    +   '<rect x="9.85" y="6.83" width="3.25" height="3.33"/><rect x="16.35" y="6.83" width="3.25" height="3.33"/>'
+    +   '<rect x="6.6" y="10.16" width="3.25" height="3.33"/><rect x="13.1" y="10.16" width="3.25" height="3.33"/>'
+    + '</g></svg>';
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function popHeart(el){
+    if(!el) return;
+    el.classList.remove('heart-pop'); void el.offsetWidth;   // restart the animation each click
+    el.classList.add('heart-pop');
+    el.addEventListener('animationend', ()=> el.classList.remove('heart-pop'), { once:true });
+  }
+  // setIcon(html, pop) swaps the heart's icon slot; likeFlag runs heart → flag → heart
+  function likeFlag(setIcon){
+    if(REDUCE){ setIcon(HEART_FILLED, true); return; }
+    setIcon(FLAG, false);
+    setTimeout(()=> setIcon(HEART_FILLED, true), 440);   // let the flag fully settle first
+  }
+  // card hearts are wired via delegation in the API block (cards are rendered dynamically).
+  // helper both card + detail hearts use to swap the icon slot:
+  function heartSetIcon(host, html, pop){
+    const cur = host.querySelector('.hx');
+    if(cur) cur.outerHTML = html; else host.insertAdjacentHTML('afterbegin', html);
+    if(pop) popHeart(host.querySelector('.hx'));
+  }
+  const dLike = document.getElementById('dLike');
+  if(dLike){
+    dLike.addEventListener('click', ()=>{
+      if(!requireLogin()) return;
+      const liked = dLike.classList.toggle('liked');
+      const base = +(dLike.dataset.likes || 0);
+      document.getElementById('dLikeCount').textContent = fmtCount(liked ? base + 1 : base);
+      if(liked) likeFlag((html, pop)=> heartSetIcon(dLike, html, pop));   // flag → filled heart
+      else      heartSetIcon(dLike, HEART_OUTLINE, true);
+      if(currentPresetId) workshopWrite('/api/workshop/presets/' + currentPresetId + '/like', 'POST');
+    });
+  }
+
+  // ---- filter + sort dropdowns ----
+  // DEV: mirrors what the back end will do server-side (?sort=&game=&device=&range=).
+  // Here it reorders/hides the existing card nodes by their data-* attributes.
+  const FDROP_OPTS = {
+    sort:   [['pop','Popular'],['likes','Most liked'],['rating','Highest rated'],['new','Newest'],['az','Name A–Z']],
+    game:   [['all','All Games'],['F1 24','F1 24'],['Assetto Corsa Competizione','ACC'],['DiRT Rally 2.0','DiRT Rally 2.0'],['Forza Horizon 5','Forza Horizon 5'],['Project CARS 2','Project CARS 2']],
+    device: [['all','All Devices'],['hue','Philips Hue'],['nanoleaf','Nanoleaf'],['lifx','LIFX']],
+    time:   [['all','All Time'],['week','This week'],['month','This month'],['year','This year']],
+  };
+  const fstate  = { sort:'pop', game:'all', device:'all', time:'all', q:'' };
+  let workshopLoaded = false;   // true once the API list has rendered; gates the empty state
+  const listEl  = document.querySelector('.list');
+  const pagerEl = listEl.querySelector('.pager');
+  const emptyEl = document.getElementById('listEmpty');
+
+  function applyFilters(){
+    const cards = [...listEl.querySelectorAll('.pc')];
+    const maxDays = { all:Infinity, week:7, month:31, year:365 }[fstate.time];
+    const q = fstate.q.trim().toLowerCase();
+    cards.forEach(c=>{
+      const okGame = fstate.game==='all'   || c.dataset.game===fstate.game;
+      const okDev  = fstate.device==='all' || (c.dataset.devices||'').split(',').includes(fstate.device);
+      const okTime = (+c.dataset.days) <= maxDays;
+      // search name + game + creator + tags
+      const hay = (c.dataset.name + ' ' + c.dataset.game + ' ' + (c.dataset.tags || '') + ' ' + (c.querySelector('.pc-by')?.textContent || '')).toLowerCase();
+      const okQ = !q || hay.includes(q);
+      c.style.display = (okGame && okDev && okTime && okQ) ? '' : 'none';
+    });
+    const cmp = {
+      pop:   (a,b)=> b.dataset.downloads - a.dataset.downloads,
+      likes: (a,b)=> b.dataset.likes     - a.dataset.likes,
+      rating:(a,b)=> b.dataset.rating    - a.dataset.rating,
+      new:   (a,b)=> a.dataset.days      - b.dataset.days,
+      az:    (a,b)=> a.dataset.name.localeCompare(b.dataset.name),
+    }[fstate.sort];
+    const visible = cards.filter(c=> c.style.display!=='none').sort(cmp);
+    visible.forEach(c=> listEl.insertBefore(c, pagerEl));    // reorder ahead of the pager
+    emptyEl.classList.toggle('show', workshopLoaded && visible.length===0);
+    pagerEl.style.display = visible.length ? '' : 'none';
+  }
+
+  // search the management panels (My Uploads / Downloads / Liked) by row text
+  function filterManagementPanels(){
+    const q = fstate.q.trim().toLowerCase();
+    document.querySelectorAll('.tab-panel[data-panel] .mgrid').forEach(grid=>{
+      let vis = 0;
+      grid.querySelectorAll('.mrow').forEach(row=>{
+        const show = !q || row.textContent.toLowerCase().includes(q);
+        row.style.display = show ? '' : 'none';
+        if(show) vis++;
+      });
+      const empty = grid.closest('.tab-panel').querySelector('.panel-empty');
+      if(empty) empty.classList.toggle('show', vis===0);
+    });
+  }
+
+  document.querySelectorAll('.fdrop[data-key]').forEach(drop=>{
+    const key  = drop.dataset.key;
+    const lbl  = drop.querySelector('.fdrop-lbl');
+    const menu = document.createElement('div');
+    menu.className = 'fmenu';
+    FDROP_OPTS[key].forEach(([val,text])=>{
+      const item = document.createElement('div');
+      item.className = 'fmenu-item' + (fstate[key]===val ? ' active' : '');
+      item.innerHTML = text + '<i class="ti ti-check ck"></i>';
+      item.addEventListener('click', e=>{
+        e.stopPropagation();
+        fstate[key] = val;
+        lbl.textContent = text;
+        menu.querySelectorAll('.fmenu-item').forEach(x=> x.classList.remove('active'));
+        item.classList.add('active');
+        drop.classList.remove('open');
+        applyFilters();
+      });
+      menu.appendChild(item);
+    });
+    drop.appendChild(menu);
+    drop.addEventListener('click', e=>{
+      if(e.target.closest('.fmenu')) return;
+      const wasOpen = drop.classList.contains('open');
+      document.querySelectorAll('.fdrop.open').forEach(d=> d.classList.remove('open'));
+      if(!wasOpen) drop.classList.add('open');
+    });
+  });
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('.fdrop')) document.querySelectorAll('.fdrop.open').forEach(d=> d.classList.remove('open'));
+  });
+  const resetBtn = document.getElementById('resetFilters');
+  if(resetBtn) resetBtn.addEventListener('click', ()=>{
+    Object.assign(fstate, { sort:'pop', game:'all', device:'all', time:'all', q:'' });
+    document.querySelectorAll('.fdrop[data-key]').forEach(drop=>{
+      const key = drop.dataset.key;
+      drop.querySelector('.fdrop-lbl').textContent = FDROP_OPTS[key][0][1];
+      drop.querySelectorAll('.fmenu-item').forEach((it,i)=> it.classList.toggle('active', i===0));
+    });
+    searchInput.value = ''; searchBox.classList.remove('has-q');
+    applyFilters();
+    filterManagementPanels();
+  });
+  applyFilters();
+
+  // ---- tab switching + personal tabs (My Uploads/Downloads/Liked → live Bearer GETs) ----
+  const PERSONAL_KIND = { uploads:'mine', downloads:'downloaded', liked:'liked' };
+  document.querySelectorAll('.tab[data-tab]').forEach(tab=> tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=> t.classList.remove('active'));
+    tab.classList.add('active');
+    const name = tab.dataset.tab;
+    document.querySelectorAll('.tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.panel===name));
+    if(PERSONAL_KIND[name]) loadPersonalTab(name);
+  }));
+
+  function mgmtActions(kind){
+    if(kind==='uploads')   return '<button class="mbtn" data-edit><i class="ti ti-pencil"></i> Edit</button><button class="mbtn danger" data-del title="Delete"><i class="ti ti-trash"></i></button>';
+    if(kind==='downloads') return '<button class="mbtn primary" data-apply><i class="ti ti-bulb"></i> Apply</button><button class="mbtn danger" data-del title="Remove"><i class="ti ti-trash"></i></button>';
+    return '<button class="mbtn primary" data-dl><i class="ti ti-download"></i> Download</button><button class="mbtn danger" data-unlike title="Unlike"><svg viewBox="0 0 24 24" width="15" height="15" fill="#ff5d5d"><path d="'+HEART_PATH+'"/></svg></button>';
+  }
+  function renderMgmtRow(p, kind){
+    const row = document.createElement('div');
+    row.className = 'mrow'; row.dataset.id = p.id;
+    const meta = kind==='downloads'
+      ? '<span class="mi"><i class="ti ti-download"></i> Downloaded</span>'
+      : '<span class="mi"><i class="ti ti-download"></i> '+fmtCount(p.downloads)+'</span><span class="mi"><i class="ti ti-heart"></i> '+fmtCount(p.likes)+'</span>'
+        + (p.rating!=null ? '<span class="mi"><i class="ti ti-star-filled" style="color:var(--amber)"></i> '+(+p.rating).toFixed(1)+'</span>' : '');
+    const byline = kind==='uploads' ? esc(p.game_name||p.game)
+      : esc(p.game_name||p.game) + ' · by ' + esc(p.author_name||'unknown');
+    row.innerHTML =
+      '<div class="thumb"><img class="thumb-logo" src="'+logoFor(p.game)+'" alt=""></div>'
+      + '<div class="mrow-info"><div class="mrow-titrow"><span class="mrow-tit">'+esc(p.title)+'</span></div>'
+      + '<div class="mrow-game">'+byline+'</div><div class="mrow-meta">'+meta+'</div></div>'
+      + '<div class="arc-mini"></div>'
+      + '<div class="mrow-act">'+mgmtActions(kind)+'</div>';
+    renderArc(row.querySelector('.arc-mini'), (p.swatch&&p.swatch.length)?p.swatch:['#8b7cf6']);
+    return row;
+  }
+  async function loadPersonalTab(name){
+    const panel = document.querySelector('.tab-panel[data-panel="'+name+'"]');
+    const grid = panel.querySelector('.mgrid');
+    const empty = panel.querySelector('.panel-empty');
+    if(empty) empty.classList.remove('show');
+    if(!currentSession){
+      grid.innerHTML = '<div class="list-state"><div class="ls-sub">Sign in to see your '
+        + (name==='uploads'?'uploads':name==='downloads'?'downloads':'liked presets') + '.</div>'
+        + '<button class="btn btn-primary btn-sm" id="lgFromTab" style="margin-top:12px;">Sign in</button></div>';
+      grid.querySelector('#lgFromTab').addEventListener('click', openLogin);
+      return;
+    }
+    grid.innerHTML = '<div class="list-state">Loading…</div>';
+    const r = await workshopWrite('/api/workshop/presets?' + PERSONAL_KIND[name] + '=1', 'GET');
+    const items = (r.data && r.data.presets) || [];
+    grid.innerHTML = '';
+    items.forEach(p=> grid.appendChild(renderMgmtRow(p, name)));
+    if(empty) empty.classList.toggle('show', items.length===0);
+  }
+
+  // delegated row actions on the personal panels
+  document.querySelectorAll('.tab-panel[data-panel] .mgrid').forEach(grid=>{
+    grid.addEventListener('click', async e=>{
+      const row = e.target.closest('.mrow'); if(!row) return; const id = row.dataset.id;
+      if(e.target.closest('[data-edit]'))  { upBackdrop.classList.add('open'); return; }
+      if(e.target.closest('[data-apply]')) { openApply(); return; }
+      const dlBtn = e.target.closest('[data-dl]');
+      if(dlBtn){ runDownload(dlBtn); return; }
+      if(e.target.closest('[data-del]')){
+        if(!requireLogin()) return;
+        const r = await workshopWrite('/api/workshop/presets/' + id, 'DELETE');
+        if(r.ok){ row.remove(); toast('Removed', 'ok'); } else toast('Delete failed', 'err');
+        return;
+      }
+      if(e.target.closest('[data-unlike]')){
+        if(!requireLogin()) return;
+        const r = await workshopWrite('/api/workshop/presets/' + id + '/like', 'POST');
+        if(r.ok){ row.remove(); toast('Unliked', 'ok'); }
+        return;
+      }
+    });
+  });
+  document.querySelectorAll('[data-open-upload]').forEach(b=> b.addEventListener('click', ()=> upBackdrop.classList.add('open')));
+  filterManagementPanels();
+
+  // ---- header search: presets / games / creators (across the active tab) ----
+  const searchInput = document.getElementById('searchInput');
+  const searchClear = document.getElementById('searchClear');
+  const searchBox   = searchInput.closest('.search');
+  function onSearch(){
+    fstate.q = searchInput.value;
+    searchBox.classList.toggle('has-q', searchInput.value.trim().length > 0);
+    applyFilters();               // Discover list
+    filterManagementPanels();     // Uploads / Downloads / Liked
+  }
+  searchInput.addEventListener('input', onSearch);
+  searchClear.addEventListener('click', ()=>{ searchInput.value=''; onSearch(); searchInput.focus(); });
+  document.addEventListener('keydown', e=>{
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); searchInput.focus(); searchInput.select(); }
+    else if(e.key==='Escape' && document.activeElement===searchInput && searchInput.value){ searchInput.value=''; onSearch(); }
+  });
+  // ============================================================
+  //  Community Workshop — DISCOVER data layer (full API consumer)
+  //  Cards + detail render from the read API. To view:
+  //    1) API:  cd website && npx wrangler pages dev --port 8788
+  //    2) Serve THIS mockup over http (browsers block file:// → http fetch), e.g.
+  //       from the repo root:  python -m http.server 8099
+  //       then open  http://127.0.0.1:8099/docs/mockups/workshop-community.html
+  //  In the real app the webview calls window.pywebview.api.workshop_list()/_get()
+  //  instead of fetch() — see main.py. Personal tabs stay static until the write path lands.
+  // ============================================================
+  const API_BASE = 'https://gridglow.titanstowers.net';   // prod (live). Local dev: http://127.0.0.1:8788
+  const USER_DEVICES = ['hue'];                                  // demo: this user owns Hue only
+  const MZ_EFFECTS = ['rpm_meter','start_lights','sector_status']; // need a multizone strip
+  const DEV_META = {
+    hue:      { label:'Philips Hue', cls:'dev-hue' },
+    nanoleaf: { label:'Nanoleaf',    cls:'dev-nano' },
+    lifx:     { label:'LIFX',        cls:'dev-lifx' },
+  };
+  function fmtCount(n){
+    n = +n || 0;
+    return n >= 1000 ? (n/1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/,'') + 'k' : String(n);
+  }
+  function daysSince(ms){ return Math.max(0, Math.floor((Date.now() - ms) / 86400000)); }
+  function shortDate(ms){ try { return new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric'}); } catch(e){ return '—'; } }
+  function logoFor(slug){ return '../../ui/logos/' + slug + '.png'; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  const presetListEl  = document.getElementById('presetList');
+  const listLoadingEl = document.getElementById('listLoading');
+  const listErrorEl   = document.getElementById('listError');
+
+  // one .pc card from an API list row — same structure/data-* the filters & search expect
+  function renderCard(p){
+    const card = document.createElement('div');
+    card.className = 'pc';
+    card.dataset.id = p.id;
+    card.dataset.name = p.title || '';
+    card.dataset.game = p.game_name || p.game || '';
+    card.dataset.downloads = p.downloads || 0;
+    card.dataset.likes = p.likes || 0;
+    card.dataset.rating = (p.rating == null ? 0 : p.rating);
+    card.dataset.days = daysSince(p.created_at || Date.now());
+    card.dataset.devices = (p.devices || []).join(',');
+    card.dataset.tags = (p.tags || []).join(',');
+    const official = (p.author_name || '').toLowerCase() === 'gridglow official';
+    const ratingTxt = p.rating == null ? '—' : (+p.rating).toFixed(1);
+    card.innerHTML =
+      '<div class="thumb"><img class="thumb-logo" src="'+logoFor(p.game)+'" alt="'+esc(p.game_name||'')+'"></div>'
+      + '<div class="pc-info">'
+        + '<div class="pc-titrow"><span class="pc-tit">'+esc(p.title)+'</span>'+(official?'<span class="off">Official</span>':'')+'</div>'
+        + '<p class="pc-game">'+esc(p.game_name||p.game)+' · <span class="pc-by">by '+esc(p.author_name||'unknown')+(official?' <i class="ti ti-rosette-discount-check-filled"></i>':'')+'</span></p>'
+        + '<p class="pc-desc">'+(p.tags||[]).slice(0,4).map(t=>'#'+esc(t)).join(' ')+'</p>'
+      + '</div>'
+      + '<div class="zones"></div>'
+      + '<div class="pc-stats">'
+        + '<div class="s"><i class="ti ti-download"></i> '+fmtCount(p.downloads)+'</div>'
+        + '<div class="s"><i class="ti ti-heart"></i> '+fmtCount(p.likes)+'</div>'
+        + '<div class="s"><i class="ti ti-star-filled star"></i> '+ratingTxt+'</div>'
+      + '</div>'
+      + '<div class="pc-act">'
+        + '<button class="dl"><i class="ti ti-download"></i> Download</button>'
+        + '<button class="heart" style="margin:0 auto;"><i class="ti ti-heart hx"></i></button>'
+      + '</div>';
+    renderArc(card.querySelector('.zones'), (p.swatch && p.swatch.length) ? p.swatch : ['#8b7cf6']);
+    return card;
+  }
+
+  function setListState(state){   // 'loading' | 'error' | 'ready'
+    listLoadingEl.style.display = state==='loading' ? '' : 'none';
+    listErrorEl.style.display   = state==='error'   ? '' : 'none';
+  }
+
+  function renderList(res){
+    presetListEl.querySelectorAll('.pc').forEach(c=> c.remove());
+    ((res && res.presets) || []).forEach(p=>
+      presetListEl.insertBefore(renderCard(p), document.getElementById('listEmpty')));
+    workshopLoaded = true;
+    setListState('ready');
+    applyFilters();
+    const first = presetListEl.querySelector('.pc');
+    if(first) selectPreset(first.dataset.id, first);
+  }
+
+  async function loadWorkshop(){
+    setListState('loading');
+    document.getElementById('listEmpty').classList.remove('show');
+    try {
+      const r = await fetch(API_BASE + '/api/workshop/presets');
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      renderList(await r.json());
+    } catch(err){
+      workshopLoaded = false;
+      presetListEl.querySelectorAll('.pc').forEach(c=> c.remove());
+      setListState('error');
+    }
+  }
+  document.getElementById('listRetry').addEventListener('click', loadWorkshop);
+
+  // capability check vs the viewer's own devices (not device count / brand)
+  function compatFor(theme){
+    const evs = (theme && theme.enabled_events) || [];
+    const hasStrip = USER_DEVICES.some(d=> d==='lifx' || d==='nanoleaf');
+    const mzCount = evs.filter(e=> MZ_EFFECTS.includes(e)).length;
+    if(mzCount === 0 || hasStrip)
+      return { cls:'ok', html:'<b>Fully compatible</b> with your setup<span class="sub">Your devices can render every effect in this preset.</span>' };
+    return { cls:'warn', html:'<b>Partially compatible</b> with your setup<span class="sub">Your theme applies fully — '+mzCount+' effect'+(mzCount>1?'s':'')+' need a multizone strip you don\'t have.</span>' };
+  }
+
+  // populate the detail panel + drive the live-preview colours from the preset's theme
+  function renderDetail(p){
+    currentPresetId = p.id;
+    const theme = p.theme || {};
+    previewGradient = (theme.rpm_gradient && theme.rpm_gradient.length) ? theme.rpm_gradient
+                      : (p.swatch && p.swatch.length ? p.swatch : ['#3ddc84','#f5b02e','#ff5d5d']);
+    const official = (p.author_name||'').toLowerCase() === 'gridglow official';
+    const hi = previewGradient[previewGradient.length-1] || '#7a0f1a';
+    document.getElementById('dHero').style.background =
+      'radial-gradient(120% 140% at 70% 10%, '+hi+' 0%, rgba(10,7,16,.55) 55%, #0a0710 100%)';
+    const badge = document.getElementById('dBadge'); badge.src = logoFor(p.game); badge.alt = p.game_name || '';
+    document.getElementById('dTit').innerHTML = esc(p.title) + (official?'<span class="d-off">Official</span>':'');
+    document.getElementById('dBy').innerHTML  = 'by ' + esc(p.author_name||'unknown') + (official?' <i class="ti ti-rosette-discount-check-filled"></i>':'');
+    document.getElementById('dStatDl').textContent = fmtCount(p.downloads);
+    document.getElementById('dStatLikes').textContent = fmtCount(p.likes);
+    document.getElementById('dStatRating').textContent = p.rating==null ? '—'
+      : (+p.rating).toFixed(1) + (p.rating_count ? ' ('+p.rating_count+')' : '');
+    document.getElementById('dStatUpdated').textContent = shortDate(p.updated_at || p.created_at);
+    document.getElementById('dGames').innerHTML = '<span class="chip">'+esc(p.game_name||p.game)+'</span>';
+    document.getElementById('dDevices').innerHTML = (p.devices||[]).map(d=>{
+      const m = DEV_META[d]; if(!m) return '';
+      const owned = USER_DEVICES.includes(d);
+      return '<span class="chip '+m.cls+(owned?'':' missing')+'"><span class="d"></span> '+m.label+(owned?' <i class="ti ti-check own"></i>':'')+'</span>';
+    }).join('');
+    document.getElementById('dDesc').textContent = p.description || '';
+    const compat = compatFor(theme);
+    document.getElementById('dCompat').className = 'd-compat ' + compat.cls;
+    document.getElementById('dCompatText').innerHTML = compat.html;
+    document.getElementById('dTags').innerHTML = (p.tags||[]).map(t=>'<button class="d-tag" type="button">'+esc(t)+'</button>').join('');
+    document.getElementById('dShareLink').textContent = 'gridglow.app/w/' + p.id;
+    document.getElementById('dRate').innerHTML =
+      [1,2,3,4,5].map(n=>'<button class="star-in" type="button" data-star="'+n+'" title="'+n+' star'+(n>1?'s':'')+'">★</button>').join('')
+      + '<span class="rate-note">Tap to rate</span>';
+    // reset the like control to this preset
+    const dl = document.getElementById('dLike');
+    dl.classList.remove('liked'); dl.dataset.likes = p.likes || 0;
+    dl.querySelector('.hx').outerHTML = '<svg class="hx" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="'+HEART_PATH+'"/></svg>';
+    document.getElementById('dLikeCount').textContent = fmtCount(p.likes);
+  }
+
+  async function selectPreset(id, cardEl){
+    presetListEl.querySelectorAll('.pc.sel').forEach(c=> c.classList.remove('sel'));
+    if(cardEl) cardEl.classList.add('sel');
+    try {
+      const r = await fetch(API_BASE + '/api/workshop/presets/' + id);
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      renderDetail(await r.json());
+    } catch(err){ /* keep the previous detail; offline is already shown on the list */ }
+  }
+
+  // list delegation — select / download / like (cards are dynamic)
+  presetListEl.addEventListener('click', e=>{
+    const dl = e.target.closest('.dl');
+    if(dl){ e.stopPropagation(); runDownload(dl); return; }
+    const heart = e.target.closest('.heart');
+    if(heart){
+      e.stopPropagation();
+      if(!requireLogin()) return;
+      const hcard = heart.closest('.pc');
+      const on = heart.classList.toggle('on');
+      if(on) likeFlag((html,pop)=> heartSetIcon(heart, html, pop));
+      else   heartSetIcon(heart, HEART_OUTLINE, true);
+      if(hcard && hcard.dataset.id) workshopWrite('/api/workshop/presets/' + hcard.dataset.id + '/like', 'POST');
+      return;
+    }
+    const card = e.target.closest('.pc');
+    if(card) selectPreset(card.dataset.id, card);
+  });
+
+  // detail tag click → search that term
+  document.getElementById('dTags').addEventListener('click', e=>{
+    const t = e.target.closest('.d-tag');
+    if(!t) return;
+    searchInput.value = t.textContent.trim();
+    onSearch();
+  });
+
+  // detail star rating → POST /:id/rate {stars}
+  const dRate = document.getElementById('dRate');
+  const paintStars = n => dRate.querySelectorAll('.star-in').forEach(s=> s.classList.toggle('on', +s.dataset.star <= n));
+  dRate.addEventListener('mouseover', e=>{ const s=e.target.closest('.star-in'); if(s) paintStars(+s.dataset.star); });
+  dRate.addEventListener('mouseout', ()=> paintStars(+(dRate.dataset.rated||0)));
+  dRate.addEventListener('click', async e=>{
+    const s = e.target.closest('.star-in'); if(!s) return;
+    if(!requireLogin()) return;
+    const stars = +s.dataset.star;
+    const r = await workshopWrite('/api/workshop/presets/' + currentPresetId + '/rate', 'POST', { stars });
+    if(r.ok){
+      dRate.dataset.rated = stars; paintStars(stars);
+      dRate.querySelector('.rate-note').textContent = 'Rated ' + stars + '★';
+      if(r.data && r.data.rating != null)
+        document.getElementById('dStatRating').textContent = (+r.data.rating).toFixed(1) + (r.data.rating_count ? ' ('+r.data.rating_count+')' : '');
+      toast('Thanks for rating!', 'ok');
+    }
+  });
+
+  loadWorkshop();
+
+  // ============================================================
+  //  Auth via Supabase — email + password (real client).
+  //  Anon key is public/client-safe. Reads need no auth; write/personal calls
+  //  send Authorization: Bearer <access_token> via authHeader().
+  //  (Supabase password auth is email-based — there's no native "username"
+  //  login; a username layer would need a custom profiles lookup.)
+  // ============================================================
+  const SUPABASE_URL = 'https://upvbmoseimgiathprtsj.supabase.co';
+  const SUPABASE_ANON = 'sb_publishable_bChP2PoDJXHNSHysW63DNA_CK7M1RKC';
+
+  let sb = null, currentSession = null;
+  function authHeader(){ return currentSession ? { Authorization: 'Bearer ' + currentSession.access_token } : {}; }
+
+  // sign-in form — reuses the .up-modal shell (styling + entrance animation)
+  document.querySelector('.win').insertAdjacentHTML('beforeend',
+    '<div class="up-backdrop" id="lgBackdrop"><div class="up-modal" style="width:400px;">'
+    + '<div class="up-head"><div><h3 id="lgTitle">Sign in</h3><p id="lgSub">Sign in to upload, like and download presets.</p></div>'
+    + '<button class="up-x" id="lgClose" type="button"><i class="ti ti-x"></i></button></div>'
+    + '<label class="up-field" id="lgNameField" style="display:none;"><span class="up-lbl">Display name</span><input class="up-input" id="lgName" type="text" autocomplete="name" placeholder="Shown as the preset author"></label>'
+    + '<label class="up-field"><span class="up-lbl">Email</span><input class="up-input" id="lgEmail" type="email" autocomplete="username" placeholder="you@example.com"></label>'
+    + '<label class="up-field"><span class="up-lbl">Password</span><input class="up-input" id="lgPassword" type="password" autocomplete="current-password" placeholder="••••••••"></label>'
+    + '<div id="lgForgotRow" style="margin:-4px 0 8px;"><button class="lg-switch" id="lgForgot" type="button">Forgot password?</button></div>'
+    + '<div class="lg-msg" id="lgMsg"></div>'
+    + '<div class="up-foot" style="justify-content:space-between;align-items:center;">'
+    + '<button class="lg-switch" id="lgSwitch" type="button">Create an account</button>'
+    + '<button class="btn btn-primary btn-sm" id="lgSubmit" type="button">Sign in</button>'
+    + '</div></div></div>');
+
+  const lgBackdrop = document.getElementById('lgBackdrop');
+  let lgMode = 'signin';
+  function lgMsg(text, ok){ const el=document.getElementById('lgMsg'); el.textContent=text||''; el.className='lg-msg'+(ok?' ok':''); }
+  function lgSetMode(mode){
+    lgMode = mode;
+    document.getElementById('lgTitle').textContent  = mode==='signup' ? 'Create account' : 'Sign in';
+    document.getElementById('lgSub').textContent    = mode==='signup' ? 'Create an account to share and save presets.' : 'Sign in to upload, like and download presets.';
+    document.getElementById('lgSubmit').textContent = mode==='signup' ? 'Create account' : 'Sign in';
+    document.getElementById('lgSwitch').textContent = mode==='signup' ? 'Have an account? Sign in' : 'Create an account';
+    document.getElementById('lgPassword').setAttribute('autocomplete', mode==='signup' ? 'new-password' : 'current-password');
+    document.getElementById('lgNameField').style.display = mode==='signup' ? '' : 'none';
+    document.getElementById('lgForgotRow').style.display = mode==='signup' ? 'none' : '';
+    lgMsg('');
+  }
+  document.getElementById('lgForgot').addEventListener('click', async ()=>{
+    const email = document.getElementById('lgEmail').value.trim();
+    if(!email){ lgMsg('Enter your email above, then tap Forgot password.'); return; }
+    if(!sb){ lgMsg('Auth unavailable.'); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    if(error) lgMsg(error.message);
+    else lgMsg('Password reset link sent — check your email.', true);
+  });
+  function openLogin(){ lgSetMode('signin'); lgBackdrop.classList.add('open'); setTimeout(()=> document.getElementById('lgEmail').focus(), 60); }
+  function closeLogin(){ lgBackdrop.classList.remove('open'); }
+  document.getElementById('lgClose').addEventListener('click', closeLogin);
+  lgBackdrop.addEventListener('click', e=>{ if(e.target===lgBackdrop) closeLogin(); });
+  document.getElementById('lgSwitch').addEventListener('click', ()=> lgSetMode(lgMode==='signup' ? 'signin' : 'signup'));
+  async function lgSubmit(){
+    if(!sb){ lgMsg('Auth unavailable — Supabase failed to load.'); return; }
+    const email = document.getElementById('lgEmail').value.trim();
+    const password = document.getElementById('lgPassword').value;
+    if(!email || !password){ lgMsg('Enter your email and password.'); return; }
+    const btn = document.getElementById('lgSubmit'); btn.disabled = true; lgMsg('…');
+    try{
+      if(lgMode==='signup'){
+        const full_name = document.getElementById('lgName').value.trim();
+        // return the verify link to THIS page so Supabase JS picks up the session from the hash.
+        // (Real app: this becomes the desktop loopback redirect. The URL must be in Supabase
+        //  Auth → URL Configuration → Redirect URLs, e.g. http://127.0.0.1:8099/** .)
+        const opts = { emailRedirectTo: location.origin + location.pathname };
+        if(full_name) opts.data = { full_name };
+        const { data, error } = await sb.auth.signUp({ email, password, options: opts });
+        if(error) throw error;
+        if(data.session) closeLogin();                       // auto-confirmed → onAuthStateChange renders chip
+        else lgMsg('Check your email to confirm your account.', true);
+      } else {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if(error) throw error;
+        closeLogin();                                        // onAuthStateChange renders the chip
+      }
+    } catch(err){ lgMsg(err.message || 'Sign-in failed.'); }
+    finally{ btn.disabled = false; }
+  }
+  document.getElementById('lgSubmit').addEventListener('click', lgSubmit);
+  document.getElementById('lgPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') lgSubmit(); });
+
+  function renderAuth(session){
+    const area = document.getElementById('authArea');
+    currentSession = session || null;
+    if(session && session.user){
+      const m = session.user.user_metadata || {};
+      const name = m.full_name || m.name || m.user_name || m.preferred_username || session.user.email || 'Signed in';
+      const avatar = m.avatar_url || m.picture || '';
+      const initial = esc((name[0] || '?').toUpperCase());
+      area.innerHTML =
+        '<button class="auth-user" id="authChip" title="Account">'
+        + (avatar ? '<img class="auth-avatar" src="'+esc(avatar)+'" alt="">' : '<span class="auth-avatar">'+initial+'</span>')
+        + '<span class="auth-name">'+esc(name)+'</span>'
+        + '<i class="ti ti-chevron-down auth-caret"></i>'
+        + '</button>';
+      document.getElementById('authChip').addEventListener('click', ()=> openAccount());
+    } else {
+      area.innerHTML = '<button class="auth-signin" id="authSignin" type="button">Sign in</button>';
+      document.getElementById('authSignin').addEventListener('click', openLogin);
+    }
+  }
+
+  if(window.supabase && window.supabase.createClient){
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    sb.auth.getSession().then(({ data })=>{
+      renderAuth(data.session);
+      // came back from an email verify / magic link → strip the token hash from the URL
+      if(/access_token|[?&#]type=/.test(location.hash)) history.replaceState(null, '', location.pathname);
+    });
+    sb.auth.onAuthStateChange((evt, session)=>{
+      renderAuth(session);
+      if(evt === 'PASSWORD_RECOVERY') openAccount('password');   // reset link → set a new password
+    });
+  } else {
+    renderAuth(null);   // library didn't load — show the (inert) sign-in button
+  }
+
+  // ---- account management (change email / password, sign out) ----
+  document.querySelector('.win').insertAdjacentHTML('beforeend',
+    '<div class="up-backdrop" id="acBackdrop"><div class="up-modal" style="width:420px;">'
+    + '<div class="up-head"><div><h3>Account</h3><p id="acWho">Signed in</p></div>'
+    + '<button class="up-x" id="acClose" type="button"><i class="ti ti-x"></i></button></div>'
+    + '<div class="up-field"><span class="up-lbl">Email</span>'
+    + '<div style="display:flex;gap:8px;"><input class="up-input" id="acEmail" type="email"><button class="btn btn-ghost btn-sm" id="acEmailBtn" type="button">Update</button></div></div>'
+    + '<div class="up-field"><span class="up-lbl">New password</span>'
+    + '<div style="display:flex;gap:8px;"><input class="up-input" id="acPass" type="password" autocomplete="new-password" placeholder="At least 6 characters"><button class="btn btn-ghost btn-sm" id="acPassBtn" type="button">Update</button></div></div>'
+    + '<div class="lg-msg" id="acMsg"></div>'
+    + '<div class="up-foot" style="justify-content:flex-start;"><button class="btn btn-ghost btn-sm" id="acSignout" type="button"><i class="ti ti-logout"></i> Sign out</button></div>'
+    + '</div></div>');
+  const acBackdrop = document.getElementById('acBackdrop');
+  function acMsg(t, ok){ const el=document.getElementById('acMsg'); el.textContent=t||''; el.className='lg-msg'+(ok?' ok':''); }
+  function openAccount(mode){
+    if(!currentSession){ openLogin(); return; }
+    document.getElementById('acWho').textContent = 'Signed in as ' + (currentSession.user.email || '');
+    document.getElementById('acEmail').value = currentSession.user.email || '';
+    document.getElementById('acPass').value = '';
+    acMsg(mode==='password' ? 'Set a new password to finish resetting.' : '');
+    acBackdrop.classList.add('open');
+    if(mode==='password') setTimeout(()=> document.getElementById('acPass').focus(), 60);
+  }
+  document.getElementById('acClose').addEventListener('click', ()=> acBackdrop.classList.remove('open'));
+  acBackdrop.addEventListener('click', e=>{ if(e.target===acBackdrop) acBackdrop.classList.remove('open'); });
+  document.getElementById('acEmailBtn').addEventListener('click', async ()=>{
+    const email = document.getElementById('acEmail').value.trim();
+    if(!email){ acMsg('Enter an email.'); return; }
+    const { error } = await sb.auth.updateUser({ email }, { emailRedirectTo: location.origin + location.pathname });
+    acMsg(error ? error.message : 'Confirmation sent — check the new address to finish.', !error);
+  });
+  document.getElementById('acPassBtn').addEventListener('click', async ()=>{
+    const password = document.getElementById('acPass').value;
+    if(password.length < 6){ acMsg('Password must be at least 6 characters.'); return; }
+    const { error } = await sb.auth.updateUser({ password });
+    if(error) acMsg(error.message); else { acMsg('Password updated.', true); document.getElementById('acPass').value=''; }
+  });
+  document.getElementById('acSignout').addEventListener('click', ()=>{ if(sb) sb.auth.signOut(); acBackdrop.classList.remove('open'); });
+
+  // ============================================================
+  //  Write path — all write/personal calls send Authorization: Bearer.
+  //  Endpoints (live at API_BASE): POST /presets, /:id/download, /:id/like,
+  //  /:id/rate, DELETE /:id, GET /presets?mine|liked|downloaded. Reads need no auth.
+  // ============================================================
+  document.querySelector('.win').insertAdjacentHTML('beforeend', '<div class="ws-toast" id="wsToast"></div>');
+  let _toastTimer = null;
+  function toast(msg, kind){
+    const t = document.getElementById('wsToast');
+    t.textContent = msg; t.className = 'ws-toast show' + (kind ? ' '+kind : '');
+    clearTimeout(_toastTimer); _toastTimer = setTimeout(()=> t.classList.remove('show'), 2800);
+  }
+  function requireLogin(){ if(!currentSession){ toast('Sign in to do that'); openLogin(); return false; } return true; }
+  async function workshopWrite(path, method, body){
+    try{
+      const r = await fetch(API_BASE + path, {
+        method,
+        headers: Object.assign({ 'Content-Type':'application/json' }, authHeader()),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      let data = null; try{ data = await r.json(); }catch(e){}
+      if(r.status === 429) toast('Rate limited — try again in ' + (r.headers.get('Retry-After')||'a bit') + 's', 'err');
+      else if(r.status === 401) toast('Please sign in again', 'err');
+      return { ok:r.ok, status:r.status, data };
+    }catch(err){ toast('Network error', 'err'); return { ok:false, status:0, data:null }; }
+  }
+  let currentPresetId = null;   // set by renderDetail; used by detail-panel write actions
+  let pendingApplyTheme = null; // theme returned by the download endpoint, applied via the Apply modal
+  // Mockup has no real light setup — uploads send this SAMPLE theme. The APP sends the
+  // user's real get_gui_settings() instead. Shape matches the detail `theme` object.
+  const SAMPLE_THEME = {
+    enabled_events: ['start_lights','fastest_lap','rpm_meter'],
+    brightness_range: { min_pct:10, max_pct:100 },
+    stagger: { enabled:true, ms:40 },
+    idle_state: { color_hex:'#101820', pulse:false },
+    mz_startlights: { direction:'ltr', mode:'sweep' },
+    rpm_gradient: ['#3ddc84','#f5b02e','#ff5d5d'],
+    curves: { shift:{ points:[[0,0],[0.2,1],[1,0]], duration_ms:260 } },
+  };
+
+  // Live preview loop — a rev-counter sweep, start lights, a shift-light flash, fastest lap
+  // and the track-status flags, so the panel demonstrates the preset rather than a video.
+  //
+  // ⚠ DEV NOTE — THESE COLOURS ARE PLACEHOLDERS. In the real build every colour below
+  // (rev green/amber/red ramp, start-light red, shift purple/red, fastest-lap purple, and
+  // each flag colour) MUST be read from the *currently selected preset's* configuration so
+  // the preview reflects that preset's actual theme — nothing here should stay hard-coded.
+  // Suggested wiring: pass the preset's zone/effect colour map in and drive colourAt(),
+  // the shift/fastest/start palettes, and `flags[]` from it instead of these literals.
+  (function(){
+    const strip = document.getElementById('lpStrip');
+    const flag  = document.getElementById('lpFlag');
+    const cap   = document.getElementById('lpCaption');
+    if(!strip) return;
+    const N = 18;
+    const cells = [];
+    for(let i=0;i<N;i++){ const c=document.createElement('div'); c.className='lp-cell'; strip.appendChild(c); cells.push(c); }
+
+    // rev-ramp colour sampled from the selected preset's gradient (dynamic, not hard-coded)
+    const colourAt = (i)=> sampleGradient(previewGradient, i/(N-1));
+
+    // One run = start lights → engine (throttle → shift → coast) → fastest lap → every
+    // track-status flag → back to start lights. Engine effects and track status stay
+    // grouped. Playback is user-controlled via the Play/Pause button (off by default).
+    let phase = 'start', rpm = 0, dir = 1, last = 0, t0 = 0, flagIdx = 0;
+    let running = false, raf = 0;
+    const FLAG_MS = 1300, STEP_MS = 650;   // flag hold; start-light interval
+    const flags = [
+      {c:'rgba(109,178,255,.55)', label:'Blue flag · car behind'},
+      {c:'rgba(245,176,46,.55)',  label:'Yellow flag · caution'},
+      {c:'rgba(61,220,132,.5)',   label:'Green flag · track clear'},
+    ];
+    const clearCells = ()=> cells.forEach(c=>{ c.style.background='#1c2438'; c.style.color=''; c.style.height='18px'; c.classList.remove('lit'); });
+    const showIdle   = ()=>{ flag.style.opacity=0; clearCells(); cap.textContent='Idle · press play'; };
+
+    function frame(now){
+      if(!running) return;                                  // paused → stop the loop
+      const dt = Math.min(64, now - last); last = now;      // per-frame delta (t0 marks phase start)
+
+      if(phase==='start'){
+        // F1 start lights: five reds fill one by one, hold, then lights out → GO
+        const el = now - t0;
+        const HOLD_END = 5*STEP_MS + 750, OUT_END = HOLD_END + 450;
+        if(el < HOLD_END){
+          const step = Math.min(5, Math.floor(el/STEP_MS));
+          const lit = Math.round(step/5 * N);
+          cells.forEach((c,i)=>{ const on=i<lit; c.style.color='#ff5d5d'; c.style.background=on?'#ff3b3b':'#1c2438'; c.style.height=on?'28px':'18px'; c.classList.toggle('lit',on); });
+          cap.textContent = step<5 ? `Start lights · ${step}/5` : 'Lights set…';
+        } else if(el < OUT_END){
+          clearCells(); cap.textContent = 'Lights out — GO!';
+        } else { phase='rev'; rpm=0; dir=1; t0=now; }
+      }
+      else if(phase==='rev'){
+        rpm += dir * dt/1400;
+        if(rpm >= 1){ rpm = 1; phase='shift'; t0 = now; }
+        const lit = Math.round(rpm * N);
+        cells.forEach((c,i)=>{
+          const on = i < lit;
+          const col = colourAt(i);
+          c.style.color = col;
+          c.style.background = on ? col : '#1c2438';
+          c.style.height = on ? (22 + (i/(N-1))*10) + 'px' : '18px';
+          c.classList.toggle('lit', on);
+        });
+        cap.textContent = rpm>0.8 ? 'RPM · redline' : rpm>0.5 ? 'RPM · building' : 'RPM · on throttle';
+      }
+      else if(phase==='shift'){
+        // full-strip white/purple shift-light flash
+        const on = (Math.floor(now/70) % 2)===0;
+        cells.forEach((c,i)=>{ const col = on ? '#c4b5fd' : '#ff5d5d'; c.style.color=col; c.style.background=col; c.style.height='30px'; c.classList.add('lit'); });
+        cap.textContent = 'Shift ▲';
+        if(now - t0 > 520){ phase='fall'; t0=now; }
+      }
+      else if(phase==='fall'){
+        rpm -= dt/500;
+        if(rpm <= 0){ rpm = 0; phase='fastest'; t0=now; }   // engine done → fastest lap
+        const lit = Math.round(Math.max(0,rpm) * N);
+        cells.forEach((c,i)=>{ const on=i<lit; const col=colourAt(i); c.style.color=col; c.style.background=on?col:'#1c2438'; c.style.height=on?'24px':'18px'; c.classList.toggle('lit',on); });
+        cap.textContent = 'Lift · coasting';
+      }
+      else if(phase==='fastest'){
+        // fastest lap: no rev-up — flash ALL multizone devices + bulbs purple in unison
+        const el = now - t0, DUR = 1350;
+        const on = (Math.floor(el/165) % 2)===0;   // ~4 synchronised purple flashes
+        cells.forEach(c=>{ c.style.color='#c4b5fd'; c.style.background = on ? '#a855f7' : '#1c2438'; c.style.height = on ? '30px' : '18px'; c.classList.toggle('lit', on); });
+        cap.textContent = 'Fastest lap ⏱';
+        if(el > DUR){ phase='flags'; flagIdx=0; t0=now; }
+      }
+      else if(phase==='flags'){
+        // step through every track-status flag in turn
+        const el = now - t0;
+        const fk = flags[flagIdx];
+        const pulse = (Math.floor(el/180) % 2)===0;
+        flag.style.background = fk.c;
+        flag.style.opacity = pulse ? 0.9 : 0.28;
+        clearCells();
+        cap.textContent = fk.label;
+        if(el > FLAG_MS){
+          flagIdx++; t0 = now;
+          if(flagIdx >= flags.length){ flag.style.opacity = 0; phase='start'; }   // loop
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    }
+
+    // ---- play / pause control ----
+    const btn = document.getElementById('lpBtn');
+    const btnLabel = document.getElementById('lpBtnLabel');
+    const ICON_PLAY  = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+    function setBtn(playing){ btn.innerHTML = (playing?ICON_PAUSE:ICON_PLAY) + '<span id="lpBtnLabel">'+(playing?'Pause':'Play')+'</span>'; }
+    function play(){ if(running) return; running=true; phase='start'; rpm=0; dir=1; flag.style.opacity=0; last=performance.now(); t0=last; setBtn(true); raf=requestAnimationFrame(frame); }
+    function pause(){ running=false; cancelAnimationFrame(raf); showIdle(); setBtn(false); }
+    btn.addEventListener('click', ()=> running ? pause() : play());
+
+    showIdle();   // off until the user presses play
+  })();
+</script>
+</body>
+</html>

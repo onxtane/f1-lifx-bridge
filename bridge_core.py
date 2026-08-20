@@ -251,6 +251,19 @@ def hex_to_hsv(hex_color):
     return int(h * 65535), int(s * 65535), max_c
 
 
+def _override_hue_sat(default_hsbk, hex_):
+    """Return default_hsbk with hue+saturation replaced from `hex_`, keeping the
+    effect's own brightness and kelvin. Falls back to default on a bad/blank hex."""
+    if not hex_:
+        return default_hsbk
+    hsv = hex_to_hsv(hex_)
+    if not hsv:
+        return default_hsbk
+    out = list(default_hsbk)
+    out[0], out[1] = hsv[0], hsv[1]
+    return out
+
+
 def parse_rpm_gradient(stops):
     """Hex stops -> [(hue, sat, value)], falling back to the default ramp.
 
@@ -372,6 +385,11 @@ class LocalLifxController:
         # Intensity curves: {label: {points: [[t,v],...], duration_ms: int}}
         # Applied as a brightness multiplier in set_color_all during effects.
         self.curves: dict = {}
+
+        # Per-effect custom colours (Effect Customization). Shape per key:
+        #   {mode, colors:{slot:hex}, per_light:{label:hex}, per_zone:[hex...]}.
+        # _fx() recolours an effect's default HSBK from this, keeping brightness.
+        self.effect_colors: dict = {}
         self._curve_pts: list | None = None
         self._curve_start: float | None = None
         self._curve_dur: float = 2.0  # seconds
@@ -549,11 +567,9 @@ class LocalLifxController:
         self._zone_counts = {}
         for light in discovered_lights:
             if isinstance(light, MultiZoneLight):
-                try:
-                    zones = light.get_color_zones(0, 255)
-                    self._zone_counts[light.mac_addr] = len(zones) if zones else 0
-                except Exception:
-                    self._zone_counts[light.mac_addr] = 0
+                zc = self._probe_zone_count(light)
+                self._zone_counts[light.mac_addr] = zc
+                print(f"[LIFX] Multizone {self.safe_label(light)}: {zc} zones")
 
         self.discovered_lights = discovered_lights
 
@@ -745,9 +761,53 @@ class LocalLifxController:
         except Exception:
             return getattr(light, 'mac_addr', None) or "Unknown LIFX"
 
+    @staticmethod
+    def _probe_zone_count(light) -> int:
+        """The device's true number of addressable zones.
+
+        Prefer the extended multizone API — its response length is the real
+        zones_count. The classic get_color_zones() over-reports on some firmware
+        (it returns the padded requested range), which showed up as an inflated
+        zone count in the UI. Falls back to classic when extended isn't supported.
+        """
+        try:
+            ext = light.extended_get_color_zones()
+            if ext:
+                return len(ext)
+        except Exception as exc:
+            # Extended API unsupported on this firmware/lifxlan build — fall back
+            # to classic, but surface why so an inflated count stays diagnosable.
+            print(f"[LIFX] extended_get_color_zones unavailable ({exc}); "
+                  f"falling back to classic get_color_zones", flush=True)
+        try:
+            zones = light.get_color_zones(0, 255)
+            return len(zones) if zones else 0
+        except Exception:
+            return 0
+
     def get_zone_count(self, light) -> int:
         """Return cached zone count for a light, 0 if not multizone."""
         return self._zone_counts.get(getattr(light, 'mac_addr', None), 0)
+
+    def _fx(self, key, default_hsbk, slot="main"):
+        """Recolour an effect's default HSBK with the user's custom colour for
+        (effect key, slot) — overriding hue+saturation only, so the effect keeps
+        its own brightness dynamics and kelvin. Returns default_hsbk unchanged
+        when the effect isn't customized.
+
+        Only Sync-All ('all' mode) is resolved here — it applies the effect's
+        single custom colour. per_light and per_zone modes return default_hsbk
+        unchanged; per-device recolouring happens in set_color_all(), which paints
+        each light/zone from its own stop. A bad/blank hex falls back to the default.
+        """
+        ec = self.effect_colors.get(key)
+        if not ec:
+            return default_hsbk
+        if ec.get("mode", "all") == "all":
+            return _override_hue_sat(default_hsbk, (ec.get("colors") or {}).get(slot))
+        # per_light / per_zone: keep the default here (uncustomized fallback);
+        # set_color_all() recolours each light/zone from its own stop.
+        return default_hsbk
 
     def _scale_brightness(self, b: int) -> int:
         """Scale a brightness value into [brightness_min, brightness_max].
@@ -848,14 +908,36 @@ class LocalLifxController:
                 lights = [l for l in lights if not isinstance(l, MultiZoneLight)]
         _dbg = self.debug_timing
 
+        # Per-effect custom colours: distribute across zones (per_zone, ordered) or
+        # bulbs (per_light, keyed by label). Only hue+sat are overridden — the
+        # brightness computed above (curves + range) still drives the animation.
+        _ec = self.effect_colors.get(self._current_effect_key) or {}
+        _mode = _ec.get("mode", "all")
+        _per_light = _ec.get("per_light") if isinstance(_ec.get("per_light"), dict) else {}
+        _per_zone = _ec.get("per_zone") if isinstance(_ec.get("per_zone"), list) else []
+        _do_pl = _mode == "per_light" and bool(_per_light)
+        _do_pz = _mode == "per_zone" and bool(_per_zone)
+
         def _send(light):
             label = self.safe_label(light)
             t0 = time.perf_counter() if _dbg else None
             try:
                 if isinstance(light, MultiZoneLight):
-                    light.set_zone_color(0, 255, scaled, duration_ms, rapid=True)
+                    zc = self.get_zone_count(light) or 0
+                    if _do_pz and zc > 0 and _per_zone:
+                        # Spread the logical zone colours evenly across the strip's
+                        # physical zones — one contiguous range painted per colour.
+                        ng = len(_per_zone)
+                        for g in range(ng):
+                            lo, hi = (g * zc) // ng, ((g + 1) * zc) // ng - 1
+                            if hi >= lo:
+                                light.set_zone_color(lo, hi, _override_hue_sat(scaled, _per_zone[g]), duration_ms, rapid=True)
+                    else:
+                        hx = _per_light.get(label) if _do_pl else None
+                        light.set_zone_color(0, 255, _override_hue_sat(scaled, hx), duration_ms, rapid=True)
                 else:
-                    light.set_color(scaled, duration_ms, rapid=True)
+                    hx = _per_light.get(label) if _do_pl else (_per_zone[0] if _do_pz else None)
+                    light.set_color(_override_hue_sat(scaled, hx), duration_ms, rapid=True)
             except Exception as exc:
                 msg = f"[LIFX ERROR] {label}: {exc}"
                 print(msg)
@@ -904,7 +986,7 @@ class LocalLifxController:
         thread.start()
 
     def yellow_flash_loop(self):
-        yellow = [10922, 65535, 65535, 3500]
+        yellow = self._fx('yellow_flag', [10922, 65535, 65535, 3500])
         dark = [0, 0, 1, 3500]
 
         while self.is_effect_active("yellow_flash"):
@@ -924,7 +1006,7 @@ class LocalLifxController:
         num_lights = max(0, min(5, num_lights))
 
         brightness_by_count = {0: 8000, 1: 16000, 2: 26000, 3: 38000, 4: 50000, 5: 65535}
-        red  = [0, 65535, brightness_by_count[num_lights], 3500]
+        red  = self._fx('start_lights', [0, 65535, brightness_by_count[num_lights], 3500])
         dark = [0, 0, 100, 3500]
 
         print(f"[START LIGHTS] {num_lights}/5")
@@ -934,14 +1016,41 @@ class LocalLifxController:
             return
 
         lights = self._effect_lights()
+        # Per-effect custom colours for the sweep: per_zone lights each zone in its
+        # own colour; per_light does the same across bulbs (by label). Only hue+sat
+        # are swapped — the per-count brightness ramp still drives the build-up.
+        _ec = self.effect_colors.get('start_lights') or {}
+        _mode = _ec.get('mode', 'all')
+        _pz = _ec.get('per_zone') if isinstance(_ec.get('per_zone'), list) else []
+        _pl = _ec.get('per_light') if isinstance(_ec.get('per_light'), dict) else {}
+        _do_pz = _mode == 'per_zone' and bool(_pz)
+        _do_pl = _mode == 'per_light' and bool(_pl)
+
         for i, light in enumerate(lights):
             try:
                 if isinstance(light, MultiZoneLight) and self.mz_startlights_mode == "sweep":
                     zone_count = self.get_zone_count(light)
                     if zone_count > 0:
-                        red_s  = list(red);  red_s[2]  = self._scale_brightness(red[2])
-                        dark_s = list(dark); dark_s[2] = self._scale_brightness(dark[2])
+                        # per_light recolours the whole strip by its label (per_zone
+                        # is handled per-zone below); default red otherwise.
+                        sweep_red = _override_hue_sat(red, _pl.get(self.safe_label(light))) if _do_pl else red
+                        red_s = list(sweep_red)
+                        red_s[2] = self._scale_brightness(sweep_red[2])
+                        dark_s = list(dark)
+                        dark_s[2] = self._scale_brightness(dark[2])
                         lit = max(0, min(zone_count, round(num_lights / 5 * zone_count)))
+
+                        if _do_pz:
+                            # Each zone lit in its own colour, dark where not yet lit.
+                            ltr = self.mz_startlights_direction == "ltr"
+                            for z in range(zone_count):
+                                is_lit = (z < lit) if ltr else (z >= zone_count - lit)
+                                if is_lit:
+                                    hx = _pz[(z * len(_pz)) // zone_count]   # logical colour for this physical zone
+                                    light.set_zone_color(z, z, _override_hue_sat(red_s, hx), 40, rapid=True)
+                                else:
+                                    light.set_zone_color(z, z, dark_s, 40, rapid=True)
+                            continue
 
                         if lit == 0:
                             # All dark
@@ -956,8 +1065,12 @@ class LocalLifxController:
                             light.set_zone_color(0,                    zone_count - lit - 1, dark_s, 40, rapid=True)
                             light.set_zone_color(zone_count - lit, zone_count - 1,           red_s,  40, rapid=True)
                         continue
-                # Regular bulb or solid-mode multizone — uniform color
-                scaled = list(red)
+                # Regular bulb or solid-mode multizone — uniform colour: per-light by
+                # label, or the first per-zone stop (matching set_color_all for
+                # devices without physical zones); default red otherwise.
+                hx = _pl.get(self.safe_label(light)) if _do_pl else (_pz[0] if _do_pz else None)
+                base = _override_hue_sat(red, hx)
+                scaled = list(base)
                 scaled[2] = self._scale_brightness(red[2])
                 if isinstance(light, MultiZoneLight):
                     light.set_zone_color(0, 255, scaled, 40, rapid=True)
@@ -985,13 +1098,9 @@ class LocalLifxController:
         zc = self.get_zone_count(light)
         if zc >= 1:
             return zc
-        try:
-            zones = light.get_color_zones(0, 255)
-            zc = len(zones) if zones else 0
-            if zc:
-                self._zone_counts[light.mac_addr] = zc
-        except Exception:
-            zc = 0
+        zc = self._probe_zone_count(light)
+        if zc:
+            self._zone_counts[light.mac_addr] = zc
         return zc
 
     def sector_status(self, sector_flags):
@@ -1199,7 +1308,7 @@ class LocalLifxController:
         self._activate_curve('lights_out')
         print("[LIGHTS OUT]")
 
-        green = [21845, 65535, 65535, 3500]
+        green = self._fx('lights_out', [21845, 65535, 65535, 3500])
         dark = [0, 0, 1, 3500]
         white = [0, 0, 50000, 4500]
 
@@ -1260,8 +1369,8 @@ class LocalLifxController:
         threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
 
     def _blue_pulse_loop(self):
-        bright = [43690, 65535, 65535, 3500]
-        dim    = [43690, 65535, 8000,  3500]
+        bright = self._fx('blue_flag', [43690, 65535, 65535, 3500])
+        dim    = self._fx('blue_flag', [43690, 65535, 8000,  3500])
         while self.is_effect_active("blue_pulse"):
             self.set_color_all(bright, duration_ms=600, stagger=False)
             for _ in range(7):
@@ -1283,8 +1392,8 @@ class LocalLifxController:
         threading.Thread(target=self._red_pulse_loop, daemon=True).start()
 
     def _red_pulse_loop(self):
-        bright = [0, 65535, 65535, 3500]
-        dim    = [0, 65535, 8000,  3500]
+        bright = self._fx('red_flag', [0, 65535, 65535, 3500])
+        dim    = self._fx('red_flag', [0, 65535, 8000,  3500])
         while self.is_effect_active("red_pulse"):
             self.set_color_all(bright, duration_ms=600, stagger=False)
             for _ in range(7):
@@ -1315,7 +1424,7 @@ class LocalLifxController:
         # Not a severity prefix: this is the white-flag effect firing, and the UI
         # raises a banner for any [WARNING] line that reaches the log.
         print("[EFFECT] White flashing")
-        white = [0, 0, 65535, 4500]
+        white = self._fx('white_warning', [0, 0, 65535, 4500])
         dark = [0, 0, 1, 3500]
         self.flash_colors([white, dark], loops=3, hold_ms=250)
         self._deactivate_curve()
@@ -1326,7 +1435,7 @@ class LocalLifxController:
         self._current_effect_key = 'crash'
         print("[EVENT] Crash impact flash")
         # Single sharp white burst — distinct from white_warning's 3-pulse pattern
-        white = [0, 0, 65535, 5500]
+        white = self._fx('crash', [0, 0, 65535, 5500])
         dark  = [0, 0, 0, 3500]
         self.flash_colors([white, dark], loops=1, hold_ms=120)
         self.neutral()
@@ -1337,7 +1446,7 @@ class LocalLifxController:
         print("[EVENT] Fastest lap - purple flash")
         _dbg = self.debug_timing
         t0 = time.perf_counter() if _dbg else None
-        purple = [54613, 65535, 65535, 3500]
+        purple = self._fx('fastest_lap', [54613, 65535, 65535, 3500])
         dark = [0, 0, 1, 3500]
         self.flash_colors([purple, dark], loops=3, hold_ms=200)
         if _dbg:
@@ -1352,8 +1461,8 @@ class LocalLifxController:
         print("[FLAG] Chequered")
         _dbg = self.debug_timing
         t0 = time.perf_counter() if _dbg else None
-        white = [0, 0, 65535, 4500]
-        green = [21845, 65535, 65535, 3500]
+        white = self._fx('chequered_flag', [0, 0, 65535, 4500], 'a')
+        green = self._fx('chequered_flag', [21845, 65535, 65535, 3500], 'b')
         self.flash_colors([white, green], loops=5, hold_ms=300)
         if _dbg:
             print(f"[DBG] chequered_flag flash done: {(time.perf_counter()-t0)*1000:.0f}ms", flush=True)

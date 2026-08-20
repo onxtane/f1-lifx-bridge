@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <title>GridGlow</title>
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="vendor/tabler/tabler-icons.min.css">
+<link rel="stylesheet" href="workshop.css">
+<link rel="stylesheet" href="effects-custom.css">
 </head>
 <body>
 <div id="splash">
@@ -376,27 +379,30 @@
     <!-- Sidebar -->
     <div class="sidebar glass">
       <div class="brand-dots" title="GridGlow"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="nav-btn active" data-page="dashboard" title="Dashboard">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12L12 4l9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
-      </div>
-      <div class="nav-btn" data-page="lights" title="Lights">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
-      </div>
-      <div class="nav-btn" data-page="effects" title="Effects">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.8L20 10l-6.2 2.2L12 18l-1.8-5.8L4 10l6.2-2.2z"/></svg>
-      </div>
-      <div class="nav-btn" data-page="logs" title="Logs">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-      </div>
-      <div class="nav-btn" data-page="profiles" title="Profiles">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="5" rx="2"/><rect x="2" y="10" width="20" height="5" rx="2"/><rect x="2" y="17" width="20" height="5" rx="2"/><circle cx="18" cy="5.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="18" cy="12.5" r="1.5" fill="currentColor" stroke="none"/></svg>
-      </div>
-      <div class="nav-btn" data-page="settings" title="Settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <button type="button" class="nav-btn active" data-page="dashboard" title="Dashboard" aria-label="Dashboard" aria-current="page">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12L12 4l9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+      </button>
+      <button type="button" class="nav-btn" data-page="lights" title="Lights" aria-label="Lights">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+      </button>
+      <button type="button" class="nav-btn" data-page="effects" title="Effects" aria-label="Effects">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.8L20 10l-6.2 2.2L12 18l-1.8-5.8L4 10l6.2-2.2z"/></svg>
+      </button>
+      <button type="button" class="nav-btn" data-page="logs" title="Logs" aria-label="Logs">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+      </button>
+      <button type="button" class="nav-btn" data-page="profiles" title="Profiles" aria-label="Profiles">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="5" rx="2"/><rect x="2" y="10" width="20" height="5" rx="2"/><rect x="2" y="17" width="20" height="5" rx="2"/><circle cx="18" cy="5.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="18" cy="12.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button type="button" class="nav-btn" data-page="workshop" title="Workshop" aria-label="Workshop">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/></svg>
+      </button>
+      <button type="button" class="nav-btn" data-page="settings" title="Settings" aria-label="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"/>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
-      </div>
+      </button>
       <div class="spacer"></div>
       <button id="gameSelectorBtn" title="Switch game">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M12 6V3M8 3h8"/></svg>
@@ -580,15 +586,22 @@
       <div class="page" id="page-effects">
         <div class="page-content glass" style="gap:0;">
 
-          <!-- Manual triggers -->
-          <div class="effects-section">
-            <div class="collapsible-header effects-collapse-header" data-target="effectsManualBody">
+          <!-- Effect Customization (replaces Manual Triggers) -->
+          <div class="effects-section" id="effectCustomSection">
+            <div class="collapsible-header effects-collapse-header" data-target="effectCustomBody">
               <div>
-                <div style="font-size:16px;font-weight:600;">Manual Triggers</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Fire any effect immediately</div>
+                <div style="font-size:16px;font-weight:600;">Effect Customization</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Set custom colours for each effect · trigger any effect to test</div>
               </div>
-              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg class="collapse-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
+            <div class="collapsible-body" id="effectCustomBody">
+              <div id="effectCustomRoot"></div>
+            </div>
+          </div><!-- /effect customization -->
+
+          <!-- (legacy manual-trigger grid — hidden; kept for game-def wiring refs) -->
+          <div class="effects-section" style="display:none;">
             <div class="collapsible-body collapsed" id="effectsManualBody">
               <div class="effects-grid" id="effectsManualGrid" style="padding-bottom:4px;">
               <div class="effect-card" data-effect="Start Lights" data-effect-key="start_lights">
@@ -850,8 +863,9 @@
 
           <div class="effects-section-divider"></div>
 
-          <!-- Intensity Curves -->
-          <div class="effects-section">
+          <!-- Intensity Curves — retired in favour of Effect Customization (kept hidden so
+               the curve editor's JS and Profiles/Workshop curve plumbing stay intact). -->
+          <div class="effects-section" style="display:none;">
             <div class="collapsible-header effects-collapse-header" data-target="effectsCurveBody">
               <div>
                 <div style="font-size:16px;font-weight:600;">Intensity Curves <span style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);border-radius:99px;padding:2px 8px;vertical-align:middle;margin-left:6px;">Preview</span></div>
@@ -1407,6 +1421,11 @@
       </div>
       <!-- /profiles page -->
 
+      <!-- PAGE: Community Workshop (ported from docs/mockups/workshop-community.html) -->
+      <div class="page" id="page-workshop">
+        <div id="workshopRoot"></div>
+      </div>
+
     </div><!-- .main -->
   </div><!-- .app -->
 </div><!-- .scene -->
@@ -1419,13 +1438,15 @@
     effects:   'Effects',
     logs:      'Logs',
     profiles:  'Profiles',
+    workshop:  'Workshop',
     settings:  'Settings',
   };
 
   function navigateTo(pageId) {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active', 'entering'));
-    document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
+    const navBtn = document.querySelector(`.nav-btn[data-page="${pageId}"]`);
+    if (navBtn) { navBtn.classList.add('active'); navBtn.setAttribute('aria-current', 'page'); }
     const incoming = document.getElementById('page-' + pageId);
     incoming.classList.add('active');
     // One frame delay so the browser registers the class before animating
@@ -1927,6 +1948,19 @@
   function pushSelectedLights() {
     callApi('set_selected_lights', getCheckedLabels());
   }
+
+  // Labels of the lights currently selected for effects, mirroring the Light
+  // Assignment active set (an empty selection means every light is active).
+  // Nanoleaf/Hue are always active. Used by Effect Customization's per-light view.
+  window._getSelectedLightLabels = function () {
+    try {
+      const useActive = _activeLabels && _activeLabels.size > 0;
+      return (_discoveredLights || [])
+        .filter(l => l.type === 'nanoleaf' || l.type === 'hue' || !useActive || _activeLabels.has(l.label))
+        .map(l => l.label)
+        .filter(Boolean);
+    } catch (e) { return []; }
+  };
 
   // ---- pit-wall dashboard ----
   // All live dashboard state is derived from the existing update stream:
@@ -2856,6 +2890,9 @@
 
     // Push the game-filtered enabled events to the backend (in-memory only, no file write)
     if (typeof getEnabledEvents === 'function') callApi('set_enabled_events', getEnabledEvents());
+
+    // Effect Customization list is game-aware too — re-render for this game.
+    if (window._effectCustomRefresh) window._effectCustomRefresh(game);
   };
 
   // ---- auto-response toggles ----
@@ -3159,15 +3196,19 @@
     let dragCanvas = false, dragHue = false;
     canvas.addEventListener('mousedown', e => { dragCanvas = true; pickFromCanvas(e); });
     huebar.addEventListener('mousedown', e => { dragHue = true; pickFromHuebar(e); });
-    document.addEventListener('mousemove', e => {
+    // These four live on `document`, so they leak if the wrap is discarded without
+    // destroy() — hosts that remount pickers (e.g. effects-custom) must call it.
+    const onDocMove = e => {
       if (dragCanvas) pickFromCanvas(e);
       else if (dragHue) pickFromHuebar(e);
-    });
+    };
     // Release is the commit: that's when a value is worth saving, rather than
     // once per pixel of the drag.
-    document.addEventListener('mouseup', () => {
+    const onDocUp = () => {
       if (dragCanvas || dragHue) { dragCanvas = dragHue = false; emitChange(); }
-    });
+    };
+    document.addEventListener('mousemove', onDocMove);
+    document.addEventListener('mouseup', onDocUp);
 
     function setOpen(next) {
       open = next;
@@ -3183,13 +3224,30 @@
       Array.from(_cpOpen).forEach(p => { if (p !== api) p.close(); });
       setOpen(next);
     });
-    document.addEventListener('click', e => {
-      if (open && !panel.contains(e.target) && !trigger.contains(e.target)) setOpen(false);
-    });
+    // Only a genuine outside click closes the panel. A drag that STARTS inside
+    // (dragging the canvas/hue bar) and releases outside fires a synthetic click
+    // on the common ancestor — track where the press began so that doesn't dismiss.
+    let downInside = false;
+    const onDocDown = e => { downInside = panel.contains(e.target) || trigger.contains(e.target); };
+    const onDocClick = e => {
+      if (open && !downInside && !panel.contains(e.target) && !trigger.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('click', onDocClick);
 
     const api = {
       el: wrap,
       close() { if (open) setOpen(false); },
+      // Remove the document-level listeners and the node. Call before dropping a
+      // picker you won't reuse, or its four listeners stay bound forever.
+      destroy() {
+        document.removeEventListener('mousemove', onDocMove);
+        document.removeEventListener('mouseup', onDocUp);
+        document.removeEventListener('mousedown', onDocDown);
+        document.removeEventListener('click', onDocClick);
+        _cpOpen.delete(api);
+        if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      },
       getValue() { return cpHsvToHex(hue, sat, val); },
       setValue(hex) {
         const h = cpHexToHsv(hex);
@@ -3203,6 +3261,8 @@
     if (o.mount) o.mount.append(wrap);
     return api;
   }
+  // Reused by the Effect Customization module (effects-custom.js).
+  window.createColorPicker = createColorPicker;
 
   // The idle colour keeps its hidden <input> so the rest of the app can go on
   // reading and writing settingIdleColor.value (settings restore, profiles).
@@ -3423,6 +3483,47 @@
     rpmGradRenderStops();
     callApi('set_rpm_gradient', _rpmGradStops);
   }
+
+  // Reflect a downloaded workshop preset's `theme` in the Effects UI. The Python
+  // apply_workshop_preset() already pushes these to the bridge and persists them;
+  // this repaints the on-screen controls so what you see matches what was applied.
+  // (Presets are device-agnostic — they carry no light assignments by design, so
+  // those are intentionally left untouched.)
+  window.applyWorkshopThemeToUI = function (theme) {
+    if (!theme || typeof theme !== 'object') return;
+    try {
+      if (Array.isArray(theme.enabled_events)) {
+        applyEnabledEvents(theme.enabled_events);
+        if (window._pwRenderGarage) window._pwRenderGarage();
+      }
+      if (theme.brightness_range) {
+        if (theme.brightness_range.min_pct != null) sliderMin.value = theme.brightness_range.min_pct;
+        if (theme.brightness_range.max_pct != null) sliderMax.value = theme.brightness_range.max_pct;
+        updateBrightnessUI();
+      }
+      if (theme.stagger) {
+        document.getElementById('settingStagger').checked = !!theme.stagger.enabled;
+        if (theme.stagger.ms != null) document.getElementById('settingStaggerMs').value = theme.stagger.ms;
+      }
+      if (theme.idle_state) {
+        // Setting .value flows through the hidden input's setter, which calls
+        // picker.setValue() — so the custom swatch updates automatically.
+        if (theme.idle_state.color_hex) document.getElementById('settingIdleColor').value = theme.idle_state.color_hex;
+        document.getElementById('settingIdlePulse').checked = !!theme.idle_state.pulse;
+      }
+      if (theme.mz_startlights) {
+        if (theme.mz_startlights.mode) document.getElementById('settingMzSweep').checked = theme.mz_startlights.mode !== 'solid';
+        if (theme.mz_startlights.direction && typeof setMzDirection === 'function') setMzDirection(theme.mz_startlights.direction);
+        if (typeof updateMzDirectionRowVisibility === 'function') updateMzDirectionRowVisibility();
+      }
+      if (Array.isArray(theme.rpm_gradient) && theme.rpm_gradient.length) {
+        rpmGradInit(theme.rpm_gradient);            // resets _rpmGradStops + repaints the gradient section
+        if (typeof rpmGradRenderPreview === 'function') rpmGradRenderPreview();
+        if (typeof rpmGradMarkActivePreset === 'function') rpmGradMarkActivePreset();
+      }
+      if (theme.curves && window._reloadCurves) window._reloadCurves();
+    } catch (e) { console.warn('applyWorkshopThemeToUI failed', e); }
+  };
 
   (function () {
     const add = document.getElementById('rpmGradAddStop');
@@ -6853,5 +6954,9 @@
 })();
 </script>
 
+<!-- Community Workshop (vendored supabase-js + the workshop module) -->
+<script src="vendor/supabase.min.js"></script>
+<script src="workshop.js?v=4"></script>
+<script src="effects-custom.js?v=4"></script>
 </body>
 </html>

@@ -36,7 +36,17 @@ import replay
 import runtime_check
 from app_paths import BUNDLE_DIR, USER_DATA_DIR
 
+try:
+    import requests
+except ImportError:  # mirrors the guarded import in hue_controller / nanoleaf_controller
+    requests = None
+
 UI_FILE = BUNDLE_DIR / "ui" / "index.html"
+
+# Community Workshop API base. The app reaches the read API over HTTPS exactly like
+# it reaches Hue/Nanoleaf — never D1 directly (D1 is only reachable inside the Pages
+# Functions). Env-overridable: local wrangler in dev, the Pages domain in prod.
+WORKSHOP_API_BASE = os.environ.get("GRIDGLOW_API_BASE", "https://gridglow.titanstowers.net")
 
 
 class Api:
@@ -53,6 +63,10 @@ class Api:
         self._window: webview.Window | None = None
         self._queue: list = []
         self._queue_lock = threading.Lock()
+
+        # Supabase access token for Workshop write/personal calls (set by the webview
+        # on auth state change; None when signed out). Reads never use it.
+        self._workshop_token: str | None = None
 
         # A replay runs for ~20-35s on its own thread so the UI stays live.
         self._replay_thread: threading.Thread | None = None
@@ -113,6 +127,78 @@ class Api:
 
     def get_discovered_lights(self):
         return self.runner.get_discovered_lights()
+
+    def get_workshop_capabilities(self):
+        """What the Workshop compatibility banner needs about the user's real
+        setup: {'brands': [...], 'has_multizone': bool}. brands is the set of
+        controller types present ('lifx' | 'hue' | 'nanoleaf'); has_multizone is
+        True when the user owns a device that can render zone-based effects — a
+        LIFX multizone strip (zones > 0) or a Nanoleaf (its panels act as zones).
+        """
+        brands: set[str] = set()
+        has_multizone = False
+        zones = 0            # colorable sections on the multizone device (strip zones / NL panels)
+        light_count = 0      # individual bulbs/devices, for the per-light view fallback
+        try:
+            for d in self.runner.get_discovered_lights() or []:
+                t = d.get("type")
+                if t:
+                    brands.add(t)
+                light_count += 1
+                if t == "lifx" and (d.get("zones") or 0) > 0:
+                    has_multizone = True
+                    zones = max(zones, int(d.get("zones") or 0))
+                elif t == "nanoleaf":
+                    has_multizone = True
+                    try:
+                        zones = max(zones, len(self.runner.get_nanoleaf_layout() or []))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        try:
+            hue = self.runner.get_hue_lights()
+            if hue:
+                brands.add("hue")
+                light_count += len(hue)
+                # Hue gradient lightstrips are zoned (a ~7-point gradient).
+                if any(l.get("is_gradient") for l in hue):
+                    has_multizone = True
+                    zones = max(zones, 7)
+        except Exception:
+            pass
+        # A configured Nanoleaf counts even when the bridge is stopped (no live probe).
+        try:
+            nl = self.runner.get_nanoleaf_settings() or {}
+            if nl.get("ip") and nl.get("paired"):   # `paired` is bool(auth_token)
+                has_multizone = True
+                brands.add("nanoleaf")
+        except Exception:
+            pass
+
+        gs = {}
+        try:
+            gs = self.runner.get_gui_settings() or {}
+        except Exception:
+            pass
+
+        if has_multizone:
+            if zones <= 0:
+                zones = int(gs.get("multizone_zones") or 0) or 16
+            # Remember it so per-zone stays available after the bridge is stopped or
+            # the strip goes offline — detection is otherwise live-only.
+            try:
+                if not gs.get("multizone_seen") or int(gs.get("multizone_zones") or 0) != zones:
+                    self.runner.save_gui_settings({"multizone_seen": True, "multizone_zones": zones})
+            except Exception:
+                pass
+        elif gs.get("multizone_seen"):
+            has_multizone = True
+            zones = int(gs.get("multizone_zones") or 0) or 16
+
+        return {"brands": sorted(brands), "has_multizone": has_multizone,
+                "zones": zones, "light_count": light_count,
+                "multizone_seen": bool(gs.get("multizone_seen")) or has_multizone}
 
     def set_selected_lights(self, labels: list):
         self.runner.set_selected_lights(labels)
@@ -236,6 +322,353 @@ class Api:
     def set_hue_diag(self, enabled: bool):
         self.runner.set_hue_diag(enabled)
         return {"ok": True}
+
+    # ---- Community Workshop (read path) ----
+
+    def _workshop_request(self, path, method="GET", params=None, body=None, auth=False):
+        """Call {WORKSHOP_API_BASE}{path} → parsed JSON, or an {'error': ...} dict.
+
+        Never raises into the webview bridge; the page always gets JSON back so it can
+        render a friendly offline / empty / needs-login state. `auth=True` attaches the
+        Supabase access token (from set_workshop_token) as a Bearer header — required by
+        every write / personal-tab endpoint. Reads send no header.
+        """
+        if requests is None:
+            return {"error": "requests_unavailable"}
+        headers: dict = {}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        if auth:
+            if not self._workshop_token:
+                return {"error": "not_authenticated", "status": 401}
+            headers["Authorization"] = "Bearer " + self._workshop_token
+        try:
+            resp = requests.request(
+                method, f"{WORKSHOP_API_BASE}{path}",
+                params=params, json=body, headers=headers, timeout=8,
+            )
+            if resp.status_code == 401:
+                return {"error": "unauthorized", "status": 401}
+            if resp.status_code == 404:
+                return {"error": "not_found", "status": 404}
+            if resp.status_code == 429:
+                return {"error": "rate_limited", "status": 429,
+                        "retry_after": resp.headers.get("Retry-After")}
+            if not resp.ok:
+                # 4xx/5xx we don't special-case above (e.g. a 422 validation
+                # reject). Surface the server's own message — it names the exact
+                # offending field — instead of a generic HTTPError string.
+                detail = None
+                try:
+                    detail = resp.json().get("error")
+                except ValueError:
+                    detail = (resp.text or "").strip()[:200] or None
+                return {"error": detail or f"http_{resp.status_code}",
+                        "status": resp.status_code}
+            try:
+                return resp.json()
+            except ValueError:  # empty/no-JSON body (e.g. a 204)
+                return {"ok": True, "status": resp.status_code}
+        except Exception as exc:  # network down, API unreachable, bad JSON, …
+            return {"error": "request_failed", "detail": str(exc)}
+
+    def workshop_list(self, game=None, sort="hot", q=None, cursor=None):
+        """Browse presets. Mirrors GET /api/workshop/presets (game/sort/q/cursor)."""
+        params = {"sort": sort or "hot"}
+        if game:
+            params["game"] = game
+        if q:
+            params["q"] = q
+        if cursor:
+            params["cursor"] = cursor
+        return self._workshop_request("/api/workshop/presets", params=params)
+
+    @staticmethod
+    def _valid_preset_id(preset_id) -> bool:
+        """Accept only backend-issued ids — alphanumerics, '-' and '_' (covers
+        UUIDs and the ULID-style ids the API mints). Rejects empty, over-long,
+        and anything with path separators or traversal segments, so a crafted id
+        can't reshape the request URL."""
+        allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+        return (isinstance(preset_id, str) and 1 <= len(preset_id) <= 64
+                and all(c in allowed for c in preset_id))
+
+    def workshop_get(self, preset_id: str):
+        """Fetch one preset's full detail (incl. `theme`). GET /api/workshop/presets/:id."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
+        return self._workshop_request(f"/api/workshop/presets/{preset_id}")
+
+    def apply_workshop_preset(self, theme: dict):
+        """Apply a downloaded preset's device-agnostic `theme` to the user's lights.
+
+        A downloaded preset is just a partial gui_settings payload — loop each field
+        that's present through the existing live setter so it takes effect on running
+        lights (and persists), exactly like changing it in Settings. Fields map 1:1 to
+        the `theme` shape documented in docs/community-workshop-backend.md §2.1.
+        """
+        if not isinstance(theme, dict):
+            return {"ok": False, "error": "invalid_theme"}
+        applied: list[str] = []
+        try:
+            if isinstance(theme.get("enabled_events"), list):
+                self.runner.set_enabled_events(theme["enabled_events"])
+                applied.append("enabled_events")
+            br = theme.get("brightness_range")
+            if isinstance(br, dict) and "min_pct" in br and "max_pct" in br:
+                self.runner.set_brightness_range(int(br["min_pct"]), int(br["max_pct"]))
+                applied.append("brightness_range")
+            st = theme.get("stagger")
+            if isinstance(st, dict) and "enabled" in st:
+                self.runner.set_stagger(bool(st["enabled"]), int(st.get("ms", 0)))
+                applied.append("stagger")
+            idle = theme.get("idle_state")
+            if isinstance(idle, dict) and "color_hex" in idle:
+                self.runner.set_idle_state(idle["color_hex"], bool(idle.get("pulse", False)))
+                applied.append("idle_state")
+            mz = theme.get("mz_startlights")
+            if isinstance(mz, dict) and "direction" in mz and "mode" in mz:
+                self.runner.set_mz_startlights(mz["direction"], mz["mode"])
+                applied.append("mz_startlights")
+            if isinstance(theme.get("rpm_gradient"), list):
+                self.runner.set_rpm_gradient(theme["rpm_gradient"])
+                applied.append("rpm_gradient")
+            if isinstance(theme.get("curves"), dict):
+                self.runner.set_curves(theme["curves"])
+                applied.append("curves")
+        except Exception as exc:
+            return {"ok": False, "error": str(exc), "applied": applied}
+        # Persist the applied theme to gui_settings so it survives a restart and the
+        # Effects page reflects it — the live setters above only touch the running
+        # bridge. Mirrors what each Effects control does (set + save_gui_settings).
+        try:
+            flat = self._theme_to_gui_settings(theme)
+        except Exception as exc:
+            # Flattening the theme failed — that's a malformed/unsupported theme,
+            # not a disk problem, so surface it as a failure (not a persist warning).
+            print(f"[workshop] theme conversion failed: {exc}", flush=True)
+            return {"ok": False, "error": "theme_conversion_failed",
+                    "detail": str(exc), "applied": applied}
+        try:
+            if flat:
+                self.runner.save_gui_settings(flat)
+        except Exception as exc:
+            # The lights already changed (live apply above), so this isn't a hard
+            # failure — but the preset won't survive a restart. Report success with
+            # a warning rather than swallowing it silently or claiming an outright
+            # failure the user can plainly see didn't happen.
+            print(f"[workshop] apply persisted failed: {exc}", flush=True)
+            return {"ok": True, "applied": applied, "persist_warning": str(exc)}
+        return {"ok": True, "applied": applied}
+
+    @staticmethod
+    def _theme_to_gui_settings(theme: dict) -> dict:
+        """Flatten a preset `theme` back into the app's gui_settings keys (the inverse
+        of _gui_settings_to_theme) so an applied preset persists and shows in the UI."""
+        gs: dict = {}
+        if isinstance(theme.get("enabled_events"), list):
+            gs["enabled_events"] = theme["enabled_events"]
+        br = theme.get("brightness_range")
+        if isinstance(br, dict) and "min_pct" in br and "max_pct" in br:
+            gs["brightness_min"] = int(br["min_pct"])
+            gs["brightness_max"] = int(br["max_pct"])
+        st = theme.get("stagger")
+        if isinstance(st, dict) and "enabled" in st:
+            gs["stagger_enabled"] = bool(st["enabled"])
+            gs["stagger_ms"] = int(st.get("ms", 0) or 0)
+        idle = theme.get("idle_state")
+        if isinstance(idle, dict) and "color_hex" in idle:
+            gs["idle_color"] = idle["color_hex"]
+            gs["idle_pulse"] = bool(idle.get("pulse", False))
+        mz = theme.get("mz_startlights")
+        if isinstance(mz, dict) and "direction" in mz and "mode" in mz:
+            gs["mz_startlights_direction"] = mz["direction"]
+            gs["mz_startlights_mode"] = mz["mode"]
+        if isinstance(theme.get("rpm_gradient"), list):
+            gs["rpm_gradient"] = theme["rpm_gradient"]
+        if isinstance(theme.get("curves"), dict):
+            gs["curves"] = theme["curves"]
+        if isinstance(theme.get("effect_colors"), dict):
+            gs["effect_colors"] = theme["effect_colors"]
+        return gs
+
+    # ---- Community Workshop (write path — all require a Supabase login) ----
+
+    def set_workshop_token(self, access_token):
+        """Store the Supabase access token (None clears it on sign-out). The webview
+        pushes this on auth state change; write / personal calls send it as Bearer."""
+        self._workshop_token = access_token or None
+        return {"ok": True}
+
+    def workshop_personal(self, kind):
+        """Personal tabs. kind: 'mine' | 'liked' | 'downloaded' → GET ?<kind>=1 (Bearer)."""
+        if kind not in ("mine", "liked", "downloaded"):
+            return {"error": "bad_kind"}
+        return self._workshop_request("/api/workshop/presets", params={kind: 1}, auth=True)
+
+    def workshop_download(self, preset_id):
+        """POST /:id/download → returns the preset's theme and records the download."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}/download", method="POST", auth=True)
+
+    def workshop_like(self, preset_id):
+        """POST /:id/like → toggle like."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}/like", method="POST", auth=True)
+
+    def workshop_rate(self, preset_id, stars):
+        """POST /:id/rate {stars:1-5}."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
+        try:
+            stars = int(stars)
+        except (TypeError, ValueError):
+            return {"error": "bad_stars"}
+        if not (1 <= stars <= 5):   # contract is 1–5; reject 0, 6, negatives
+            return {"error": "bad_stars"}
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}/rate",
+            method="POST", body={"stars": stars}, auth=True)
+
+    def workshop_delete(self, preset_id):
+        """DELETE /:id (owner only)."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
+        return self._workshop_request(
+            f"/api/workshop/presets/{preset_id}", method="DELETE", auth=True)
+
+    def workshop_upload(self, meta):
+        """POST /presets — publish the user's CURRENT setup as a preset.
+
+        `meta` carries the presentation fields from the upload form
+        ({title, description, game, visibility, tags, devices}); the device-agnostic
+        `theme` is built here from the live gui_settings (the reverse of
+        apply_workshop_preset). This is the real-setup upload the mockup faked with a
+        SAMPLE_THEME.
+        """
+        if not isinstance(meta, dict):
+            return {"error": "bad_payload"}
+        body = {
+            "title": (meta.get("title") or "Untitled preset"),
+            "description": meta.get("description", ""),
+            "game": meta.get("game", ""),
+            "visibility": meta.get("visibility", "public"),
+            "tags": meta.get("tags", []),
+            "devices": meta.get("devices", []),
+            "gridglow_preset": 1,
+            "app_min_version": "0.10.0",
+            "theme": self._gui_settings_to_theme(self.runner.get_gui_settings() or {}),
+        }
+        return self._workshop_request(
+            "/api/workshop/presets", method="POST", body=body, auth=True)
+
+    # Event keys the Workshop backend accepts (mirrors _validate.js KNOWN_EVENTS).
+    # The app has extra internal keys (lights_out / white_warning / neutral) that a
+    # shared, device-agnostic preset must not carry — the backend 422s on them.
+    _WORKSHOP_EVENTS = frozenset({
+        "start_lights", "fastest_lap", "sector_status", "rpm_meter",
+        "red_flag", "yellow_flag", "blue_flag", "black_flag", "chequered_flag",
+    })
+
+    # Effects that carry custom colours (Effect Customization). neutral = Idle
+    # Color and rpm_meter = gradient are shared through their own theme fields.
+    _EFFECT_COLOR_KEYS = frozenset({
+        "start_lights", "lights_out", "yellow_flag", "blue_flag", "red_flag",
+        "fastest_lap", "chequered_flag", "white_warning", "crash",
+    })
+
+    @classmethod
+    def _gui_settings_to_theme(cls, gs: dict) -> dict:
+        """Map the app's flat gui_settings keys → the backend `theme` shape (the inverse
+        of apply_workshop_preset). Only includes fields that are present."""
+        theme: dict = {}
+        if isinstance(gs.get("enabled_events"), list):
+            # Drop any app-internal keys the backend doesn't know, so the upload
+            # passes validation instead of 422-ing on e.g. "lights_out".
+            evs = [e for e in gs["enabled_events"] if e in cls._WORKSHOP_EVENTS]
+            if evs:
+                theme["enabled_events"] = evs
+        if "brightness_min" in gs or "brightness_max" in gs:
+            theme["brightness_range"] = {
+                "min_pct": int(gs.get("brightness_min", 0)),
+                "max_pct": int(gs.get("brightness_max", 100)),
+            }
+        if "stagger_enabled" in gs or "stagger_ms" in gs:
+            theme["stagger"] = {
+                "enabled": bool(gs.get("stagger_enabled", False)),
+                "ms": int(gs.get("stagger_ms", 0) or 0),
+            }
+        idle_hex = cls._norm_hex(gs.get("idle_color"))
+        if idle_hex:
+            theme["idle_state"] = {
+                "color_hex": idle_hex,
+                "pulse": bool(gs.get("idle_pulse", False)),
+            }
+        if gs.get("mz_startlights_direction") or gs.get("mz_startlights_mode"):
+            theme["mz_startlights"] = {
+                "direction": gs.get("mz_startlights_direction", "ltr"),
+                "mode": gs.get("mz_startlights_mode", "sweep"),
+            }
+        if isinstance(gs.get("rpm_gradient"), list):
+            stops = [cls._norm_hex(c) for c in gs["rpm_gradient"]]
+            stops = [c for c in stops if c][:12]
+            if stops:
+                theme["rpm_gradient"] = stops
+        if isinstance(gs.get("curves"), dict):
+            theme["curves"] = gs["curves"]
+        ec = cls._sanitize_effect_colors(gs.get("effect_colors"))
+        if ec:
+            theme["effect_colors"] = ec
+        return theme
+
+    @classmethod
+    def _sanitize_effect_colors(cls, ec) -> dict:
+        """Device-agnostic effect colours for sharing: keep the Sync-All colours and
+        per-zone stops (both portable) and drop per-light — it's keyed by the user's
+        own light labels, which are device-specific and rejected by the validator.
+        A per-light effect collapses to its Sync-All colour."""
+        out: dict = {}
+        if not isinstance(ec, dict):
+            return out
+        for key, conf in ec.items():
+            if key not in cls._EFFECT_COLOR_KEYS or not isinstance(conf, dict):
+                continue
+            entry: dict = {}
+            colors = {}
+            for slot, hx in (conf.get("colors") or {}).items():
+                nh = cls._norm_hex(hx)
+                if nh and isinstance(slot, str) and slot in ("main", "a", "b"):
+                    colors[slot] = nh
+            if colors:
+                entry["colors"] = colors
+            pz = conf.get("per_zone")
+            if isinstance(pz, list):
+                stops = [cls._norm_hex(c) for c in pz]
+                stops = [c for c in stops if c][:96]
+                if stops:
+                    entry["per_zone"] = stops
+            if not (entry.get("colors") or entry.get("per_zone")):
+                continue
+            entry["mode"] = "per_zone" if (conf.get("mode") == "per_zone" and entry.get("per_zone")) else "all"
+            out[key] = entry
+        return out
+
+    @staticmethod
+    def _norm_hex(v) -> "str | None":
+        """Coerce a colour to the strict #RRGGBB the backend validator wants, or
+        None if it can't. Accepts '#RGB', 'RGB', 'RRGGBB', '#RRGGBB' (any case)."""
+        if not isinstance(v, str):
+            return None
+        s = v.strip().lstrip("#")
+        if len(s) == 3 and all(c in "0123456789abcdefABCDEF" for c in s):
+            s = "".join(c * 2 for c in s)
+        if len(s) == 6 and all(c in "0123456789abcdefABCDEF" for c in s):
+            return "#" + s.lower()
+        return None
 
     def get_nanoleaf_layout(self):
         return self.runner.get_nanoleaf_layout()

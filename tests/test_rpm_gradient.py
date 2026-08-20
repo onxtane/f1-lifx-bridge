@@ -179,5 +179,65 @@ class SwatchTests(unittest.TestCase):
                 self.assertGreaterEqual(len(rpm_gradient_swatch(None, samples)), 2)
 
 
+class RpmGradientPersistenceTests(unittest.TestCase):
+    """A saved gradient must be seeded into the pending state at construction, so
+    the bridge picks it up when it's built — rather than running the default until
+    the UI re-pushes it (the 'restart shows the stops but tests as default' bug).
+    """
+
+    def _runner_with_saved(self, saved):
+        import bridge_runner
+        orig = bridge_runner.BridgeRunner._read_json
+        bridge_runner.BridgeRunner._read_json = (
+            lambda self, path, default=None:
+                dict(saved) if path == bridge_runner.GUI_SETTINGS_FILE
+                else ({} if default is None else default))
+        try:
+            return bridge_runner.BridgeRunner()
+        finally:
+            bridge_runner.BridgeRunner._read_json = orig
+
+    def test_saved_gradient_seeds_pending(self):
+        stops = ["#112233", "#445566", "#778899"]
+        r = self._runner_with_saved({"rpm_gradient": stops})
+        self.assertEqual(r._pending_rpm_gradient, stops)
+
+    def test_no_saved_gradient_leaves_pending_none(self):
+        r = self._runner_with_saved({})
+        self.assertIsNone(r._pending_rpm_gradient)
+
+    def test_gradient_reapplied_to_controller_after_discovery(self):
+        # discover_lights() builds the controller fresh (bridge.lifx was None at
+        # _ensure_bridge, so the gradient wasn't applied then). _do_discover must
+        # push it onto the newly-built controller — the actual restart-bug fix.
+        import bridge_core
+        stops = ["#112233", "#445566", "#778899"]
+        r = self._runner_with_saved({"rpm_gradient": stops})
+        r._module = bridge_core
+
+        class _FakeLifx:
+            pass
+
+        class _FakeBridge:
+            def __init__(self):
+                self.lifx = None
+                self.nanoleaf = None
+                self.hue = None
+
+            def discover_lights(self):
+                self.lifx = _FakeLifx()   # created only now, mid-discovery
+
+        r.bridge = _FakeBridge()
+        r._maybe_apply_last_group = lambda: None
+        r._push_light_stats = lambda: None
+        r.get_discovered_lights = lambda: []
+        r._get_active_labels = lambda: []
+
+        r._do_discover()
+
+        self.assertEqual(r.bridge.lifx.rpm_gradient,
+                         bridge_core.parse_rpm_gradient(stops))
+
+
 if __name__ == "__main__":
     unittest.main()

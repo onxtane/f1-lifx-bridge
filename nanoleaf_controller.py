@@ -349,6 +349,35 @@ def discover_nanoleaf(timeout: int = 5) -> list:
     return []
 
 
+def _hex_to_hue_sat(hex_color) -> "tuple[int, int] | None":
+    """'#rrggbb' / '#rgb' -> (hue, sat) in 0-65535, or None if unusable. Brightness
+    is intentionally dropped — effects keep their own."""
+    if not isinstance(hex_color, str):
+        return None
+    t = hex_color.strip().lstrip('#')
+    if len(t) == 3:
+        t = ''.join(c * 2 for c in t)
+    if len(t) != 6:
+        return None
+    try:
+        r, g, b = (int(t[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+    except ValueError:
+        return None
+    max_c, min_c = max(r, g, b), min(r, g, b)
+    delta = max_c - min_c
+    if delta == 0:
+        h = 0.0
+    elif max_c == r:
+        h = ((g - b) / delta) % 6
+    elif max_c == g:
+        h = (b - r) / delta + 2
+    else:
+        h = (r - g) / delta + 4
+    h = (h / 6.0) % 1.0
+    s = 0.0 if max_c == 0 else delta / max_c
+    return int(h * 65535), int(s * 65535)
+
+
 # ── Controller ───────────────────────────────────────────────────────────────
 
 class NanoleafController:
@@ -386,6 +415,9 @@ class NanoleafController:
         # {label: None | [effect_keys]}  None = all effects; list = only those keys.
         self.light_assignments: dict = {}
         self._current_effect_key: str | None = None
+
+        # Per-effect custom colours (Effect Customization). Same HSBK shape as LIFX.
+        self.effect_colors: dict = {}
 
         # Intensity curves: {label: {points: [[t,v],...], duration_ms: int}}
         self.curves: dict = {}
@@ -637,14 +669,36 @@ class NanoleafController:
             t = min(1.0, (time.monotonic() - self._curve_start) / self._curve_dur)
             b = max(1, min(65535, int(b * self._eval_curve(self._curve_pts, t))))
         b_scaled = self._scale_brightness(b)
+
+        # Per-effect custom colours: per_zone recolours each panel; per_light
+        # recolours the whole device by its label. Hue+sat only; brightness kept.
+        _ec = self.effect_colors.get(self._current_effect_key) or {}
+        _mode = _ec.get("mode", "all")
+        _per_zone = _ec.get("per_zone") if isinstance(_ec.get("per_zone"), list) else []
+        _per_light = _ec.get("per_light") if isinstance(_ec.get("per_light"), dict) else {}
+        if _mode == "per_light" and self.label in _per_light:
+            hs = _hex_to_hue_sat(_per_light.get(self.label))
+            if hs:
+                h, s = hs
+
+        _ptotal = len(self._panel_ids or [])
+        def _panel_hs(idx):
+            # Spread the logical zone colours across the panels.
+            if _mode == "per_zone" and _per_zone and _ptotal:
+                hx = _per_zone[(idx * len(_per_zone)) // _ptotal]
+                return _hex_to_hue_sat(hx) or (h, s)
+            return (h, s)
+
         try:
             if self._panel_ids:
-                r, g, bl = _hsbk_to_rgb(h, s, b_scaled)
                 n = len(self._panel_ids)
                 # animType "custom" with numFrames=1: "<numPanels> <panelId> 1 <R> <G> <B> <W> <transTime> ..."
-                anim_data = f"{n} " + " ".join(
-                    f"{pid} 1 {r} {g} {bl} 0 1" for pid in self._panel_ids
-                )
+                _parts = []
+                for _idx, pid in enumerate(self._panel_ids):
+                    _ph, _ps = _panel_hs(_idx)
+                    _pr, _pg, _pbl = _hsbk_to_rgb(_ph, _ps, b_scaled)
+                    _parts.append(f"{pid} 1 {_pr} {_pg} {_pbl} 0 1")
+                anim_data = f"{n} " + " ".join(_parts)
                 url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
                 resp = _requests.put(url, json={
                     "write": {
@@ -687,6 +741,23 @@ class NanoleafController:
 
     # ── Effects ──────────────────────────────────────────────────────────────
 
+    def _fx(self, key, default_hsbk, slot="main"):
+        """Recolour an effect's default HSBK with the user's custom colour for
+        (effect key, slot) — hue+sat only, keeping the effect's brightness. Falls
+        back to default when uncustomized. Phase 2a: one colour per effect."""
+        ec = self.effect_colors.get(key)
+        if not ec:
+            return default_hsbk
+        if ec.get("mode", "all") == "all":
+            hs = _hex_to_hue_sat((ec.get("colors") or {}).get(slot))
+            if hs:
+                out = list(default_hsbk)
+                out[0], out[1] = hs
+                return out
+            return default_hsbk
+        # per_light / per_zone: default here; set_color_all() paints per panel/label.
+        return default_hsbk
+
     def neutral(self):
         if not self._is_assigned("neutral"):
             return
@@ -727,7 +798,7 @@ class NanoleafController:
         threading.Thread(target=self._yellow_flash_loop, daemon=True).start()
 
     def _yellow_flash_loop(self):
-        yellow = [10922, 65535, 65535, 3500]
+        yellow = self._fx('yellow_flag', [10922, 65535, 65535, 3500])
         dark   = [0, 0, 1, 3500]
         while self.is_effect_active("yellow_flash"):
             self.set_color_all(yellow, duration_ms=40, stagger=False)
@@ -747,8 +818,8 @@ class NanoleafController:
         threading.Thread(target=self._blue_pulse_loop, daemon=True).start()
 
     def _blue_pulse_loop(self):
-        bright = [43690, 65535, 65535, 3500]
-        dim    = [43690, 65535, 8000, 3500]
+        bright = self._fx('blue_flag', [43690, 65535, 65535, 3500])
+        dim    = self._fx('blue_flag', [43690, 65535, 8000, 3500])
         while self.is_effect_active("blue_pulse"):
             self.set_color_all(bright, duration_ms=600, stagger=False)
             for _ in range(7):
@@ -771,8 +842,8 @@ class NanoleafController:
         threading.Thread(target=self._red_pulse_loop, daemon=True).start()
 
     def _red_pulse_loop(self):
-        bright = [0, 65535, 65535, 3500]
-        dim    = [0, 65535, 8000, 3500]
+        bright = self._fx('red_flag', [0, 65535, 65535, 3500])
+        dim    = self._fx('red_flag', [0, 65535, 8000, 3500])
         while self.is_effect_active("red_pulse"):
             self.set_color_all(bright, duration_ms=600, stagger=False)
             for _ in range(7):
@@ -802,7 +873,7 @@ class NanoleafController:
         self.clear_active_effect()
         self._current_effect_key = "white_warning"
         self._activate_curve("white_warning")
-        white = [0, 0, 65535, 4500]
+        white = self._fx('white_warning', [0, 0, 65535, 4500])
         dark  = [0, 0, 1, 3500]
         self.flash_colors([white, dark], loops=3, hold_ms=250)
         self._deactivate_curve()
@@ -813,7 +884,7 @@ class NanoleafController:
             return
         self._current_effect_key = "fastest_lap"
         self._activate_curve("fastest_lap")
-        purple = [54613, 65535, 65535, 3500]
+        purple = self._fx('fastest_lap', [54613, 65535, 65535, 3500])
         dark   = [0, 0, 1, 3500]
         self.flash_colors([purple, dark], loops=3, hold_ms=200)
         self._deactivate_curve()
@@ -825,8 +896,8 @@ class NanoleafController:
         self.clear_active_effect()
         self._current_effect_key = "chequered_flag"
         self._activate_curve("chequered_flag")
-        white = [0, 0, 65535, 4500]
-        green = [21845, 65535, 65535, 3500]
+        white = self._fx('chequered_flag', [0, 0, 65535, 4500], 'a')
+        green = self._fx('chequered_flag', [21845, 65535, 65535, 3500], 'b')
         self.flash_colors([white, green], loops=5, hold_ms=300)
         self._deactivate_curve()
         self.neutral()
@@ -837,7 +908,7 @@ class NanoleafController:
         self.clear_active_effect()
         self._current_effect_key = "lights_out"
         self._activate_curve("lights_out")
-        green = [21845, 65535, 65535, 3500]
+        green = self._fx('lights_out', [21845, 65535, 65535, 3500])
         dark  = [0, 0, 1, 3500]
         white = [0, 0, 50000, 4500]
         self._snap_and_wait(green, 200)
