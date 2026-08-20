@@ -19,7 +19,7 @@ export async function onRequestPost({ request, params, env }) {
   if (limited) return limited;
 
   const row = await env.DB
-    .prepare(`SELECT theme_json, downloads, status FROM presets WHERE id = ?`)
+    .prepare(`SELECT theme_json, status FROM presets WHERE id = ?`)
     .bind(params.id)
     .first();
   if (!row || row.status !== "public") return error("Preset not found", 404);
@@ -32,18 +32,24 @@ export async function onRequestPost({ request, params, env }) {
     return error("Preset data is corrupt", 502);
   }
 
-  // Atomic: bump the counter only when this is a new (preset, user) download, then
-  // record it — one batch (transaction) so the counter and join row can't drift.
+  // Atomic + visibility-guarded: both writes require a still-public preset (inside
+  // the batch), so a preset hidden between the read above and now can't be
+  // recorded against. Counter bumps only for a new (preset, user) download.
   await env.DB.batch([
     env.DB.prepare(
       `UPDATE presets SET downloads = downloads + 1
-       WHERE id = ? AND NOT EXISTS (SELECT 1 FROM downloads WHERE preset_id = ? AND token = ?)`,
+       WHERE id = ? AND status = 'public'
+         AND NOT EXISTS (SELECT 1 FROM downloads WHERE preset_id = ? AND token = ?)`,
     ).bind(params.id, params.id, user.id),
     env.DB.prepare(
-      `INSERT OR IGNORE INTO downloads (preset_id, token, created_at) VALUES (?, ?, ?)`,
-    ).bind(params.id, user.id, nowMs()),
+      `INSERT INTO downloads (preset_id, token, created_at)
+       SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM presets WHERE id = ? AND status = 'public')
+       ON CONFLICT(preset_id, token) DO NOTHING`,
+    ).bind(params.id, user.id, nowMs(), params.id),
   ]);
-  // Re-read the persisted count so the response reflects concurrent downloads too.
-  const after = await env.DB.prepare(`SELECT downloads FROM presets WHERE id = ?`).bind(params.id).first();
-  return json({ ok: true, downloads: after?.downloads ?? row.downloads, theme });
+
+  // Re-read: reflects concurrent downloads, and 404s the race where it was hidden.
+  const after = await env.DB.prepare(`SELECT downloads, status FROM presets WHERE id = ?`).bind(params.id).first();
+  if (!after || after.status !== "public") return error("Preset not found", 404);
+  return json({ ok: true, downloads: after.downloads, theme });
 }

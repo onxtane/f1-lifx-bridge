@@ -26,28 +26,30 @@ export async function onRequestPost({ request, params, env }) {
   if (!row || row.status !== "public") return error("Preset not found", 404);
 
   const ts = nowMs();
-  // Upsert the caller's rating, then recompute the aggregate from the ratings
-  // table. Deriving rating_sum/rating_count from source (not delta math) keeps
-  // them correct under concurrent re-rates; both run in one batch (transaction).
+  // Upsert the caller's rating (guarded on a still-public preset, so a preset
+  // hidden between the read above and now can't be rated), then recompute the
+  // aggregate from the ratings table. Deriving rating_sum/rating_count from source
+  // (not delta math) keeps them correct under concurrent re-rates. One batch.
   await env.DB.batch([
     env.DB.prepare(
-      `INSERT INTO ratings (preset_id, token, stars, created_at) VALUES (?, ?, ?, ?)
+      `INSERT INTO ratings (preset_id, token, stars, created_at)
+       SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM presets WHERE id = ? AND status = 'public')
        ON CONFLICT(preset_id, token) DO UPDATE SET stars = excluded.stars, created_at = excluded.created_at`,
-    ).bind(params.id, user.id, stars, ts),
+    ).bind(params.id, user.id, stars, ts, params.id),
     env.DB.prepare(
       `UPDATE presets SET
          rating_sum = (SELECT COALESCE(SUM(stars), 0) FROM ratings WHERE preset_id = ?),
          rating_count = (SELECT COUNT(*) FROM ratings WHERE preset_id = ?)
-       WHERE id = ?`,
+       WHERE id = ? AND status = 'public'`,
     ).bind(params.id, params.id, params.id),
   ]);
 
   const after = await env.DB
-    .prepare(`SELECT rating_sum, rating_count FROM presets WHERE id = ?`)
+    .prepare(`SELECT rating_sum, rating_count, status FROM presets WHERE id = ?`)
     .bind(params.id)
     .first();
-  // The preset may have been removed between the write and this read.
-  if (!after) return json({ ok: true, rating: null, rating_count: 0, your_rating: stars });
+  // 404 the race where the preset was hidden/removed during the write.
+  if (!after || after.status !== "public") return error("Preset not found", 404);
   return json({
     ok: true,
     rating: ratingOf(after.rating_sum, after.rating_count),

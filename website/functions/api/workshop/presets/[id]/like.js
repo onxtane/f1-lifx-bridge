@@ -38,15 +38,20 @@ export async function onRequestPost({ request, params, env }) {
     ]);
     liked = false;
   } else {
-    // Toggle on: increment only if not already liked, then record. INSERT OR
-    // IGNORE + the NOT EXISTS guard make concurrent likes race-safe (no PK
-    // violation, no double-increment).
+    // Toggle on: increment only if the preset is still public and not already
+    // liked, then record. The status guard + NOT EXISTS + conditional insert make
+    // it race-safe (no PK violation, no double-increment, no like on a hidden preset).
     await env.DB.batch([
       env.DB.prepare(
         `UPDATE presets SET likes = likes + 1
-         WHERE id = ? AND NOT EXISTS (SELECT 1 FROM likes WHERE preset_id = ? AND token = ?)`,
+         WHERE id = ? AND status = 'public'
+           AND NOT EXISTS (SELECT 1 FROM likes WHERE preset_id = ? AND token = ?)`,
       ).bind(params.id, params.id, user.id),
-      env.DB.prepare(`INSERT OR IGNORE INTO likes (preset_id, token, created_at) VALUES (?, ?, ?)`).bind(params.id, user.id, nowMs()),
+      env.DB.prepare(
+        `INSERT INTO likes (preset_id, token, created_at)
+         SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM presets WHERE id = ? AND status = 'public')
+         ON CONFLICT(preset_id, token) DO NOTHING`,
+      ).bind(params.id, user.id, nowMs(), params.id),
     ]);
     liked = true;
   }
