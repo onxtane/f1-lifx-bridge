@@ -50,6 +50,16 @@ function isPlainObject(v) {
   return v != null && typeof v === "object" && !Array.isArray(v);
 }
 
+// True if any branch nests deeper than `max`. Bails early at max+1, so it can
+// never itself overflow — used to reject pathological themes before the
+// (recursive) device-identity walk runs.
+function exceedsDepth(node, max, depth = 0) {
+  if (depth > max) return true;
+  if (Array.isArray(node)) return node.some((v) => exceedsDepth(v, max, depth + 1));
+  if (isPlainObject(node)) return Object.values(node).some((v) => exceedsDepth(v, max, depth + 1));
+  return false;
+}
+
 // Walk the theme looking for device-identifying keys or IP-shaped strings.
 function hasDeviceIdentity(node) {
   if (typeof node === "string") return IP_LIKE.test(node);
@@ -135,6 +145,7 @@ function validateTheme(theme) {
     }
   }
 
+  if (exceedsDepth(theme, 16)) return "theme is nested too deeply";
   if (hasDeviceIdentity(theme)) return "theme contains device-identifying data (labels/host/ip/token) — presets must be device-agnostic";
   return null; // ok
 }
@@ -156,12 +167,13 @@ export function validatePreset(body) {
   const game = cleanStr(body.game, 40) || "*";
   if (!isKnownGame(game)) return fail(422, `unknown game slug: ${game}`);
 
+  // Size cap FIRST — before the recursive theme walk — so an oversized or deeply
+  // nested payload is rejected cheaply instead of driving the walk to a blow-up.
+  const themeText = isPlainObject(body.theme) ? JSON.stringify(body.theme) : "";
+  if (themeText.length > THEME_MAX_BYTES) return fail(413, "theme too large");
+
   const themeErr = validateTheme(body.theme);
   if (themeErr) return fail(422, themeErr);
-
-  // Size cap is on the stored envelope's theme (the part that can grow).
-  const themeText = JSON.stringify(body.theme);
-  if (themeText.length > THEME_MAX_BYTES) return fail(413, "theme too large");
 
   // tags: up to 10, short, lowercased, unique.
   let tags = Array.isArray(body.tags) ? body.tags : [];

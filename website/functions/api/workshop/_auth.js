@@ -11,7 +11,9 @@
 
 const SUPABASE_URL_FALLBACK = "https://upvbmoseimgiathprtsj.supabase.co";
 const JWKS_TTL_MS = 10 * 60 * 1000;
-const _jwks = { keys: null, at: 0 }; // per-isolate cache
+const JWKS_FORCE_COOLDOWN_MS = 60 * 1000;  // throttle unknown-kid forced refetches
+const JWKS_FETCH_TIMEOUT_MS = 5000;        // don't let a hung JWKS fetch stall the Worker
+const _jwks = { keys: null, at: 0, forcedAt: 0 }; // per-isolate cache
 
 function b64urlToBytes(s) {
   s = s.replace(/-/g, "+").replace(/_/g, "/");
@@ -37,9 +39,16 @@ async function getKeys(env, force = false) {
     try { return JSON.parse(env.SUPABASE_JWKS).keys || []; } catch { return []; }
   }
   const now = Date.now();
-  if (!force && _jwks.keys && now - _jwks.at < JWKS_TTL_MS) return _jwks.keys;
+  const fresh = _jwks.keys && now - _jwks.at < JWKS_TTL_MS;
+  if (!force && fresh) return _jwks.keys;
+  if (force) {
+    // A bogus token with a random kid would otherwise force a JWKS fetch on every
+    // request — throttle forced refetches so they can't be used as amplification.
+    if (now - _jwks.forcedAt < JWKS_FORCE_COOLDOWN_MS) return _jwks.keys || [];
+    _jwks.forcedAt = now;
+  }
   try {
-    const res = await fetch(jwksUrl(env));
+    const res = await fetch(jwksUrl(env), { signal: AbortSignal.timeout(JWKS_FETCH_TIMEOUT_MS) });
     if (!res.ok) return _jwks.keys || [];
     const data = await res.json();
     _jwks.keys = data.keys || [];
@@ -80,7 +89,14 @@ async function verifyEs256(token, env) {
     return null;
   }
   if (!ok) return null;
-  if (payload.exp && Date.now() / 1000 >= payload.exp) return null;
+
+  // exp must be a finite number still in the future.
+  const nowSec = Date.now() / 1000;
+  if (!(typeof payload.exp === "number" && Number.isFinite(payload.exp) && nowSec < payload.exp)) return null;
+  // iss must be our Supabase project — defense-in-depth against token substitution.
+  const expectedIss = `${(env.SUPABASE_URL || SUPABASE_URL_FALLBACK).replace(/\/+$/, "")}/auth/v1`;
+  if (payload.iss !== expectedIss) return null;
+
   return payload;
 }
 

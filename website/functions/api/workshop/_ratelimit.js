@@ -27,7 +27,15 @@ async function hit(env, action, id, limit, windowSec) {
   const bucket = `${action}:${id}:${windowIndex}`;
   const expiresAt = (windowIndex + 1) * windowMs;
 
-  const count = await bump(env, bucket, expiresAt);
+  let count;
+  try {
+    count = await bump(env, bucket, expiresAt);
+  } catch (e) {
+    // Fail open: a limiter DB hiccup (or a not-yet-applied migration) must not
+    // 500 the request or lock everyone out. Writes still require auth.
+    console.error("rate limit check failed (allowing request)", e);
+    return { ok: true, retryAfterSec: 0 };
+  }
 
   // Opportunistic cleanup so the table stays bounded without a cron.
   if (Math.random() < 0.02) {
@@ -55,9 +63,10 @@ export async function enforce(env, checks) {
   return null;
 }
 
-// Best-effort client IP. Cloudflare always sets CF-Connecting-IP in prod; local
-// `wrangler pages dev` may not, so this can be null there (per-IP check skipped).
+// Trusted client IP. Cloudflare always sets CF-Connecting-IP on proxied requests
+// and the caller cannot forge it. X-Forwarded-For IS caller-controlled, so it is
+// deliberately NOT used — trusting it would let an attacker rotate the header to
+// dodge the per-IP cap. Null in local dev → the per-IP check is skipped.
 export function clientIp(request) {
-  const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For");
-  return ip ? ip.split(",")[0].trim() : null;
+  return request.headers.get("CF-Connecting-IP") || null;
 }

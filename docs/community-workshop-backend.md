@@ -230,29 +230,31 @@ cards (in the settings-ui session) is: read from the list response instead of th
    `/^#[0-9a-fA-F]{6}$/`; `enabled_events` ⊆ known keys; numeric ranges clamped.
 3. **Portability guard** — reject if the theme contains device-identifying keys (`labels`,
    `groups`, `host`, `port`, IP-shaped strings, Nanoleaf/Hue auth tokens) → `422`.
-4. **Anti-spam** — honeypot `_trap` (silent OK, like `request-title.js`); per-IP + per-token
-   rate limit; strip HTML from `title`/`description`/`author_name`.
+4. **Anti-spam** — honeypot `_trap` (silent OK, like `request-title.js`); per-user + per-IP
+   rate limit (`_ratelimit.js`, D1-backed); strip HTML from `title`/`description`/`author_name`.
 5. **Moderation hook** — new rows default `status='public'`; a `report` path and an
    admin-token `hidden`/`removed` toggle come in a later pass (see §7).
 
 ---
 
-## 5. Identity — deferred auth (client token)
+## 5. Identity — Supabase accounts (shipped)
 
-No accounts this pass. On first run the client (app and/or website) generates a random
-**opaque token** (UUIDv4) and stores it locally. It is sent as `X-GG-Token` and the server
-stores only a **salted hash** of it. This is enough to power the three personal tabs:
+Accounts are required for writes; browsing stays public. The client signs in with **Supabase**
+(email/password) and sends the resulting access token as `Authorization: Bearer <jwt>`. The API
+verifies it against the project's public **JWKS (ES256)** — there is no shared secret (`_auth.js`)
+— checks `exp`/`iss`, and derives a stable `user_id` from `claims.sub`. Provider-neutral: Google
+or Discord can be added later as pure Supabase + client config, with **no backend change**.
 
-- **My Uploads** — `presets.owner_token = hash(token)`
-- **Liked** — join on `likes.token = hash(token)`
-- **My Downloads** — join on `downloads.token = hash(token)`
+Identity powers ownership + the three personal tabs:
 
-Properties & limits (call these out to users later): the token is a *bearer* handle, not an
-identity — anyone with it inherits the tabs; losing it loses the personal lists (uploads stay
-public). When real auth lands (GitHub OAuth is the natural fit given the existing GitHub
-integration in `request-title.js`), we migrate by letting a signed-in user **claim** rows whose
-`owner_token` matches their current device token. The token column stays; OAuth is layered on
-top, so **no contract break**.
+- **My Uploads** — `presets.owner_user_id = <user id>`
+- **Liked** — join on `likes.token = <user id>`
+- **My Downloads** — join on `downloads.token = <user id>`
+
+The like/download/rating join tables' `token` column now stores the authenticated user id.
+Migration `0002_auth.sql` adds the `users` table and `presets.owner_user_id`; `owner_token` is
+retained only for claiming any pre-auth rows. Verification is unchanged across providers because
+Supabase issues the same ES256 JWT regardless of login method.
 
 ---
 
@@ -286,13 +288,13 @@ is needed — a downloaded preset is just a partial `gui_settings` payload.
 1. **Moderation** — report endpoint, admin token, `hidden`/`removed` workflow. `DELETE /:id`
    (owner soft-remove) ships; the `status` column already supports `hidden`/`removed`, but
    there's no report path or admin toggle yet.
-2. **Real auth** — GitHub OAuth + row-claim migration (§5).
+2. ~~**Real auth**~~ — **done**: Supabase accounts (email/password), verified via ES256 JWKS
+   (§5). Google/Discord addable via config with no backend change.
 3. ~~**Game slug registry**~~ — **done**: `_games.js` mirrors `GS_CATALOG` in `ui/index.html`;
    the API echoes `game_name`, the DB stores the slug.
-4. **Abuse / rate limiting (now the top gap)** — upload/like/rate/download are public and
-   token-gated only by a self-issued `X-GG-Token`. There's a honeypot, full validation, and a
-   16 KB cap, but **no rate limiting**. Add per-IP + per-token throttling (and/or Cloudflare
-   Turnstile on upload) **before deploying the write path to prod**.
+4. ~~**Rate limiting**~~ — **done**: D1-backed fixed-window limits (`_ratelimit.js`, migration
+   `0003`) on every write endpoint (429 + `Retry-After`); per-user, plus per-IP on upload.
+   Cloudflare Turnstile on upload remains a future option if abuse escalates.
 5. **Preset updates/versioning** — edit-in-place vs new-row-per-version (leaning new row;
    `id` immutable, so downloads/likes stay attributable).
 6. **Featured / curated** — a `featured` flag or separate table for editorial rows.

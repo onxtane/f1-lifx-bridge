@@ -24,22 +24,27 @@ export async function onRequestPost({ request, params, env }) {
     .first();
   if (!row || row.status !== "public") return error("Preset not found", 404);
 
-  let downloads = row.downloads;
-  const ins = await env.DB
-    .prepare(`INSERT OR IGNORE INTO downloads (preset_id, token, created_at) VALUES (?, ?, ?)`)
-    .bind(params.id, user.id, nowMs())
-    .run();
-  if ((ins.meta?.changes ?? 0) > 0) {
-    await env.DB.prepare(`UPDATE presets SET downloads = downloads + 1 WHERE id = ?`).bind(params.id).run();
-    downloads += 1;
-  }
-
-  let theme = null;
+  // Parse the theme before any writes so a corrupt row fails cleanly.
+  let theme;
   try {
     theme = JSON.parse(row.theme_json).theme;
   } catch {
     return error("Preset data is corrupt", 502);
   }
+
+  // Atomic: bump the counter only when this is a new (preset, user) download, then
+  // record it — one batch (transaction) so the counter and join row can't drift.
+  const results = await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE presets SET downloads = downloads + 1
+       WHERE id = ? AND NOT EXISTS (SELECT 1 FROM downloads WHERE preset_id = ? AND token = ?)`,
+    ).bind(params.id, params.id, user.id),
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO downloads (preset_id, token, created_at) VALUES (?, ?, ?)`,
+    ).bind(params.id, user.id, nowMs()),
+  ]);
+  const incremented = (results[0]?.meta?.changes ?? 0) > 0;
+  const downloads = row.downloads + (incremented ? 1 : 0);
 
   return json({ ok: true, downloads, theme });
 }

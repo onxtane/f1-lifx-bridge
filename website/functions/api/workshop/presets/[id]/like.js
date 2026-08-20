@@ -27,15 +27,26 @@ export async function onRequestPost({ request, params, env }) {
 
   let liked;
   if (existing) {
+    // Toggle off: decrement only while the row still exists, then remove it. The
+    // guard makes concurrent unlikes idempotent (no double-decrement).
     await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE presets SET likes = MAX(likes - 1, 0)
+         WHERE id = ? AND EXISTS (SELECT 1 FROM likes WHERE preset_id = ? AND token = ?)`,
+      ).bind(params.id, params.id, user.id),
       env.DB.prepare(`DELETE FROM likes WHERE preset_id = ? AND token = ?`).bind(params.id, user.id),
-      env.DB.prepare(`UPDATE presets SET likes = MAX(likes - 1, 0) WHERE id = ?`).bind(params.id),
     ]);
     liked = false;
   } else {
+    // Toggle on: increment only if not already liked, then record. INSERT OR
+    // IGNORE + the NOT EXISTS guard make concurrent likes race-safe (no PK
+    // violation, no double-increment).
     await env.DB.batch([
-      env.DB.prepare(`INSERT INTO likes (preset_id, token, created_at) VALUES (?, ?, ?)`).bind(params.id, user.id, nowMs()),
-      env.DB.prepare(`UPDATE presets SET likes = likes + 1 WHERE id = ?`).bind(params.id),
+      env.DB.prepare(
+        `UPDATE presets SET likes = likes + 1
+         WHERE id = ? AND NOT EXISTS (SELECT 1 FROM likes WHERE preset_id = ? AND token = ?)`,
+      ).bind(params.id, params.id, user.id),
+      env.DB.prepare(`INSERT OR IGNORE INTO likes (preset_id, token, created_at) VALUES (?, ?, ?)`).bind(params.id, user.id, nowMs()),
     ]);
     liked = true;
   }

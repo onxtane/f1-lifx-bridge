@@ -30,7 +30,10 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const game = (url.searchParams.get("game") || "").trim();
   const q = (url.searchParams.get("q") || "").trim();
-  const orderBy = SORTS[(url.searchParams.get("sort") || "hot").toLowerCase()] || SORTS.hot;
+  // Own-property check: `?sort=constructor` must not resolve a prototype member
+  // (which is truthy and would break the `|| SORTS.hot` fallback → 502).
+  const sortKey = (url.searchParams.get("sort") || "hot").toLowerCase();
+  const orderBy = Object.hasOwn(SORTS, sortKey) ? SORTS[sortKey] : SORTS.hot;
 
   let limit = parseInt(url.searchParams.get("limit"), 10);
   if (!Number.isInteger(limit) || limit <= 0) limit = DEFAULT_LIMIT;
@@ -44,9 +47,11 @@ export async function onRequestGet({ request, env }) {
     binds.push(game);
   }
   if (q) {
-    // tags is JSON text; a LIKE over it matches on tag substrings too.
-    where.push("(title LIKE ? OR description LIKE ? OR tags LIKE ?)");
-    binds.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    // Escape LIKE wildcards so `%`/`_` in the query match literally (not match-all
+    // / full-table scans). tags is JSON text, so this also matches tag substrings.
+    const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+    where.push("(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\')");
+    binds.push(like, like, like);
   }
 
   // Personal tabs (§5): scoped to the logged-in user. Any of these without a
@@ -110,7 +115,13 @@ export async function onRequestPost({ request, env }) {
 
   await ensureUser(env, user);
 
-  const result = validatePreset(body);
+  let result;
+  try {
+    result = validatePreset(body);
+  } catch (e) {
+    console.error("workshop validate crashed", e);
+    return error("Invalid preset", 400);
+  }
   if (!result.ok) return error(result.error, result.status);
   const v = result.value;
 

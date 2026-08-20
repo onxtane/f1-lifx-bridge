@@ -22,7 +22,8 @@ export const GAMES = {
 // game the registry hasn't learned yet still renders (just without a pretty name).
 export function gameName(slug) {
   if (slug === "*") return "Any game";
-  return GAMES[slug]?.name || slug;
+  // own-property check so "constructor"/"toString" don't resolve prototype members
+  return isKnownGame(slug) ? GAMES[slug].name : slug;
 }
 
 export function isKnownGame(slug) {

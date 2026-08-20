@@ -9,7 +9,10 @@ import { gameName } from "./_games.js";
 export const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type,X-GG-Token",
+  // Authorization is required for the write path (Bearer <supabase jwt>); it is
+  // not a CORS-safelisted header, so it must be listed or the preflight blocks
+  // every authenticated cross-origin request.
+  "Access-Control-Allow-Headers": "Content-Type,Authorization",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -110,27 +113,6 @@ export function parseJsonArray(text) {
 // (so the front end can hide the stars rather than show a fake 0.0).
 export function ratingOf(sum, count) {
   return count > 0 ? Math.round((sum / count) * 10) / 10 : null;
-}
-
-// Salted SHA-256 of a client token (§5). The salt comes from an env var so it
-// never ships in source; a fixed fallback keeps hashing consistent in dev.
-export async function hashToken(token, salt) {
-  const data = new TextEncoder().encode(`${salt || "gridglow-workshop"}:${token}`);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// The raw client token from the X-GG-Token header, or null. Opaque bearer handle
-// (§5) — identity enough for owner checks + personal tabs, not an account.
-export function getToken(request) {
-  const t = request.headers.get("X-GG-Token");
-  return t && t.trim() ? t.trim() : null;
-}
-
-// Hashed owner handle for writes/personal tabs, or null when no token was sent.
-export async function ownerHash(request, env) {
-  const t = getToken(request);
-  return t ? hashToken(t, env.GG_TOKEN_SALT) : null;
 }
 
 // Sortable-ish id: time prefix (base36 ms) + random suffix. Not a strict ULID,
