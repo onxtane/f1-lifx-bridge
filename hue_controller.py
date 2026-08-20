@@ -319,23 +319,30 @@ class HueController:
         }
         self._put(f"{_CLIP}/light/{light_id}", body)
 
-    def _build_gradient_points(self, num_lit: int, total_points: int = 7) -> list[dict]:
+    def _build_gradient_points(self, num_lit: int, total_points: int = 7,
+                               lit_rgb: tuple = (220, 0, 0), per_zone=None) -> list[dict]:
         """
         Build gradient point array for the start lights sweep.
 
-        The first N points are red (lit zones); the rest show the idle colour
-        (unlit zones). 7 points is the minimum supported by all gradient strips.
+        The first N points are lit; the rest show the idle colour (unlit zones).
+        Lit points use `lit_rgb` (the resolved Sync-All colour, red by default),
+        or, when `per_zone` stops are given, each lit point takes its own stop.
+        7 points is the minimum supported by all gradient strips.
 
         num_lit: 0–5 matching the F1 start lights count.
         """
-        red_x, red_y     = _rgb_to_xy(220, 0, 0)
-        idle_x, idle_y   = _rgb_to_xy(*self.idle_rgb)
+        idle_x, idle_y = _rgb_to_xy(*self.idle_rgb)
         lit_count = round(num_lit * total_points / 5)
-        return [
-            {"color": {"xy": {"x": red_x,  "y": red_y }}} if i < lit_count
-            else {"color": {"xy": {"x": idle_x, "y": idle_y}}}
-            for i in range(total_points)
-        ]
+        n = len(per_zone) if per_zone else 0
+        pts = []
+        for i in range(total_points):
+            if i < lit_count:
+                rgb = (_hex_to_rgb(per_zone[(i * n) // total_points]) or lit_rgb) if n else lit_rgb
+                x, y = _rgb_to_xy(*rgb)
+            else:
+                x, y = idle_x, idle_y
+            pts.append({"color": {"xy": {"x": x, "y": y}}})
+        return pts
 
     def _gradient_idle_points(self, total_points: int = 7) -> list[dict]:
         """Return a uniform idle-colour gradient (used to reset strip after start lights)."""
@@ -638,15 +645,24 @@ class HueController:
         self._current_effect_key = "start_lights"
         num_lights = max(0, min(5, num_lights))
 
+        # Resolve the custom start-lights colour(s): Sync-All gives one lit colour,
+        # per_zone paints each lit gradient point (and the bulbs take the first
+        # stop). per_light on Hue strips isn't handled yet — it falls back to red.
+        ec = self.effect_colors.get("start_lights") or {}
+        per_zone = ec.get("per_zone") if (ec.get("mode") == "per_zone"
+                   and isinstance(ec.get("per_zone"), list) and ec.get("per_zone")) else None
+        lit_rgb = self._fx_rgb("start_lights", (220, 0, 0))   # Sync-All colour, else red
+
         # Gradient strips — progressive fill
         for lid in self._get_gradient_strip_ids():
-            pts = self._build_gradient_points(num_lights)
+            pts = self._build_gradient_points(num_lights, lit_rgb=lit_rgb, per_zone=per_zone)
             self._put_gradient(lid, pts, self._scale_brightness(100))
 
         # Regular bulbs — stepped brightness
         brightness_by_count = {0: 15, 1: 30, 2: 45, 3: 65, 4: 80, 5: 100}
         bri_pct = brightness_by_count[num_lights]
-        x, y = _rgb_to_xy(220, 0, 0)
+        bulb_rgb = (_hex_to_rgb(per_zone[0]) or lit_rgb) if per_zone else lit_rgb
+        x, y = _rgb_to_xy(*bulb_rgb)
         body = {
             "on":      {"on": True},
             "color":   {"xy": {"x": x, "y": y}},

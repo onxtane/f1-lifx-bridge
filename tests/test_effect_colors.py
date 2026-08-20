@@ -165,6 +165,55 @@ class TestStartLightsPerZoneSweep(unittest.TestCase):
         reds = [c for (s, c, *_ ) in strip.paints if c[0] == 0 and c[1] == 65535]
         self.assertTrue(reds, "default sweep should still paint red")
 
+    def test_sweep_honours_per_light_by_label(self):
+        # A per-light colour keyed by the strip's label recolours the whole sweep;
+        # it must not stay red (the gap CodeRabbit flagged for sweep strips).
+        ctrl, strip = self._ctrl_and_strip(4)
+        ctrl.effect_colors = {"start_lights": {"mode": "per_light",
+            "per_light": {"Strip": "#0000ff"}}}
+        ctrl.start_lights(5)   # all five -> whole strip lit
+        lit = [c for (s, c, *_ ) in strip.paints if c[1] == 65535]   # saturated (lit) paints
+        self.assertTrue(lit, "sweep should paint the lit range")
+        self.assertTrue(all(c[0] == 43690 for c in lit), "lit zones should be blue, not red")
+
+
+class TestHueStartLightsColours(unittest.TestCase):
+    """Hue start_lights builds its gradient from the resolved custom colour(s):
+    Sync-All uses one lit colour, per_zone spreads its stops across lit points,
+    and unlit points stay idle."""
+
+    @staticmethod
+    def _points(idle, num_lit, **kw):
+        from hue_controller import HueController
+        ns = types.SimpleNamespace(idle_rgb=idle)
+        return HueController._build_gradient_points(ns, num_lit, **kw)
+
+    def _xy_of(self, point):
+        return (point["color"]["xy"]["x"], point["color"]["xy"]["y"])
+
+    def test_sync_all_lit_colour(self):
+        from hue_controller import _rgb_to_xy
+        pts = self._points((0, 0, 0), 5, lit_rgb=(0, 0, 255))   # all lit, blue
+        want = _rgb_to_xy(0, 0, 255)
+        for p in pts:
+            self.assertAlmostEqual(self._xy_of(p)[0], want[0], places=4)
+            self.assertAlmostEqual(self._xy_of(p)[1], want[1], places=4)
+
+    def test_per_zone_spreads_stops(self):
+        from hue_controller import _rgb_to_xy, _hex_to_rgb
+        stops = ["#ff0000", "#0000ff"]
+        pts = self._points((0, 0, 0), 5, per_zone=stops)        # all lit
+        for i, p in enumerate(pts):
+            want = _rgb_to_xy(*_hex_to_rgb(stops[(i * 2) // 7]))
+            self.assertAlmostEqual(self._xy_of(p)[0], want[0], places=4)
+
+    def test_unlit_points_stay_idle(self):
+        from hue_controller import _rgb_to_xy
+        pts = self._points((10, 20, 30), 0, lit_rgb=(0, 0, 255))  # none lit
+        want = _rgb_to_xy(10, 20, 30)
+        for p in pts:
+            self.assertAlmostEqual(self._xy_of(p)[0], want[0], places=4)
+
 
 class TestHexHelpers(unittest.TestCase):
     def test_hue_hex_to_rgb(self):

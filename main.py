@@ -445,8 +445,13 @@ class Api:
             flat = self._theme_to_gui_settings(theme)
             if flat:
                 self.runner.save_gui_settings(flat)
-        except Exception:
-            pass  # persistence is best-effort; the live apply already succeeded
+        except Exception as exc:
+            # The lights already changed (live apply above), so this isn't a hard
+            # failure — but the preset won't survive a restart. Report success with
+            # a warning rather than swallowing it silently or claiming an outright
+            # failure the user can plainly see didn't happen.
+            print(f"[workshop] apply persisted failed: {exc}", flush=True)
+            return {"ok": True, "applied": applied, "persist_warning": str(exc)}
         return {"ok": True, "applied": applied}
 
     @staticmethod

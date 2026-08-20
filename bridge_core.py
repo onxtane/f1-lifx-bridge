@@ -387,7 +387,7 @@ class LocalLifxController:
         self.curves: dict = {}
 
         # Per-effect custom colours (Effect Customization). Shape per key:
-        #   {mode, colors:{slot:hex}, per_light:[hex...], per_zone:[hex...]}.
+        #   {mode, colors:{slot:hex}, per_light:{label:hex}, per_zone:[hex...]}.
         # _fx() recolours an effect's default HSBK from this, keeping brightness.
         self.effect_colors: dict = {}
         self._curve_pts: list | None = None
@@ -1031,8 +1031,11 @@ class LocalLifxController:
                 if isinstance(light, MultiZoneLight) and self.mz_startlights_mode == "sweep":
                     zone_count = self.get_zone_count(light)
                     if zone_count > 0:
-                        red_s  = list(red);  red_s[2]  = self._scale_brightness(red[2])
-                        dark_s = list(dark); dark_s[2] = self._scale_brightness(dark[2])
+                        # per_light recolours the whole strip by its label (per_zone
+                        # is handled per-zone below); default red otherwise.
+                        sweep_red = _override_hue_sat(red, _pl.get(self.safe_label(light))) if _do_pl else red
+                        red_s  = list(sweep_red); red_s[2]  = self._scale_brightness(sweep_red[2])
+                        dark_s = list(dark);      dark_s[2] = self._scale_brightness(dark[2])
                         lit = max(0, min(zone_count, round(num_lights / 5 * zone_count)))
 
                         if _do_pz:
