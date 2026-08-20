@@ -443,6 +443,13 @@ class Api:
         # bridge. Mirrors what each Effects control does (set + save_gui_settings).
         try:
             flat = self._theme_to_gui_settings(theme)
+        except Exception as exc:
+            # Flattening the theme failed — that's a malformed/unsupported theme,
+            # not a disk problem, so surface it as a failure (not a persist warning).
+            print(f"[workshop] theme conversion failed: {exc}", flush=True)
+            return {"ok": False, "error": "theme_conversion_failed",
+                    "detail": str(exc), "applied": applied}
+        try:
             if flat:
                 self.runner.save_gui_settings(flat)
         except Exception as exc:
@@ -520,6 +527,8 @@ class Api:
         try:
             stars = int(stars)
         except (TypeError, ValueError):
+            return {"error": "bad_stars"}
+        if not (1 <= stars <= 5):   # contract is 1–5; reject 0, 6, negatives
             return {"error": "bad_stars"}
         return self._workshop_request(
             f"/api/workshop/presets/{preset_id}/rate",

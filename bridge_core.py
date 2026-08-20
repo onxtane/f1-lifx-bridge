@@ -1034,8 +1034,10 @@ class LocalLifxController:
                         # per_light recolours the whole strip by its label (per_zone
                         # is handled per-zone below); default red otherwise.
                         sweep_red = _override_hue_sat(red, _pl.get(self.safe_label(light))) if _do_pl else red
-                        red_s  = list(sweep_red); red_s[2]  = self._scale_brightness(sweep_red[2])
-                        dark_s = list(dark);      dark_s[2] = self._scale_brightness(dark[2])
+                        red_s = list(sweep_red)
+                        red_s[2] = self._scale_brightness(sweep_red[2])
+                        dark_s = list(dark)
+                        dark_s[2] = self._scale_brightness(dark[2])
                         lit = max(0, min(zone_count, round(num_lights / 5 * zone_count)))
 
                         if _do_pz:
@@ -1063,8 +1065,11 @@ class LocalLifxController:
                             light.set_zone_color(0,                    zone_count - lit - 1, dark_s, 40, rapid=True)
                             light.set_zone_color(zone_count - lit, zone_count - 1,           red_s,  40, rapid=True)
                         continue
-                # Regular bulb or solid-mode multizone — uniform color (per-light by label)
-                base = _override_hue_sat(red, _pl.get(self.safe_label(light))) if _do_pl else red
+                # Regular bulb or solid-mode multizone — uniform colour: per-light by
+                # label, or the first per-zone stop (matching set_color_all for
+                # devices without physical zones); default red otherwise.
+                hx = _pl.get(self.safe_label(light)) if _do_pl else (_pz[0] if _do_pz else None)
+                base = _override_hue_sat(red, hx)
                 scaled = list(base)
                 scaled[2] = self._scale_brightness(red[2])
                 if isinstance(light, MultiZoneLight):

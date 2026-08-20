@@ -646,11 +646,15 @@ class HueController:
         num_lights = max(0, min(5, num_lights))
 
         # Resolve the custom start-lights colour(s): Sync-All gives one lit colour,
-        # per_zone paints each lit gradient point (and the bulbs take the first
-        # stop). per_light on Hue strips isn't handled yet — it falls back to red.
+        # per_zone paints each lit gradient point (and bulbs take the first stop),
+        # per_light gives each regular bulb its own colour (by label). per_light on
+        # gradient strips isn't handled yet — those fall back to red.
         ec = self.effect_colors.get("start_lights") or {}
-        per_zone = ec.get("per_zone") if (ec.get("mode") == "per_zone"
+        mode = ec.get("mode")
+        per_zone = ec.get("per_zone") if (mode == "per_zone"
                    and isinstance(ec.get("per_zone"), list) and ec.get("per_zone")) else None
+        per_light = ec.get("per_light") if (mode == "per_light"
+                    and isinstance(ec.get("per_light"), dict)) else None
         lit_rgb = self._fx_rgb("start_lights", (220, 0, 0))   # Sync-All colour, else red
 
         # Gradient strips — progressive fill
@@ -658,19 +662,24 @@ class HueController:
             pts = self._build_gradient_points(num_lights, lit_rgb=lit_rgb, per_zone=per_zone)
             self._put_gradient(lid, pts, self._scale_brightness(100))
 
-        # Regular bulbs — stepped brightness
+        # Regular bulbs — stepped brightness, each resolved to its own colour
         brightness_by_count = {0: 15, 1: 30, 2: 45, 3: 65, 4: 80, 5: 100}
         bri_pct = brightness_by_count[num_lights]
-        bulb_rgb = (_hex_to_rgb(per_zone[0]) or lit_rgb) if per_zone else lit_rgb
-        x, y = _rgb_to_xy(*bulb_rgb)
-        body = {
-            "on":      {"on": True},
-            "color":   {"xy": {"x": x, "y": y}},
-            "dimming": {"brightness": self._scale_brightness(bri_pct)},
-            "dynamics": {"duration": 40},
-        }
+        base_rgb = (_hex_to_rgb(per_zone[0]) or lit_rgb) if per_zone else lit_rgb
+        id_to_name = {lt["id"]: lt["name"] for lt in self._lights_cache} if per_light else {}
         for lid in self._get_regular_light_ids():
-            self._put(f"{_CLIP}/light/{lid}", body)
+            rgb = base_rgb
+            if per_light:
+                r = _hex_to_rgb(per_light.get(id_to_name.get(lid, "")))
+                if r:
+                    rgb = r
+            x, y = _rgb_to_xy(*rgb)
+            self._put(f"{_CLIP}/light/{lid}", {
+                "on":      {"on": True},
+                "color":   {"xy": {"x": x, "y": y}},
+                "dimming": {"brightness": self._scale_brightness(bri_pct)},
+                "dynamics": {"duration": 40},
+            })
 
     # ── Class-level helpers ───────────────────────────────────────────────────
 

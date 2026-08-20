@@ -176,6 +176,20 @@ class TestStartLightsPerZoneSweep(unittest.TestCase):
         self.assertTrue(lit, "sweep should paint the lit range")
         self.assertTrue(all(c[0] == 43690 for c in lit), "lit zones should be blue, not red")
 
+    def test_solid_mode_uses_first_zone_colour(self):
+        # A solid-mode (non-sweep) strip in per_zone mode takes the first stop,
+        # like set_color_all does for devices without physical zones.
+        from tests.test_rpm_meter_paint import _FakeStrip, _controller
+        strip = _FakeStrip("Strip", zones=4)
+        ctrl = _controller([strip])
+        ctrl.mz_startlights_mode = "solid"
+        ctrl.effect_colors = {"start_lights": {"mode": "per_zone",
+            "per_zone": ["#0000ff", "#ff0000"]}}
+        ctrl.start_lights(5)
+        hues = {c[0] for (s, c, *_ ) in strip.paints if c[1] == 65535}
+        self.assertIn(43690, hues)       # first stop (blue) applied
+        self.assertNotIn(0, hues)        # not left red
+
 
 class TestHueStartLightsColours(unittest.TestCase):
     """Hue start_lights builds its gradient from the resolved custom colour(s):
@@ -213,6 +227,31 @@ class TestHueStartLightsColours(unittest.TestCase):
         want = _rgb_to_xy(10, 20, 30)
         for p in pts:
             self.assertAlmostEqual(self._xy_of(p)[0], want[0], places=4)
+
+    def test_regular_bulbs_take_per_light_colours(self):
+        # per_light gives each regular Hue bulb its own colour (by cached name).
+        import threading
+        from hue_controller import HueController, _rgb_to_xy
+        lights = [
+            {"id": "a", "name": "Left",  "type": "light", "is_gradient": False},
+            {"id": "b", "name": "Right", "type": "light", "is_gradient": False},
+        ]
+        ctrl = HueController.__new__(HueController)
+        ctrl.idle_rgb = (0, 0, 0)
+        ctrl.brightness_min = 0
+        ctrl.brightness_max = 100
+        ctrl.effect_colors = {"start_lights": {"mode": "per_light",
+            "per_light": {"Left": "#ff0000", "Right": "#0000ff"}}}
+        ctrl._lights_cache = lights
+        ctrl.selected_lights = ["a", "b"]
+        ctrl._effect_lock = threading.Lock()
+        ctrl._active_effect = None
+        ctrl._current_effect_key = None
+        puts = {}
+        ctrl._put = lambda path, body: puts.__setitem__(path.rsplit("/", 1)[-1], body)
+        ctrl.start_lights(5)
+        self.assertAlmostEqual(puts["a"]["color"]["xy"]["x"], _rgb_to_xy(255, 0, 0)[0], places=4)
+        self.assertAlmostEqual(puts["b"]["color"]["xy"]["x"], _rgb_to_xy(0, 0, 255)[0], places=4)
 
 
 class TestHexHelpers(unittest.TestCase):
