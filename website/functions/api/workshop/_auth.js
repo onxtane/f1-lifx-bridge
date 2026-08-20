@@ -1,6 +1,6 @@
 // Supabase-issued session verification for the Workshop write path.
 // Browse stays anonymous; upload/like/rate/download/delete require a logged-in
-// user. The client signs in with Discord via Supabase and sends the resulting
+// user. The client signs in with a username and password via Supabase and sends the resulting
 // access token as `Authorization: Bearer <jwt>`. Supabase signs those tokens
 // with an ASYMMETRIC key (ES256), so we verify against the project's public
 // JWKS — there is no shared secret.
