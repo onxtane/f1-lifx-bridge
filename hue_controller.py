@@ -405,7 +405,7 @@ class HueController:
 
         per_light = ec.get("per_light") if (mode == "per_light"
                                             and isinstance(ec.get("per_light"), dict)) else None
-        id_to_name = {l["id"]: l["name"] for l in self._lights_cache} if per_light else {}
+        id_to_name = {light["id"]: light["name"] for light in self._lights_cache} if per_light else {}
 
         for light_id in self.selected_lights:
             xy = default_xy
@@ -622,7 +622,7 @@ class HueController:
         self._snap_and_wait(gr, gg, gb, 100, 200)   # also covers regular bulbs
         self._snap_and_wait(0, 0, 0, 1, 150)
         self._flash_gradient_strips_green(self._scale_brightness(100))
-        self._snap_and_wait(0, 255, 0, 100, 350)
+        self._snap_and_wait(gr, gg, gb, 100, 350)
         self.set_idle()
 
     def start_lights(self, num_lights: int):

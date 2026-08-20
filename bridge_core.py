@@ -774,8 +774,11 @@ class LocalLifxController:
             ext = light.extended_get_color_zones()
             if ext:
                 return len(ext)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Extended API unsupported on this firmware/lifxlan build — fall back
+            # to classic, but surface why so an inflated count stays diagnosable.
+            print(f"[LIFX] extended_get_color_zones unavailable ({exc}); "
+                  f"falling back to classic get_color_zones", flush=True)
         try:
             zones = light.get_color_zones(0, 255)
             return len(zones) if zones else 0
@@ -792,9 +795,10 @@ class LocalLifxController:
         its own brightness dynamics and kelvin. Returns default_hsbk unchanged
         when the effect isn't customized.
 
-        Phase 2a resolves a single colour per effect: the Sync-All colour, or the
-        first per-light/per-zone stop as a stand-in (true per-device painting is a
-        later pass). A bad/blank hex always falls back to the default.
+        Only Sync-All ('all' mode) is resolved here — it applies the effect's
+        single custom colour. per_light and per_zone modes return default_hsbk
+        unchanged; per-device recolouring happens in set_color_all(), which paints
+        each light/zone from its own stop. A bad/blank hex falls back to the default.
         """
         ec = self.effect_colors.get(key)
         if not ec:

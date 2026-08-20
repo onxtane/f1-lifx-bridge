@@ -169,8 +169,8 @@ class Api:
             pass
         # A configured Nanoleaf counts even when the bridge is stopped (no live probe).
         try:
-            nl = getattr(self.runner, "_nanoleaf_settings", {}) or {}
-            if nl.get("ip") and nl.get("auth_token"):
+            nl = self.runner.get_nanoleaf_settings() or {}
+            if nl.get("ip") and nl.get("paired"):   # `paired` is bool(auth_token)
                 has_multizone = True
                 brands.add("nanoleaf")
         except Exception:
@@ -383,8 +383,20 @@ class Api:
             params["cursor"] = cursor
         return self._workshop_request("/api/workshop/presets", params=params)
 
+    @staticmethod
+    def _valid_preset_id(preset_id) -> bool:
+        """Accept only backend-issued ids — alphanumerics, '-' and '_' (covers
+        UUIDs and the ULID-style ids the API mints). Rejects empty, over-long,
+        and anything with path separators or traversal segments, so a crafted id
+        can't reshape the request URL."""
+        allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+        return (isinstance(preset_id, str) and 1 <= len(preset_id) <= 64
+                and all(c in allowed for c in preset_id))
+
     def workshop_get(self, preset_id: str):
         """Fetch one preset's full detail (incl. `theme`). GET /api/workshop/presets/:id."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
         return self._workshop_request(f"/api/workshop/presets/{preset_id}")
 
     def apply_workshop_preset(self, theme: dict):
@@ -484,16 +496,22 @@ class Api:
 
     def workshop_download(self, preset_id):
         """POST /:id/download → returns the preset's theme and records the download."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
         return self._workshop_request(
             f"/api/workshop/presets/{preset_id}/download", method="POST", auth=True)
 
     def workshop_like(self, preset_id):
         """POST /:id/like → toggle like."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
         return self._workshop_request(
             f"/api/workshop/presets/{preset_id}/like", method="POST", auth=True)
 
     def workshop_rate(self, preset_id, stars):
         """POST /:id/rate {stars:1-5}."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
         try:
             stars = int(stars)
         except (TypeError, ValueError):
@@ -504,6 +522,8 @@ class Api:
 
     def workshop_delete(self, preset_id):
         """DELETE /:id (owner only)."""
+        if not self._valid_preset_id(preset_id):
+            return {"error": "bad_id"}
         return self._workshop_request(
             f"/api/workshop/presets/{preset_id}", method="DELETE", auth=True)
 

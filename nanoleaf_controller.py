@@ -698,7 +698,6 @@ class NanoleafController:
                     _ph, _ps = _panel_hs(_idx)
                     _pr, _pg, _pbl = _hsbk_to_rgb(_ph, _ps, b_scaled)
                     _parts.append(f"{pid} 1 {_pr} {_pg} {_pbl} 0 1")
-                r, g, bl = _hsbk_to_rgb(h, s, b_scaled)   # for the /state fallback below
                 anim_data = f"{n} " + " ".join(_parts)
                 url = f"http://{self.ip}:16021/api/v1/{self.auth_token}/effects"
                 resp = _requests.put(url, json={

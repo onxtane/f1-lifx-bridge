@@ -3195,15 +3195,19 @@
     let dragCanvas = false, dragHue = false;
     canvas.addEventListener('mousedown', e => { dragCanvas = true; pickFromCanvas(e); });
     huebar.addEventListener('mousedown', e => { dragHue = true; pickFromHuebar(e); });
-    document.addEventListener('mousemove', e => {
+    // These four live on `document`, so they leak if the wrap is discarded without
+    // destroy() — hosts that remount pickers (e.g. effects-custom) must call it.
+    const onDocMove = e => {
       if (dragCanvas) pickFromCanvas(e);
       else if (dragHue) pickFromHuebar(e);
-    });
+    };
     // Release is the commit: that's when a value is worth saving, rather than
     // once per pixel of the drag.
-    document.addEventListener('mouseup', () => {
+    const onDocUp = () => {
       if (dragCanvas || dragHue) { dragCanvas = dragHue = false; emitChange(); }
-    });
+    };
+    document.addEventListener('mousemove', onDocMove);
+    document.addEventListener('mouseup', onDocUp);
 
     function setOpen(next) {
       open = next;
@@ -3223,14 +3227,26 @@
     // (dragging the canvas/hue bar) and releases outside fires a synthetic click
     // on the common ancestor — track where the press began so that doesn't dismiss.
     let downInside = false;
-    document.addEventListener('mousedown', e => { downInside = panel.contains(e.target) || trigger.contains(e.target); });
-    document.addEventListener('click', e => {
+    const onDocDown = e => { downInside = panel.contains(e.target) || trigger.contains(e.target); };
+    const onDocClick = e => {
       if (open && !downInside && !panel.contains(e.target) && !trigger.contains(e.target)) setOpen(false);
-    });
+    };
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('click', onDocClick);
 
     const api = {
       el: wrap,
       close() { if (open) setOpen(false); },
+      // Remove the document-level listeners and the node. Call before dropping a
+      // picker you won't reuse, or its four listeners stay bound forever.
+      destroy() {
+        document.removeEventListener('mousemove', onDocMove);
+        document.removeEventListener('mouseup', onDocUp);
+        document.removeEventListener('mousedown', onDocDown);
+        document.removeEventListener('click', onDocClick);
+        _cpOpen.delete(api);
+        if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      },
       getValue() { return cpHsvToHex(hue, sat, val); },
       setValue(hex) {
         const h = cpHexToHsv(hex);
@@ -6939,7 +6955,7 @@
 
 <!-- Community Workshop (vendored supabase-js + the workshop module) -->
 <script src="vendor/supabase.min.js"></script>
-<script src="workshop.js?v=3"></script>
-<script src="effects-custom.js?v=3"></script>
+<script src="workshop.js?v=4"></script>
+<script src="effects-custom.js?v=4"></script>
 </body>
 </html>

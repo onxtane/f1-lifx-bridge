@@ -56,6 +56,16 @@
   let selectedSet = new Set([0]);   // selected zone/light indices (multi-select)
   let anchorSection = 0;            // anchor for shift-click / drag ranges
   let dragging = false;
+  let perPicker = null;             // the live per-light/per-zone picker
+  let slotPickers = [];             // the live Sync-All slot pickers
+  // Pickers bind document-level listeners; tear them down before re-rendering
+  // colours so they don't accumulate across mode switches and drag frames.
+  function destroyPickers() {
+    if (perPicker && perPicker.destroy) perPicker.destroy();
+    perPicker = null;
+    slotPickers.forEach(function (p) { if (p && p.destroy) p.destroy(); });
+    slotPickers = [];
+  }
   function selList() { return [...selectedSet].sort(function (a, b) { return a - b; }); }
   function firstSel() { const l = selList(); return l.length ? l[0] : 0; }
   function setSel(indices) { selectedSet = new Set(indices.length ? indices : [0]); }
@@ -200,7 +210,7 @@
     });
     const reset = document.getElementById('ecReset');
     if (reset) reset.addEventListener('click', () => {
-      const cc = cfg(selectedKey); cc.colors = Object.assign({}, meta.def); cc.per_light = []; cc.per_zone = [];
+      const cc = cfg(selectedKey); cc.colors = Object.assign({}, meta.def); cc.per_light = {}; cc.per_zone = [];
       persist(); refreshListIcon(selectedKey); renderColors();
     });
     const goIdle = document.getElementById('ecGotoIdle');
@@ -222,6 +232,7 @@
     const meta = EFFECT_META[selectedKey];
     const c = cfg(selectedKey);
     parkRpm();                 // rescue the RPM block before we clear the container
+    destroyPickers();          // release the previous render's pickers + listeners
     box.innerHTML = '';
     if (meta.rpm) {            // RPM Meter: show the relocated gradient editor
       if (rpmBlock) { box.appendChild(rpmBlock); } else box.insertAdjacentHTML('beforeend', '<p class="ec-empty">RPM gradient editor unavailable.</p>');
@@ -235,11 +246,11 @@
         const row = document.createElement('div'); row.className = 'ec-slot';
         row.innerHTML = '<span class="ec-slot-label">' + esc(slot.label) + '</span>';
         const mount = document.createElement('div'); row.appendChild(mount); box.appendChild(row);
-        window.createColorPicker({
+        slotPickers.push(window.createColorPicker({
           mount: mount, align: 'left', value: c.colors[slot.key] || meta.def[slot.key] || '#ffffff',
           onInput: hex => { c.colors[slot.key] = hex; if (slot.key === meta.slots[0].key) refreshListIcon(selectedKey); },
           onChange: hex => { c.colors[slot.key] = hex; persist(); },
-        });
+        }));
       });
     } else {
       const zoned = isZone(selectedKey), word = zoned ? 'Zone' : 'Light';
@@ -314,10 +325,14 @@
     el.innerHTML = html;
   }
   function mountPerPicker() {
-    const m = document.getElementById('ecPerMount'); if (!m) return; m.innerHTML = '';
+    const m = document.getElementById('ecPerMount'); if (!m) return;
+    // Tear the old picker down first — each one binds document-level listeners
+    // that would otherwise pile up on every selection change / drag frame.
+    if (perPicker && perPicker.destroy) perPicker.destroy();
+    m.innerHTML = '';
     const lbl = document.getElementById('ecPerLabel'); if (lbl) lbl.textContent = selLabel();
     const sel = selList();
-    window.createColorPicker({
+    perPicker = window.createColorPicker({
       mount: m, align: 'left', value: secGet(selectedKey, firstSel()) || primaryHex(selectedKey),
       onInput: hex => { sel.forEach(i => { secSet(selectedKey, i, hex); const d = document.querySelector('#ecSections [data-i="' + i + '"]'); if (d) d.style.setProperty('--c', hex); }); },
       onChange: hex => { sel.forEach(i => secSet(selectedKey, i, hex)); persist(); },
@@ -427,5 +442,5 @@
     if (s && s.zone_groups) zoneGroups = Math.max(1, Math.min(96, s.zone_groups));
     // Persisted hint keeps Per-Zone available once a strip has ever been seen.
     if (s && s.multizone_seen) { hasMultizone = true; if (s.multizone_zones) zones = Math.max(1, Math.min(96, s.multizone_zones)); }
-  }).catch(() => {}).then(refreshCaps).then(render).catch(render);
+  }).catch(() => {}).then(refreshCaps).then(render).catch(err => console.error('[effects] init failed', err));
 })();

@@ -76,7 +76,7 @@
   const fmt = n => { n = +n || 0; return n >= 1000 ? (n/1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/,'') + 'k' : String(n); };
   const daysSince = ms => Math.max(0, Math.floor((Date.now() - ms) / 86400000));
   const shortDate = ms => { try { return new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric'}); } catch(e){ return '—'; } };
-  const logoFor = slug => 'logos/' + slug + '.png';
+  const logoFor = slug => 'logos/' + encodeURIComponent(slug || '') + '.png';
   const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const hex2rgb = h => { h = h.replace('#',''); return [0,2,4].map(k => parseInt(h.substr(k,2),16)); };
   const lerp = (a,b,t) => a.map((v,i) => Math.round(v + (b[i]-v)*t));
@@ -274,27 +274,41 @@
   function likeFlag(host) { if (REDUCE) { setIcon(host, HEART_FILLED, true); return; } setIcon(host, FLAG, false); setTimeout(() => setIcon(host, HEART_FILLED, true), 440); }
 
   // ---- download → apply ----
-  let pendingApplyTheme = null;
   const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>';
   function runDownload(btn) {
     if (btn.dataset.dl === '1') return;
     if (!requireLogin()) return;
     const card = btn.closest('.pc'), id = (card && card.dataset.id) || currentPresetId;
     const title = (card && card.dataset.name) || (currentPreset && currentPreset.title) || 'Preset';
-    pendingApplyTheme = null;
-    if (id) wsWrite('/api/workshop/presets/' + id + '/download', 'POST').then(r => { if (r.ok && r.data) pendingApplyTheme = r.data.theme || r.data; });
+    // Keep the request promise local to this click so overlapping downloads can't
+    // cross wires, and so the apply waits for (and honours) the real response.
+    const dlPromise = id
+      ? wsWrite('/api/workshop/presets/' + id + '/download', 'POST').catch(e => ({ ok:false, data:{ error:String(e) } }))
+      : Promise.resolve({ ok:false, data:{ error:'no_id' } });
     btn.dataset.dl = '1';
     const orig = btn.innerHTML; btn.classList.add('is-dl');
     btn.innerHTML = '<span class="dl-fill"></span><span class="dl-lbl">Downloading 0%</span>';
     const fill = btn.querySelector('.dl-fill'), lbl = btn.querySelector('.dl-lbl'), DUR = 1500, t0 = performance.now();
+    function restore() { btn.classList.remove('is-dl','dl-done'); btn.innerHTML = orig; btn.dataset.dl=''; }
     function step(now) {
       const e = 1 - Math.pow(1 - Math.min(1, (now - t0)/DUR), 2);
       fill.style.width = (e*100) + '%'; lbl.textContent = 'Downloading ' + Math.round(e*100) + '%';
-      if (e < 1) requestAnimationFrame(step);
-      else { fill.style.width='100%'; btn.classList.add('dl-done'); lbl.innerHTML = CHECK + ' Downloaded';
-        setTimeout(() => { btn.classList.remove('is-dl','dl-done'); btn.innerHTML = orig; btn.dataset.dl='';
-          if (pendingApplyTheme && window._wsOpenApply) window._wsOpenApply(title, pendingApplyTheme);
-          else if (pendingApplyTheme) { callApi('apply_workshop_preset', pendingApplyTheme); toast('Applied to your lights', 'ok'); } }, 850); }
+      if (e < 1) { requestAnimationFrame(step); return; }
+      fill.style.width='100%';
+      // Wait for the real result before claiming success — a slow or failed
+      // response must not be reported as "Downloaded".
+      dlPromise.then(r => {
+        const ok = !!(r && r.ok && r.data);
+        if (ok) { btn.classList.add('dl-done'); lbl.innerHTML = CHECK + ' Downloaded'; }
+        else { lbl.textContent = 'Download failed'; }
+        setTimeout(() => {
+          restore();
+          if (!ok) { const m=(r&&r.data&&(r.data.detail||r.data.error))||('status '+((r&&r.status)||'?')); toast('Download failed: '+String(m).slice(0,120),'err'); return; }
+          const theme = r.data.theme || r.data;
+          if (window._wsOpenApply) window._wsOpenApply(title, theme);
+          else { callApi('apply_workshop_preset', theme); toast('Applied to your lights', 'ok'); }
+        }, 850);
+      });
     }
     requestAnimationFrame(step);
   }
@@ -411,11 +425,12 @@
     dismissOnBackdrop(apBackdrop, ()=>apBackdrop.classList.remove('open'));
     document.getElementById('wsApApply').addEventListener('click', async ()=>{
       const r = await callApi('apply_workshop_preset', apTheme);
-      // Repaint the Effects controls so the UI reflects what was just applied.
-      if (window.applyWorkshopThemeToUI) window.applyWorkshopThemeToUI(apTheme);
       apBackdrop.classList.remove('open');
-      if (r && r.ok === false) toast('Apply failed: ' + String(r.error||'error').slice(0,120), 'err');
-      else toast('Applied to your lights', 'ok');
+      // callApi resolves null when the bridge/method is unavailable — that's a
+      // failure, not a silent success. Only repaint the Effects UI on a real apply.
+      if (!r || r.ok === false) { toast('Apply failed: ' + String((r&&r.error)||'the app is unavailable').slice(0,120), 'err'); return; }
+      if (window.applyWorkshopThemeToUI) window.applyWorkshopThemeToUI(apTheme);
+      toast('Applied to your lights', 'ok');
     });
   }
   function openLogin() { if (window._wsOpenLogin) window._wsOpenLogin(); }
@@ -573,7 +588,12 @@
     const ug = document.getElementById('wsUpGame'); const gm=document.createElement('div'); gm.className='fmenu'; gm.innerHTML=GAMES.map(g=>'<div class="fmenu-item" data-slug="'+g[0]+'">'+esc(g[1])+'</div>').join(''); ug.style.position='relative'; ug.appendChild(gm);
     ug.addEventListener('click', e=>{ if(e.target.closest('.fmenu')) return; gm.style.display = gm.style.display==='block'?'none':'block'; });
     gm.addEventListener('click', e=>{ const it=e.target.closest('.fmenu-item'); if(!it) return; ug.dataset.game=it.dataset.slug; ug.firstChild.textContent=it.textContent+' '; gm.style.display='none'; });
-    document.getElementById('wsUpPublish').addEventListener('click', async ()=>{ if(!requireLogin()) return; const devSlug={'dev-hue':'hue','dev-nano':'nanoleaf','dev-lifx':'lifx'}; const devices=[].slice.call(up.querySelectorAll('.up-chip.on')).map(c=>devSlug[[].slice.call(c.classList).find(k=>k.indexOf('dev-')===0)]).filter(Boolean); const tags=[].slice.call(up.querySelectorAll('.up-tag')).map(t=>(t.firstChild&&t.firstChild.textContent||'').trim()).filter(Boolean); const body={ title:document.getElementById('wsUpName').value.trim()||'Untitled preset', description:document.getElementById('wsUpDesc').value.trim(), game:document.getElementById('wsUpGame').dataset.game||'f1_25', visibility:(up.querySelector('.up-seg-btn.active')?up.querySelector('.up-seg-btn.active').textContent.trim().toLowerCase():'public'), tags, devices, gridglow_preset:1, app_min_version:'0.10.0', theme:{} }; const pub=document.getElementById('wsUpPublish'); pub.disabled=true; toast('Publishing…'); const r=await wsWrite('/api/workshop/presets','POST',body); pub.disabled=false; console.log('[workshop] upload result', r); if(r.ok){ up.classList.remove('open'); toast('Preset published!','ok'); loadWorkshop(); } else { const e=(r.data&&(r.data.detail||r.data.error))||('status '+(r.status||'?')); toast('Upload failed: '+String(e).slice(0,140),'err'); } });
+    document.getElementById('wsUpPublish').addEventListener('click', async ()=>{ if(!requireLogin()) return;
+      // Publishing needs the app: the bridge builds `theme` from the live
+      // gui_settings. The browser fallback has none, so it would upload an empty
+      // preset — refuse rather than publish junk.
+      if(!hasBridge()){ toast('Publishing is only available in the GridGlow app','err'); return; }
+      const devSlug={'dev-hue':'hue','dev-nano':'nanoleaf','dev-lifx':'lifx'}; const devices=[].slice.call(up.querySelectorAll('.up-chip.on')).map(c=>devSlug[[].slice.call(c.classList).find(k=>k.indexOf('dev-')===0)]).filter(Boolean); const tags=[].slice.call(up.querySelectorAll('.up-tag')).map(t=>(t.firstChild&&t.firstChild.textContent||'').trim()).filter(Boolean); const body={ title:document.getElementById('wsUpName').value.trim()||'Untitled preset', description:document.getElementById('wsUpDesc').value.trim(), game:document.getElementById('wsUpGame').dataset.game||'f1_25', visibility:(up.querySelector('.up-seg-btn.active')?up.querySelector('.up-seg-btn.active').textContent.trim().toLowerCase():'public'), tags, devices, gridglow_preset:1, app_min_version:'0.10.0', theme:{} }; const pub=document.getElementById('wsUpPublish'); pub.disabled=true; toast('Publishing…'); const r=await wsWrite('/api/workshop/presets','POST',body); pub.disabled=false; if(r.ok){ up.classList.remove('open'); toast('Preset published!','ok'); loadWorkshop(); } else { const e=(r.data&&(r.data.detail||r.data.error))||('status '+(r.status||'?')); toast('Upload failed: '+String(e).slice(0,140),'err'); } });
   }
 
   // ---- mount ----
