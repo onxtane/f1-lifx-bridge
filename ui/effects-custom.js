@@ -268,6 +268,10 @@
 
       const grid = document.getElementById('ecSections');
       const idxAt = e => { const s = e.target.closest('[data-i]'); return s ? +s.dataset.i : null; };
+      // Hit-test by point: renderSections() rebuilds the buttons via innerHTML,
+      // so we can't rely on the element under a captured pointer still existing.
+      const idxAtPoint = (x, y) => { const el = document.elementFromPoint(x, y); const s = el && el.closest ? el.closest('#ecSections [data-i]') : null; return s ? +s.dataset.i : null; };
+      const sameSel = arr => arr.length === selectedSet.size && arr.every(x => selectedSet.has(x));
       grid.addEventListener('pointerdown', e => {
         const i = idxAt(e); if (i == null) return;
         e.preventDefault();
@@ -275,15 +279,24 @@
         else if (e.ctrlKey || e.metaKey) { if (selectedSet.has(i) && selectedSet.size > 1) selectedSet.delete(i); else selectedSet.add(i); anchorSection = i; }
         else {
           setSel([i]); anchorSection = i; dragging = true;
+          // Capture on the STABLE grid (not the button, which renderSections
+          // replaces) so pointerup always fires here and the drag can't stick.
+          try { grid.setPointerCapture(e.pointerId); } catch (_) {}
           if (!zoned) { callApi('identify_light', lightName(i)); toast('Identifying ' + lightName(i)); }
         }
         renderSections(); mountPerPicker();
       });
-      grid.addEventListener('pointerover', e => {
+      grid.addEventListener('pointermove', e => {
         if (!dragging) return;
-        const i = idxAt(e); if (i == null) return;
-        setSel(rangeSel(anchorSection, i)); renderSections(); mountPerPicker();
+        const i = idxAtPoint(e.clientX, e.clientY); if (i == null) return;
+        const next = rangeSel(anchorSection, i);
+        if (sameSel(next)) return;                 // no change → skip rebuild
+        setSel(next); renderSections(); mountPerPicker();
       });
+      const endDrag = e => { if (!dragging) return; dragging = false; try { grid.releasePointerCapture(e.pointerId); } catch (_) {} };
+      grid.addEventListener('pointerup', endDrag);
+      grid.addEventListener('pointercancel', endDrag);
+      grid.addEventListener('lostpointercapture', () => { dragging = false; });
     }
     startPreview();
   }

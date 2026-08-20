@@ -98,6 +98,15 @@
   let _tt = null;
   function toast(msg, kind) { const t = document.getElementById('wsToast'); if (!t) return; t.textContent = msg; t.className = 'ws-toast show' + (kind ? ' '+kind : ''); clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), 2800); }
   function requireLogin() { if (!session) { toast('Sign in to do that'); openLogin(); return false; } return true; }
+  // Close a modal only on a genuine backdrop click. A drag that starts inside
+  // the modal (dragging a colour picker canvas, selecting text) and releases on
+  // the backdrop fires a synthetic click whose target is the backdrop — require
+  // the press to have begun on the backdrop too, so those drags don't dismiss it.
+  function dismissOnBackdrop(backdrop, onClose) {
+    let downOnBackdrop = false;
+    backdrop.addEventListener('mousedown', e => { downOnBackdrop = (e.target === backdrop); });
+    backdrop.addEventListener('click', e => { if (e.target === backdrop && downOnBackdrop) onClose(); });
+  }
 
   // ---- markup ----
   const MARKUP =
@@ -327,7 +336,7 @@
       document.getElementById('wsLgForgotRow').style.display = mode==='signup'?'none':''; lgMsg(''); }
     window._wsOpenLogin = () => { setMode('signin'); lgBackdrop.classList.add('open'); setTimeout(()=>document.getElementById('wsLgEmail').focus(),60); };
     document.getElementById('wsLgClose').addEventListener('click', ()=>lgBackdrop.classList.remove('open'));
-    lgBackdrop.addEventListener('click', e=>{ if(e.target===lgBackdrop) lgBackdrop.classList.remove('open'); });
+    dismissOnBackdrop(lgBackdrop, ()=>lgBackdrop.classList.remove('open'));
     document.getElementById('wsLgSwitch').addEventListener('click', ()=>setMode(lgMode==='signup'?'signin':'signup'));
     document.getElementById('wsLgForgot').addEventListener('click', async ()=>{ const email=document.getElementById('wsLgEmail').value.trim(); if(!email){lgMsg('Enter your email above first.');return;} if(!sb) return; const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href}); lgMsg(error?error.message:'Password reset link sent — check your email.', !error); });
     async function submit() {
@@ -354,7 +363,7 @@
     const acMsg = (t,ok) => { const el=document.getElementById('wsAcMsg'); el.textContent=t||''; el.className='lg-msg'+(ok?' ok':''); };
     window._wsOpenAccount = (mode) => { if(!session){ window._wsOpenLogin(); return; } document.getElementById('wsAcWho').textContent='Signed in as '+(session.user.email||''); document.getElementById('wsAcEmail').value=session.user.email||''; document.getElementById('wsAcPass').value=''; acMsg(mode==='password'?'Set a new password to finish resetting.':''); acBackdrop.classList.add('open'); };
     document.getElementById('wsAcClose').addEventListener('click', ()=>acBackdrop.classList.remove('open'));
-    acBackdrop.addEventListener('click', e=>{ if(e.target===acBackdrop) acBackdrop.classList.remove('open'); });
+    dismissOnBackdrop(acBackdrop, ()=>acBackdrop.classList.remove('open'));
     document.getElementById('wsAcEmailBtn').addEventListener('click', async ()=>{ const email=document.getElementById('wsAcEmail').value.trim(); if(!email){acMsg('Enter an email.');return;} const {error}=await sb.auth.updateUser({email},{emailRedirectTo:location.href}); acMsg(error?error.message:'Confirmation sent to the new address.', !error); });
     document.getElementById('wsAcPassBtn').addEventListener('click', async ()=>{ const pw=document.getElementById('wsAcPass').value; if(pw.length<6){acMsg('Password must be at least 6 characters.');return;} const {error}=await sb.auth.updateUser({password:pw}); if(error)acMsg(error.message); else {acMsg('Password updated.',true); document.getElementById('wsAcPass').value='';} });
     document.getElementById('wsAcSignout').addEventListener('click', ()=>{ if(sb) sb.auth.signOut(); acBackdrop.classList.remove('open'); });
@@ -399,7 +408,7 @@
     };
     document.getElementById('wsApClose').addEventListener('click', ()=>apBackdrop.classList.remove('open'));
     document.getElementById('wsApCancel').addEventListener('click', ()=>apBackdrop.classList.remove('open'));
-    apBackdrop.addEventListener('click', e=>{ if(e.target===apBackdrop) apBackdrop.classList.remove('open'); });
+    dismissOnBackdrop(apBackdrop, ()=>apBackdrop.classList.remove('open'));
     document.getElementById('wsApApply').addEventListener('click', async ()=>{
       const r = await callApi('apply_workshop_preset', apTheme);
       // Repaint the Effects controls so the UI reflects what was just applied.
@@ -554,7 +563,7 @@
     window._wsOpenUpload = () => { if(!requireLogin()) return; up.classList.add('open'); };
     document.getElementById('wsUpClose').addEventListener('click', ()=>up.classList.remove('open'));
     document.getElementById('wsUpCancel').addEventListener('click', ()=>up.classList.remove('open'));
-    up.addEventListener('click', e=>{ if(e.target===up) up.classList.remove('open'); });
+    dismissOnBackdrop(up, ()=>up.classList.remove('open'));
     up.querySelectorAll('.up-chip').forEach(c=>c.addEventListener('click', ()=>c.classList.toggle('on')));
     up.querySelectorAll('.up-seg-btn').forEach(b=>b.addEventListener('click', ()=>{ b.parentElement.querySelectorAll('.up-seg-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); }));
     const tagsBox = up.querySelector('.up-tags'), tin = up.querySelector('.up-tag-input');

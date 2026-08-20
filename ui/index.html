@@ -3219,8 +3219,13 @@
       Array.from(_cpOpen).forEach(p => { if (p !== api) p.close(); });
       setOpen(next);
     });
+    // Only a genuine outside click closes the panel. A drag that STARTS inside
+    // (dragging the canvas/hue bar) and releases outside fires a synthetic click
+    // on the common ancestor — track where the press began so that doesn't dismiss.
+    let downInside = false;
+    document.addEventListener('mousedown', e => { downInside = panel.contains(e.target) || trigger.contains(e.target); });
     document.addEventListener('click', e => {
-      if (open && !panel.contains(e.target) && !trigger.contains(e.target)) setOpen(false);
+      if (open && !downInside && !panel.contains(e.target) && !trigger.contains(e.target)) setOpen(false);
     });
 
     const api = {
@@ -6934,7 +6939,7 @@
 
 <!-- Community Workshop (vendored supabase-js + the workshop module) -->
 <script src="vendor/supabase.min.js"></script>
-<script src="workshop.js?v=2"></script>
-<script src="effects-custom.js?v=2"></script>
+<script src="workshop.js?v=3"></script>
+<script src="effects-custom.js?v=3"></script>
 </body>
 </html>
