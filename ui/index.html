@@ -7,76 +7,61 @@
 <link rel="stylesheet" href="vendor/tabler/tabler-icons.min.css">
 <link rel="stylesheet" href="workshop.css">
 <link rel="stylesheet" href="effects-custom.css">
-<link rel="stylesheet" href="welcome.css">
+<link rel="stylesheet" href="welcome.css?v=2">
 </head>
 <body>
 <div id="splash">
-  <canvas id="splashCanvas"></canvas>
-  <div id="splashContent">
-    <div id="splashLogo">
-      <svg width="260" height="260" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <div class="sp-glows" aria-hidden="true">
+    <div class="sp-blob sp-blob1"></div>
+    <div class="sp-blob sp-blob2"></div>
+  </div>
+  <div class="sp-stage">
+    <!-- mark build -->
+    <div class="sp-mark">
+      <div class="sp-mark-glow"></div>
+      <svg class="sp-mark-svg" viewBox="0 0 556 273" width="520" height="256" aria-label="GridGlow" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <radialGradient id="slCoreGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stop-color="#ffffff"/>
-            <stop offset="30%"  stop-color="#ddd6fe"/>
-            <stop offset="65%"  stop-color="#7c3aed" stop-opacity="0.6"/>
-            <stop offset="100%" stop-color="#4c1d95" stop-opacity="0"/>
-          </radialGradient>
-          <filter id="slGlow4" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="4" result="b"/>
-            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-          <filter id="slGlow9" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="9" result="b"/>
-            <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
+          <linearGradient id="sp-g" gradientUnits="userSpaceOnUse" x1="660" y1="540" x2="995" y2="378">
+            <stop offset="0" stop-color="#7b3ff5"/><stop offset="0.45" stop-color="#a844e2"/><stop offset="0.72" stop-color="#c841bd"/><stop offset="1" stop-color="#ea3f9c"/>
+          </linearGradient>
+          <linearGradient id="sp-t1" gradientUnits="userSpaceOnUse" x1="549" y1="429" x2="650" y2="380"><stop offset="0" stop-color="#7a42f7"/><stop offset="1" stop-color="#ab44e2"/></linearGradient>
+          <linearGradient id="sp-t2" gradientUnits="userSpaceOnUse" x1="463" y1="483" x2="551" y2="433"><stop offset="0" stop-color="#6f4ce2"/><stop offset="1" stop-color="#8f4dfa"/></linearGradient>
+          <linearGradient id="sp-t3" gradientUnits="userSpaceOnUse" x1="608" y1="483" x2="706" y2="433"><stop offset="0" stop-color="#f5377c"/><stop offset="1" stop-color="#ea3b8e"/></linearGradient>
+          <linearGradient id="sp-t4" gradientUnits="userSpaceOnUse" x1="529" y1="536" x2="614" y2="486"><stop offset="0" stop-color="#f83570"/><stop offset="1" stop-color="#f13a7e"/></linearGradient>
+          <linearGradient id="sp-shine" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0.72"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+          </linearGradient>
+          <clipPath id="sp-clip-hook" clipPathUnits="userSpaceOnUse"><rect x="630" y="255" width="400" height="150" style="animation:gg-wipe .58s cubic-bezier(.2,.85,.3,1) 1.18s backwards"/></clipPath>
+          <clipPath id="sp-clip-body" clipPathUnits="userSpaceOnUse"><rect x="590" y="360" width="440" height="200" style="animation:gg-wipe-d .66s cubic-bezier(.2,.85,.3,1) 1.26s backwards"/></clipPath>
+          <mask id="sp-mask" maskUnits="userSpaceOnUse" x="440" y="260" width="600" height="300">
+            <g fill="#fff">
+              <path d="M774 280 L1003 280 L975 332 L788 332 A123 123 0 0 0 735 379 L660 379 A175 175 0 0 1 774 280 Z"/>
+              <path d="M794 380 L990 380 L936 477 A90 90 0 0 1 866 537 L657 537 L689 484 L850 484 A38 38 0 0 0 872 470 L896 428 L768 428 Z"/>
+              <path d="M577 380 L650 380 L622 429 L549 429 Z"/><path d="M491 433 L551 433 L523 483 L463 483 Z"/>
+              <path d="M637 433 L706 433 L678 483 L608 483 Z"/><path d="M557 486 L614 486 L585 536 L529 536 Z"/>
+            </g>
+          </mask>
         </defs>
-
-        <!-- Ring 1: outermost, slow clockwise, sparse dashes -->
-        <circle class="sl-ring sl-r1" cx="80" cy="80" r="72"
-          stroke="rgba(var(--accent-rgb),0.45)" stroke-width="1.5" stroke-dasharray="6 14"/>
-
-        <!-- Ring 2: counter-clockwise, medium dashes -->
-        <circle class="sl-ring sl-r2" cx="80" cy="80" r="60"
-          stroke="rgba(var(--accent-rgb),0.7)" stroke-width="2" stroke-dasharray="16 10"/>
-
-        <!-- Ring 3: clockwise, fast, with 4 glowing orbital dots -->
-        <g class="sl-orb">
-          <circle cx="80" cy="80" r="46"
-            stroke="rgba(167,139,250,0.55)" stroke-width="1.5" stroke-dasharray="3 20"/>
-          <circle cx="80" cy="34" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
-          <circle cx="126" cy="80" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
-          <circle cx="80" cy="126" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
-          <circle cx="34" cy="80" r="4.5" fill="#c4b5fd" filter="url(#slGlow4)"/>
-        </g>
-
-        <!-- Inner halo ring -->
-        <circle class="sl-halo" cx="80" cy="80" r="32"
-          stroke="rgba(196,181,253,0.8)" stroke-width="2" fill="none"/>
-
-        <!-- Core radial glow -->
-        <circle class="sl-core" cx="80" cy="80" r="26"
-          fill="url(#slCoreGrad)" filter="url(#slGlow9)"/>
-
-        <!-- Core bright disc -->
-        <circle class="sl-pip" cx="80" cy="80" r="14" fill="white" opacity="0.95"/>
-        <circle cx="80" cy="80" r="7" fill="white"/>
-
-        <!-- 8-point light rays -->
-        <g class="sl-rays">
-          <line x1="80" y1="50" x2="80" y2="36"  stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
-          <line x1="80" y1="110" x2="80" y2="124" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
-          <line x1="50" y1="80" x2="36" y2="80"  stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
-          <line x1="110" y1="80" x2="124" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
-          <line x1="57" y1="57" x2="48" y2="48"  stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-          <line x1="103" y1="57" x2="112" y2="48" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-          <line x1="57" y1="103" x2="48" y2="112" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-          <line x1="103" y1="103" x2="112" y2="112" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <g transform="translate(-455,-272)">
+          <g clip-path="url(#sp-clip-hook)"><path fill="#f7f5f8" d="M774 280 L1003 280 L975 332 L788 332 A123 123 0 0 0 735 379 L660 379 A175 175 0 0 1 774 280 Z"/></g>
+          <g clip-path="url(#sp-clip-body)"><path fill="url(#sp-g)" d="M794 380 L990 380 L936 477 A90 90 0 0 1 866 537 L657 537 L689 484 L850 484 A38 38 0 0 0 872 470 L896 428 L768 428 Z"/></g>
+          <path fill="url(#sp-t1)" d="M577 380 L650 380 L622 429 L549 429 Z" style="opacity:0;animation:gg-tile-in .6s cubic-bezier(.16,.9,.28,1) 1.06s forwards"/>
+          <path fill="url(#sp-t2)" d="M491 433 L551 433 L523 483 L463 483 Z" style="opacity:0;animation:gg-tile-in .6s cubic-bezier(.16,.9,.28,1) 1.00s forwards"/>
+          <path fill="url(#sp-t3)" d="M637 433 L706 433 L678 483 L608 483 Z" style="opacity:0;animation:gg-tile-in .6s cubic-bezier(.16,.9,.28,1) 1.12s forwards"/>
+          <path fill="url(#sp-t4)" d="M557 486 L614 486 L585 536 L529 536 Z" style="opacity:0;animation:gg-tile-in .6s cubic-bezier(.16,.9,.28,1) 1.18s forwards"/>
+          <g mask="url(#sp-mask)">
+            <rect x="440" y="240" width="150" height="340" fill="url(#sp-shine)" style="opacity:0;transform:skewX(-29deg) translateX(1000px);animation:gg-sweep 1.05s cubic-bezier(.5,.05,.5,.95) 1.9s both"/>
+          </g>
         </g>
       </svg>
     </div>
-    <h1 id="splashTitle">GridGlow</h1>
-    <p id="splashSub">Connecting…</p>
+
+    <!-- wordmark -->
+    <div class="sp-word">
+      <div class="sp-word-row"><span class="sp-grid">GRID</span><span class="sp-glow-txt">GLOW</span></div>
+      <div class="sp-underline"></div>
+      <div class="sp-status">Connecting…</div>
+    </div>
   </div>
 </div>
 <div id="brandSelect">
@@ -1571,78 +1556,17 @@
     });
   }
 
-  // ---- splash screen fluid animation ----
+  // ---- splash screen dismiss ----
+  // The GridGlow Splash animation is pure CSS (see #splash markup + app.css).
+  // This just holds the splash for its full cold-start beat, then hands off.
   (function() {
-    const canvas = document.getElementById('splashCanvas');
-    const ctx    = canvas.getContext('2d');
-    let W, H, blobs, raf;
-
-    const COLORS = [
-      [139, 124, 246],  // purple
-      [99,  102, 241],  // indigo
-      [168, 85,  247],  // violet
-      [59,  130, 246],  // blue
-      [236, 72,  153],  // pink
-    ];
-
-    function resize() {
-      W = canvas.width  = window.innerWidth  || document.documentElement.clientWidth  || screen.width;
-      H = canvas.height = window.innerHeight || document.documentElement.clientHeight || screen.height;
-    }
-
-    function mkBlob(i) {
-      const c = COLORS[i % COLORS.length];
-      return {
-        x:  Math.random() * W,
-        y:  Math.random() * H,
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6,
-        r:  Math.min(W, H) * (0.22 + Math.random() * 0.18),
-        c,
-        phase: Math.random() * Math.PI * 2,
-        speed: 0.004 + Math.random() * 0.006,
-      };
-    }
-
-    function init() {
-      resize();
-      blobs = Array.from({length: 7}, (_, i) => mkBlob(i));
-    }
-
-    function draw(t) {
-      // Re-init if dimensions were 0 at script time (happens in Qt WebEngine)
-      if (!W || !H) { init(); }
-      ctx.clearRect(0, 0, W, H);
-
-      for (const b of blobs) {
-        b.phase += b.speed;
-        const pulse = 1 + 0.06 * Math.sin(b.phase);
-        b.x += b.vx; b.y += b.vy;
-        if (b.x < -b.r) b.x = W + b.r;
-        if (b.x > W + b.r) b.x = -b.r;
-        if (b.y < -b.r) b.y = H + b.r;
-        if (b.y > H + b.r) b.y = -b.r;
-
-        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * pulse);
-        g.addColorStop(0,   `rgba(${b.c[0]},${b.c[1]},${b.c[2]},0.30)`);
-        g.addColorStop(0.5, `rgba(${b.c[0]},${b.c[1]},${b.c[2]},0.10)`);
-        g.addColorStop(1,   `rgba(${b.c[0]},${b.c[1]},${b.c[2]},0)`);
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.r * pulse, 0, Math.PI * 2);
-        ctx.fillStyle = g;
-        ctx.fill();
-      }
-      raf = requestAnimationFrame(draw);
-    }
-
     const SPLASH_START = Date.now();
-    const SPLASH_MIN_MS = 3500;
+    const SPLASH_MIN_MS = 3500;   // let the ~3.3s build finish before we can dismiss
     let splashDismissed = false;
 
     function dismissSplash() {
       if (splashDismissed) return;
-      const elapsed = Date.now() - SPLASH_START;
-      const remaining = SPLASH_MIN_MS - elapsed;
+      const remaining = SPLASH_MIN_MS - (Date.now() - SPLASH_START);
       if (remaining > 0) {
         setTimeout(dismissSplash, remaining);
         return;
@@ -1650,7 +1574,6 @@
       splashDismissed = true;
       const el = document.getElementById('splash');
       if (!el) return;
-      cancelAnimationFrame(raf);
       el.classList.add('hidden');
       el.addEventListener('transitionend', () => {
         el.remove();
@@ -1665,10 +1588,6 @@
     }
 
     window.dismissSplash = dismissSplash;
-
-    window.addEventListener('resize', () => { resize(); });
-    init();
-    requestAnimationFrame(draw);
 
     // Safety fallback: dismiss after 10 s even if pywebviewready never fires
     setTimeout(dismissSplash, 10000);
@@ -6957,8 +6876,8 @@
 
 <!-- Community Workshop (vendored supabase-js + the workshop module) -->
 <script src="vendor/supabase.min.js"></script>
-<script src="welcome.js?v=3"></script>
-<script src="workshop.js?v=7"></script>
+<script src="welcome.js?v=4"></script>
+<script src="workshop.js?v=8"></script>
 <script src="effects-custom.js?v=4"></script>
 </body>
 </html>
