@@ -526,14 +526,13 @@
   /* ---- page switching ---- */
   .page{ display:none; flex:1; flex-direction:column; gap:16px; min-height:0; }
   .page.active{ display:flex; }
-  /* Incoming page rises up from a hair below — no opacity change so
-     backdrop-filter on glass panels never grays out. */
+  /* Incoming page fades in. */
   .page.entering{
-    animation: pageRiseIn .22s cubic-bezier(.22,.8,.36,1) both;
+    animation: pageFadeIn .2s ease both;
   }
-  @keyframes pageRiseIn{
-    from{ transform: translateY(10px) scale(0.993); }
-    to{   transform: translateY(0)     scale(1);     }
+  @keyframes pageFadeIn{
+    from{ opacity: 0; }
+    to{   opacity: 1; }
   }
 
   /* ---- panel entrance animation (triggered after splash dismisses) ---- */
