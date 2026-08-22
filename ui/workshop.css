@@ -44,6 +44,22 @@
 #page-workshop .lg-msg.ok { color:#5fe39a; }
 #page-workshop .lg-switch { background:none; border:none; color:var(--purple-l2); font-family:inherit; font-size:12px; font-weight:500; cursor:pointer; padding:0; }
 #page-workshop .lg-switch:hover { text-decoration:underline; }
+/* verify-your-email panel */
+#page-workshop .lg-verify-mark { display:flex; justify-content:center; margin:6px 0 14px; }
+#page-workshop .lg-verify-dot {
+  width:44px; height:44px; border-radius:44px;
+  background:rgba(var(--accent-rgb),0.14); box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),0.5);
+  position:relative;
+}
+#page-workshop .lg-verify-dot::after {
+  content:""; position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px;
+  border-radius:16px; box-shadow:inset 0 0 0 2px var(--purple-l2);
+  animation:ws_verifyPulse 1.8s ease-in-out infinite;
+}
+@keyframes ws_verifyPulse { 0%,100%{ opacity:.5; transform:scale(.9);} 50%{ opacity:1; transform:scale(1.05);} }
+@media (prefers-reduced-motion: reduce) { #page-workshop .lg-verify-dot::after { animation:none; } }
+#page-workshop .lg-verify-sub { font-size:13px; color:var(--text-muted); line-height:1.55; margin:0 0 14px; text-align:center; }
+#page-workshop .lg-verify-sub b { color:var(--text-main); font-weight:600; }
 #page-workshop .ws-toast { position:absolute; bottom:18px; left:50%; z-index:120; transform:translateX(-50%) translateY(10px);
              background:#1a1f35; border:1px solid var(--glass-border); border-radius:10px; padding:10px 16px;
              font-size:13px; color:var(--text-main); box-shadow:0 12px 40px rgba(var(--shadow-rgb),.5);

@@ -1,0 +1,60 @@
+/* GridGlow — post-verification welcome overlay.
+   Ported from the "Email verification welcome sequence" Claude Design canvas
+   (GridGlow Welcome.dc.html). Structure + static positions live here; the
+   per-frame choreography is driven from welcome.js. Palette is self-contained
+   (the Nocturne tokens) so the cinematic reads the same under any app theme. */
+.gw-root{
+  position:fixed; inset:0; z-index:100000; overflow:hidden;
+  font-family:"Inter", system-ui, sans-serif;
+  --gw-accent:#9184d9; --gw-accent-100:#f5f4ff; --gw-accent-300:#d2cefd; --gw-accent-400:#b5abfc;
+  --gw-text:#e9e9ed; --gw-surface:#232532; --gw-bg:#161826; --gw-n900:#292b31;
+  --gw-radius-md:8px; --gw-radius-lg:14px;
+  color:var(--gw-text);
+}
+.gw-dim{ position:absolute; inset:0; background:var(--gw-n900); opacity:0; }
+.gw-halo{ position:absolute; inset:0; pointer-events:none; opacity:0; }
+.gw-wash{ position:absolute; width:420px; margin-left:-210px; filter:blur(3px); pointer-events:none; opacity:0; }
+.gw-wash0{ height:2px; } .gw-wash1{ height:3px; }
+
+.gw-card{
+  position:absolute; left:50%; top:50%; overflow:hidden;
+  border-radius:var(--gw-radius-lg); opacity:0; will-change:transform,opacity;
+}
+.gw-strip-base,.gw-strip-grad,.gw-strip-glow{ position:absolute; left:0; top:0; width:100%; }
+.gw-strip-base{ height:2px; background:color-mix(in srgb, var(--gw-text) 8%, transparent); }
+.gw-strip-grad{ height:2px; }
+.gw-strip-glow{ height:26px; filter:blur(16px); }
+.gw-strip-dot{ position:absolute; top:-3px; width:8px; height:8px; margin-left:-4px; border-radius:8px;
+  background:var(--gw-accent-100); display:none; }
+.gw-hold{ position:absolute; top:0; width:140px; height:2px; margin-left:-70px; display:none;
+  background:linear-gradient(90deg,rgba(0,0,0,0),color-mix(in srgb, var(--gw-accent-100) 80%, transparent),rgba(0,0,0,0)); opacity:.75; }
+
+.gw-ring{ position:absolute; }
+.gw-ring svg{ display:block; overflow:visible; }
+
+.gw-verified{ position:absolute; left:0; top:126px; width:100%; text-align:center; opacity:0; }
+.gw-verified span{ font-size:11px; letter-spacing:.18em; color:var(--gw-accent-300); font-weight:500; }
+.gw-kicker{ position:absolute; left:92px; top:50px; font-size:10px; letter-spacing:.2em;
+  color:var(--gw-accent-300); font-weight:500; opacity:0; }
+.gw-head{ position:absolute; left:44px; top:96px; font-size:40px; font-weight:500;
+  letter-spacing:-.022em; line-height:1.08; color:var(--gw-text); }
+.gw-sub{ position:absolute; left:44px; top:154px; font-size:14px; line-height:1.55;
+  color:color-mix(in srgb, var(--gw-text) 55%, transparent); text-wrap:pretty; opacity:0; }
+
+.gw-btn{
+  position:absolute; top:240px; padding:9px 18px; border-radius:var(--gw-radius-md);
+  font-size:14px; font-weight:500; border:1px solid transparent; background:transparent;
+  cursor:pointer; font-family:inherit; opacity:0; transition:background .15s;
+}
+.gw-btn-primary{ left:44px; color:var(--gw-accent); border-color:var(--gw-accent);
+  background:color-mix(in srgb, var(--gw-accent) 8%, transparent); }
+.gw-btn-primary:hover{ background:color-mix(in srgb, var(--gw-accent) 16%, transparent); }
+.gw-btn:focus-visible{ outline:2px solid var(--gw-accent); outline-offset:2px; }
+
+.gw-skip{
+  position:absolute; right:22px; top:20px; z-index:2; background:transparent; border:0;
+  color:color-mix(in srgb, var(--gw-text) 45%, transparent); font:inherit; font-size:12px;
+  letter-spacing:.04em; cursor:pointer; padding:6px 10px; opacity:0; transition:color .15s,opacity .3s;
+}
+.gw-skip:hover{ color:var(--gw-text); }
+.gw-skip:focus-visible{ outline:2px solid var(--gw-accent); outline-offset:2px; }

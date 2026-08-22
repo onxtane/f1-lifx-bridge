@@ -108,6 +108,21 @@
     backdrop.addEventListener('click', e => { if (e.target === backdrop && downOnBackdrop) onClose(); });
   }
 
+  // ---- post-verification welcome ----
+  let welcomeShown = false;           // play the cinematic at most once per app run
+  let verifiedSignupPending = false;  // set while a just-signed-up account is being verified
+  let verifyPendingEmail = null;      // the account we're waiting on — gates the welcome so a
+                                      // stale in-flight sign-in for a superseded account can't fire it
+  let _stopVerify = () => {};         // assigned by injectModals() to halt verify polling
+  // Play the welcome sequence once, landing the user on the Workshop behind it.
+  function fireWelcome(sess) {
+    if (welcomeShown || !sess || !sess.user || typeof window.playWelcome !== 'function') return;
+    welcomeShown = true;
+    const goWorkshop = () => { const n = document.querySelector('.nav-btn[data-page="workshop"]'); if (n) n.click(); };
+    goWorkshop();
+    window.playWelcome({ onEnter: goWorkshop });
+  }
+
   // ---- markup ----
   const MARKUP =
     '<div class="main">'
@@ -331,27 +346,101 @@
   function injectModals() {
     root.insertAdjacentHTML('beforeend',
       '<div class="up-backdrop" id="wsLg"><div class="up-modal" style="width:400px;"><div class="up-head"><div><h3 id="wsLgTitle">Sign in</h3><p id="wsLgSub">Sign in to upload, like and download presets.</p></div><button class="up-x" id="wsLgClose" type="button"><i class="ti ti-x"></i></button></div>'
-      + '<label class="up-field" id="wsLgNameF" style="display:none;"><span class="up-lbl">Display name</span><input class="up-input" id="wsLgName" type="text" placeholder="Shown as the preset author"></label>'
-      + '<label class="up-field"><span class="up-lbl">Email</span><input class="up-input" id="wsLgEmail" type="email" placeholder="you@example.com"></label>'
-      + '<label class="up-field"><span class="up-lbl">Password</span><input class="up-input" id="wsLgPass" type="password" placeholder="••••••••"></label>'
-      + '<div id="wsLgForgotRow" style="margin:-4px 0 8px;"><button class="lg-switch" id="wsLgForgot" type="button">Forgot password?</button></div>'
-      + '<div class="lg-msg" id="wsLgMsg"></div><div class="up-foot" style="justify-content:space-between;align-items:center;"><button class="lg-switch" id="wsLgSwitch" type="button">Create an account</button><button class="btn btn-primary btn-sm" id="wsLgSubmit" type="button">Sign in</button></div></div></div>'
+      + '<div id="wsLgForm">'
+      +   '<label class="up-field" id="wsLgNameF" style="display:none;"><span class="up-lbl">Display name</span><input class="up-input" id="wsLgName" type="text" placeholder="Shown as the preset author"></label>'
+      +   '<label class="up-field"><span class="up-lbl">Email</span><input class="up-input" id="wsLgEmail" type="email" placeholder="you@example.com"></label>'
+      +   '<label class="up-field"><span class="up-lbl">Password</span><input class="up-input" id="wsLgPass" type="password" placeholder="••••••••"></label>'
+      +   '<div id="wsLgForgotRow" style="margin:-4px 0 8px;"><button class="lg-switch" id="wsLgForgot" type="button">Forgot password?</button></div>'
+      +   '<div class="lg-msg" id="wsLgMsg"></div><div class="up-foot" style="justify-content:space-between;align-items:center;"><button class="lg-switch" id="wsLgSwitch" type="button">Create an account</button><button class="btn btn-primary btn-sm" id="wsLgSubmit" type="button">Sign in</button></div>'
+      + '</div>'
+      + '<div id="wsLgVerify" style="display:none;">'
+      +   '<div class="lg-verify-mark"><span class="lg-verify-dot"></span></div>'
+      +   '<p class="lg-verify-sub">We sent a verification link to <b id="wsLgVerifyEmail"></b>. Open it in your browser, then come back — GridGlow picks it up automatically.</p>'
+      +   '<div class="lg-msg" id="wsLgVerifyMsg" role="status" aria-live="polite"></div>'
+      +   '<button class="btn btn-primary btn-sm" id="wsLgVerifyContinue" type="button" style="width:100%;justify-content:center;">I\'ve verified — continue</button>'
+      +   '<div class="up-foot" style="justify-content:center;margin-top:10px;"><button class="lg-switch" id="wsLgVerifyBack" type="button">Use a different email</button></div>'
+      + '</div></div></div>'
       + '<div class="up-backdrop" id="wsAc"><div class="up-modal" style="width:420px;"><div class="up-head"><div><h3>Account</h3><p id="wsAcWho">Signed in</p></div><button class="up-x" id="wsAcClose" type="button"><i class="ti ti-x"></i></button></div>'
       + '<div class="up-field"><span class="up-lbl">Email</span><div style="display:flex;gap:8px;"><input class="up-input" id="wsAcEmail" type="email"><button class="btn btn-ghost btn-sm" id="wsAcEmailBtn" type="button">Update</button></div></div>'
       + '<div class="up-field"><span class="up-lbl">New password</span><div style="display:flex;gap:8px;"><input class="up-input" id="wsAcPass" type="password" placeholder="At least 6 characters"><button class="btn btn-ghost btn-sm" id="wsAcPassBtn" type="button">Update</button></div></div>'
       + '<div class="lg-msg" id="wsAcMsg"></div><div class="up-foot" style="justify-content:flex-start;"><button class="btn btn-ghost btn-sm" id="wsAcSignout" type="button"><i class="ti ti-logout"></i> Sign out</button></div></div></div>');
     lgBackdrop = document.getElementById('wsLg'); acBackdrop = document.getElementById('wsAc');
     const lgMsg = (t,ok) => { const el=document.getElementById('wsLgMsg'); el.textContent=t||''; el.className='lg-msg'+(ok?' ok':''); };
-    function setMode(mode) { lgMode = mode;
+    const vMsg  = (t,ok) => { const el=document.getElementById('wsLgVerifyMsg'); if(el){ el.textContent=t||''; el.className='lg-msg'+(ok?' ok':''); } };
+    function setMode(mode, email) { lgMode = mode;
+      const form = document.getElementById('wsLgForm'), verify = document.getElementById('wsLgVerify');
+      if (mode === 'verify') {
+        document.getElementById('wsLgTitle').textContent = 'Verify your email';
+        document.getElementById('wsLgSub').textContent = 'One more step to finish your account.';
+        document.getElementById('wsLgVerifyEmail').textContent = email || '';
+        form.style.display = 'none'; verify.style.display = ''; vMsg('');
+        // The just-clicked submit button is now hidden — move focus into the panel.
+        document.getElementById('wsLgVerifyContinue').focus();
+        return;
+      }
+      form.style.display = ''; verify.style.display = 'none';
       document.getElementById('wsLgTitle').textContent = mode==='signup'?'Create account':'Sign in';
+      document.getElementById('wsLgSub').textContent = 'Sign in to upload, like and download presets.';
       document.getElementById('wsLgSubmit').textContent = mode==='signup'?'Create account':'Sign in';
       document.getElementById('wsLgSwitch').textContent = mode==='signup'?'Have an account? Sign in':'Create an account';
       document.getElementById('wsLgNameF').style.display = mode==='signup'?'':'none';
-      document.getElementById('wsLgForgotRow').style.display = mode==='signup'?'none':''; lgMsg(''); }
+      document.getElementById('wsLgForgotRow').style.display = mode==='signup'?'none':''; lgMsg('');
+    }
+
+    // ── verify-and-continue ─────────────────────────────────────────────────
+    // We can't receive Supabase's email-link redirect (the app runs from
+    // file://), but clicking the link confirms the address server-side anyway.
+    // We detect that by retrying sign-in: it fails "email not confirmed" until
+    // the link is clicked, then succeeds and hands us a session in-app.
+    let vEmail = null, vPass = null, vTimer = null, vFocus = null, vTries = 0, vBusy = false;
+    function stopAutoPoll() { if (vTimer) { clearInterval(vTimer); vTimer = null; } if (vFocus) { window.removeEventListener('focus', vFocus); vFocus = null; } }
+    // Full teardown: stop polling AND drop the plaintext password — don't retain
+    // it past the retry window.
+    function stopVerify() { stopAutoPoll(); vEmail = vPass = null; }
+    _stopVerify = stopVerify;
+    async function attemptVerify(manual) {
+      if (vBusy || !vEmail || !vPass || !sb) return;   // one request at a time (focus storms / interval overlap)
+      vBusy = true;
+      if (manual) vMsg('Checking…');
+      try {
+        const { error } = await sb.auth.signInWithPassword({ email: vEmail, password: vPass });
+        if (error) {
+          const notConfirmed = error.code === 'email_not_confirmed'
+            || /not confirmed|not been confirmed/i.test(error.message || '');
+          // Stay silent on the background poll; only speak up on a manual check.
+          if (manual) vMsg(notConfirmed
+            ? 'Not verified yet — click the link in your email, then try again.'
+            : (error.message || 'Could not verify.'));
+          return;
+        }
+        // Success — a session now exists; onAuthStateChange SIGNED_IN closes the
+        // modal and fires the welcome (verifiedSignupPending).
+        stopVerify();
+      } finally { vBusy = false; }
+    }
+    function startVerify(email, pass) {
+      stopVerify();                                    // clear any prior run first
+      vEmail = email; vPass = pass; vTries = 0; verifiedSignupPending = true;
+      verifyPendingEmail = (email || '').trim().toLowerCase();   // only THIS account's SIGNED_IN welcomes
+      setMode('verify', email);
+      // Return-from-browser is the fast path; a gentle interval (auto-stopped
+      // after ~2.5 min) is the fallback, keeping well clear of auth rate limits.
+      vFocus = () => attemptVerify(false); window.addEventListener('focus', vFocus);
+      vTimer = setInterval(() => {
+        if (++vTries > 30) { stopAutoPoll(); vMsg('Taking a while? Open the link, then tap “I’ve verified — continue”.'); return; }
+        attemptVerify(false);
+      }, 5000);
+    }
+
     window._wsOpenLogin = () => { setMode('signin'); lgBackdrop.classList.add('open'); setTimeout(()=>document.getElementById('wsLgEmail').focus(),60); };
-    document.getElementById('wsLgClose').addEventListener('click', ()=>lgBackdrop.classList.remove('open'));
-    dismissOnBackdrop(lgBackdrop, ()=>lgBackdrop.classList.remove('open'));
+    // Closing abandons the verify flow — stop polling, drop creds, and clear the
+    // pending flag so a later unrelated SIGNED_IN can't fire a stray welcome.
+    const closeLg = () => { stopVerify(); verifiedSignupPending = false; verifyPendingEmail = null; lgBackdrop.classList.remove('open'); };
+    document.getElementById('wsLgClose').addEventListener('click', closeLg);
+    dismissOnBackdrop(lgBackdrop, closeLg);
     document.getElementById('wsLgSwitch').addEventListener('click', ()=>setMode(lgMode==='signup'?'signin':'signup'));
+    document.getElementById('wsLgVerifyContinue').addEventListener('click', ()=>attemptVerify(true));
+    document.getElementById('wsLgVerifyBack').addEventListener('click', ()=>{ stopVerify(); verifiedSignupPending=false; verifyPendingEmail=null; setMode('signup'); document.getElementById('wsLgEmail').focus(); });
     document.getElementById('wsLgForgot').addEventListener('click', async ()=>{ const email=document.getElementById('wsLgEmail').value.trim(); if(!email){lgMsg('Enter your email above first.');return;} if(!sb) return; const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href}); lgMsg(error?error.message:'Password reset link sent — check your email.', !error); });
     async function submit() {
       if (!sb) { lgMsg('Auth unavailable.'); return; }
@@ -361,10 +450,13 @@
       try {
         if (lgMode === 'signup') {
           const full_name = document.getElementById('wsLgName').value.trim();
-          const opts = { emailRedirectTo: location.href }; if (full_name) opts.data = { full_name };
+          // Land the confirmation-link click on the hosted site (a friendly page)
+          // rather than a broken file:// URL — the confirm succeeds regardless.
+          const opts = { emailRedirectTo: 'https://gridglow.titanstowers.net/' }; if (full_name) opts.data = { full_name };
           const { data, error } = await sb.auth.signUp({ email, password: pass, options: opts });
           if (error) throw error;
-          if (data.session) lgBackdrop.classList.remove('open'); else lgMsg('Check your email to confirm your account.', true);
+          if (data.session) lgBackdrop.classList.remove('open');   // confirmation disabled → straight in
+          else startVerify(email, pass);                           // confirmation required → wait for the link
         } else {
           const { error } = await sb.auth.signInWithPassword({ email, password: pass });
           if (error) throw error; lgBackdrop.classList.remove('open');
@@ -523,8 +615,23 @@
     loadingEl = document.getElementById('wsLoading'); errEl = document.getElementById('wsErr');
     injectModals();
     // auth
-    if (sb) { sb.auth.getSession().then(({data})=>{ renderAuth(data.session); callApi('set_workshop_token', data.session?data.session.access_token:null); if(/access_token|[?&#]type=/.test(location.hash)) history.replaceState(null,'',location.pathname+location.search); });
-      sb.auth.onAuthStateChange((evt, sess)=>{ renderAuth(sess); callApi('set_workshop_token', sess?sess.access_token:null); if(evt==='PASSWORD_RECOVERY') openAccount('password'); }); }
+    if (sb) {
+      // Supabase appends `type=signup|email|magiclink` to the return URL after an
+      // email-verification / magic-link click — capture it before we strip the hash.
+      const authType = (location.hash.match(/[#&?]type=([a-z_]+)/) || [])[1] || '';
+      const freshVerify = /^(signup|email|magiclink)$/.test(authType);   // rare: tokens actually reached the app via URL
+      sb.auth.getSession().then(({data})=>{ renderAuth(data.session); callApi('set_workshop_token', data.session?data.session.access_token:null); if(freshVerify) fireWelcome(data.session); if(/access_token|[?&#]type=/.test(location.hash)) history.replaceState(null,'',location.pathname+location.search); }).catch(e=>{ renderAuth(null); console.warn('[workshop] getSession failed', e); });
+      sb.auth.onAuthStateChange((evt, sess)=>{ renderAuth(sess); callApi('set_workshop_token', sess?sess.access_token:null);
+        if(evt==='PASSWORD_RECOVERY') { openAccount('password'); return; }
+        if(evt==='SIGNED_IN') {
+          const em = (sess && sess.user && (sess.user.email||'')).trim().toLowerCase();
+          // Only welcome when the session is for the account we're verifying — a
+          // late/stale sign-in for a superseded account must not fire it.
+          if(verifiedSignupPending && em && em === verifyPendingEmail) {
+            verifiedSignupPending=false; verifyPendingEmail=null; _stopVerify();
+            if(lgBackdrop) lgBackdrop.classList.remove('open'); fireWelcome(sess);
+          } else if(freshVerify) fireWelcome(sess);
+        } }); }
     else renderAuth(null);
     document.getElementById('wsUploadBtn').addEventListener('click', openUpload);
     // search
