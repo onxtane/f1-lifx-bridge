@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="vendor/tabler/tabler-icons.min.css">
 <link rel="stylesheet" href="workshop.css">
 <link rel="stylesheet" href="effects-custom.css">
-<link rel="stylesheet" href="welcome.css?v=2">
+<link rel="stylesheet" href="welcome.css?v=3">
 </head>
 <body>
 <div id="splash">
@@ -579,7 +579,20 @@
                 <div style="font-size:16px;font-weight:600;">Effect Customization</div>
                 <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Set custom colours for each effect · trigger any effect to test</div>
               </div>
-              <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <button class="ec-help-btn" id="ecHelpBtn" type="button" title="About Effect Customization" aria-label="About Effect Customization">?</button>
+                <svg class="collapse-chevron collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
+            <div class="ec-help-pop" id="ecHelpPop" hidden>
+              <h4>Effect Customization</h4>
+              Set the colours GridGlow uses for each race event.
+              <ul>
+                <li>Pick an effect, then a mode: <b>Sync All</b> (one colour for every light), <b>Customize Per Light</b> (a colour per bulb), or <b>Customize Per Zone</b> (a colour per strip zone — needs a multizone device).</li>
+                <li>Hit <b>Test</b> to fire the effect on your lights right now.</li>
+                <li>The <b>RPM Meter</b> has its own gradient editor.</li>
+              </ul>
+              Your colours save with the active profile and can be shared to the Community Workshop.
             </div>
             <div class="collapsible-body collapsed" id="effectCustomBody">
               <div id="effectCustomRoot"></div>
@@ -1515,6 +1528,7 @@
     '[NANOLEAF ERROR]': { cls: 'log-tag-error',    label: 'Nanoleaf Error' },
     '[NANOLEAF]':       { cls: 'log-tag-nanoleaf',  label: 'Nanoleaf' },
     '[EVENT]':          { cls: 'log-tag-event',     label: 'Event' },
+    '[GROUP WARNING]':  { cls: 'log-tag-error',     label: 'Error' },   /* device-not-found etc. → red */
     '[GROUP]':          { cls: 'log-tag-group',     label: 'Group' },
     '[ERROR]':          { cls: 'log-tag-error',     label: 'Error' },
     '[WARNING]':        { cls: 'log-tag-warning',   label: 'Warning' },
@@ -3923,6 +3937,21 @@
       chevron.classList.toggle('collapsed', isCollapsed);
     });
   });
+
+  // Effect Customization "?" — focused help for just this section (kept out of the
+  // main walkthrough). Expands the section and toggles an explainer callout.
+  (function () {
+    const help = document.getElementById('ecHelpBtn');
+    const pop = document.getElementById('ecHelpPop');
+    if (!help || !pop) return;
+    help.addEventListener('click', (e) => {
+      e.stopPropagation();   // don't toggle the section's collapse
+      const body = document.getElementById('effectCustomBody');
+      const chev = document.querySelector('#effectCustomSection .collapse-chevron');
+      if (body && body.classList.contains('collapsed')) { body.classList.remove('collapsed'); if (chev) chev.classList.remove('collapsed'); }
+      pop.hidden = !pop.hidden;
+    });
+  })();
 
   // ---- profiles ----
   (function () {
@@ -6878,8 +6907,8 @@
 
 <!-- Community Workshop (vendored supabase-js + the workshop module) -->
 <script src="vendor/supabase.min.js"></script>
-<script src="welcome.js?v=4"></script>
-<script src="workshop.js?v=10"></script>
+<script src="welcome.js?v=5"></script>
+<script src="workshop.js?v=11"></script>
 <script src="effects-custom.js?v=4"></script>
 </body>
 </html>

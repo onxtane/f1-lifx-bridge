@@ -172,7 +172,7 @@
     +         '<button class="lp-btn" id="wsPlay" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span id="wsPlayLbl">Play</span></button></div>'
     +       '<div class="d-preview"><div class="lp-flag" id="wsFlag"></div><div class="lp-strip" id="wsStrip"></div><div class="lp-caption" id="wsCap">Idle · press play</div></div>'
     +       '<div class="d-lbl">Tags</div><div class="chips d-tags" id="wsTags"></div>'
-    +       '<div class="d-lbl">Share Preset</div><div class="d-share"><div class="lnk" id="wsShareLink">gridglow.app/w/…</div>'
+    +       '<div class="d-lbl">Share Preset</div><div class="d-share"><div class="lnk" id="wsShareLink">https://gridglow.titanstowers.net/w?id=…</div>'
     +         '<div class="d-copy"><i class="ti ti-copy" style="font-size:15px;"></i> Copy</div></div>'
     +     '</div></div>'
     +   '</div>'
@@ -259,7 +259,7 @@
     document.getElementById('wsDesc').textContent = p.description || '';
     const cp = compatFor(theme); document.getElementById('wsCompat').className = 'd-compat '+cp.cls; document.getElementById('wsCompatText').innerHTML = cp.html;
     document.getElementById('wsTags').innerHTML = (p.tags||[]).map(t=>'<button class="d-tag" type="button">'+esc(t)+'</button>').join('');
-    document.getElementById('wsShareLink').textContent = 'gridglow.app/w/'+p.id;
+    document.getElementById('wsShareLink').textContent = 'https://gridglow.titanstowers.net/w?id='+p.id;
     document.getElementById('wsRate').innerHTML = [1,2,3,4,5].map(n=>'<button class="star-in" type="button" data-star="'+n+'">★</button>').join('') + '<span class="rate-note">Tap to rate</span>';
     const dl = document.getElementById('wsLike'); dl.classList.remove('liked'); dl.dataset.likes = p.likes||0;
     dl.querySelector('.hx').outerHTML = '<svg class="hx" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="'+HEART_PATH()+'"/></svg>';
