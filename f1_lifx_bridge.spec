@@ -13,7 +13,7 @@ IS_WIN = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
 
 # Keep in sync with the UI/website version on release.
-APP_VERSION = "0.11.0"
+APP_VERSION = "1.0.0"
 
 block_cipher = None
 
@@ -23,9 +23,8 @@ bitstring_datas, bitstring_binaries, bitstring_hiddenimports = collect_all('bits
 
 # ── Data files (cross-platform) ──────────────────────────────────────────────
 datas = [
-    ('ui/index.html', 'ui'),
-    ('ui/app.css', 'ui'),                          # extracted stylesheet, linked from index.html
-    ('ui/logos', 'ui/logos'),                      # game wordmarks referenced by the switcher
+    ('ui', 'ui'),                                  # whole UI: index.html, all css/js modules,
+                                                   # logos/, and vendor/ (tabler icons + supabase)
     ('assets/wrc/gridglow.json', 'assets/wrc'),   # EA WRC telemetry structure (installed in-app)
     *collect_data_files('webview'),       # picks up the platform's webview assets
     *collect_data_files('nanoleafapi'),
