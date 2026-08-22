@@ -1,0 +1,206 @@
+---
+const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
+const supportEmail = "support@titanstowers.net";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Email verified — GridGlow</title>
+  <meta name="description" content="Your GridGlow Community Workshop account is verified." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+
+<div class="page">
+  <nav>
+    <div class="nav-inner">
+      <a href="https://gridglow.titanstowers.net/" class="brand">
+        <span class="brand-dot"></span>
+        GridGlow
+      </a>
+      <div class="nav-links">
+        <a href="https://gridglow.titanstowers.net/roadmap" class="nav-link">Roadmap</a>
+        <a href="https://gridglow.titanstowers.net/help-wanted" class="nav-link">Help wanted</a>
+        <a href="https://gridglow.titanstowers.net/request" class="nav-link">Request a title</a>
+        <a href={githubUrl} target="_blank" rel="noopener" class="nav-link">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="wrap">
+      <div class="card">
+        <div class="check-wrap">
+          <div class="check" id="check">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#3ddc84" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2l4 -4"/></svg>
+          </div>
+        </div>
+
+        <div class="kicker">Community Workshop</div>
+        <h1 id="headline">Email verified</h1>
+        <p class="sub" id="sub">Your Community Workshop account is active. Head back to the app and sign in with your new account.</p>
+
+        <div class="acct" id="acct" hidden>
+          <div class="acct-avatar" id="acctInitial">?</div>
+          <div class="acct-main">
+            <div class="acct-label">Display name</div>
+            <div class="acct-name" id="acctName"></div>
+          </div>
+          <span class="acct-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg>
+            Verified
+          </span>
+        </div>
+
+        <div class="footer-row" id="footerRow">
+          <div class="dots" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="close-note">You can close this tab.</div>
+        </div>
+      </div>
+
+      <p class="support">Trouble signing in? <a href={`mailto:${supportEmail}`}>{supportEmail}</a></p>
+    </div>
+  </main>
+
+  <footer>
+    <div class="foot-inner">
+      <span>GridGlow — a product of Titans Towers</span>
+      <span>Local LAN control · No hub required</span>
+    </div>
+  </footer>
+</div>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #070912; }
+  a { color: #c4b5fd; text-decoration: none; }
+  a:hover { color: #e9d5ff; }
+
+  .page {
+    min-height: 100vh; display: flex; flex-direction: column;
+    background:
+      radial-gradient(900px 520px at 50% -8%, rgba(102,78,200,.22), transparent 70%),
+      radial-gradient(760px 520px at 100% 108%, rgba(158,72,214,.16), transparent 70%),
+      linear-gradient(#0d0c20, #08070f);
+    font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #c3cbdd;
+  }
+
+  nav { display: flex; justify-content: center; padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .nav-inner { width: 100%; max-width: 1100px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 9px; color: #f3f1ff; font-size: 16px; font-weight: 700; letter-spacing: 1.4px; }
+  .brand-dot { width: 9px; height: 9px; border-radius: 50%; background: #8b7cf6; box-shadow: 0 0 14px rgba(139,124,246,.9); }
+  .nav-links { display: flex; align-items: center; gap: 6px; }
+  .nav-link { padding: 8px 14px; border-radius: 999px; font-size: 13px; color: #c3cbdd; transition: background .15s, color .15s; }
+  .nav-link:hover { background: rgba(255,255,255,.06); color: #f3f1ff; }
+
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 64px 24px; }
+  .wrap { width: 100%; max-width: 520px; animation: ggRise .52s cubic-bezier(.22,.8,.36,1) both; }
+
+  .card {
+    border-radius: 18px; border: 1px solid rgba(255,255,255,.12);
+    background: linear-gradient(158deg, rgba(255,255,255,.11), rgba(255,255,255,.035));
+    backdrop-filter: blur(16px) saturate(1.25); -webkit-backdrop-filter: blur(16px) saturate(1.25);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 12px 34px rgba(0,0,0,.42);
+    padding: 40px 40px 34px; text-align: center;
+  }
+
+  .check-wrap { display: flex; justify-content: center; margin-bottom: 24px; }
+  .check {
+    width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(61,220,132,.12); border: 1px solid rgba(61,220,132,.45);
+    animation: ggPulse 2.4s ease-in-out infinite;
+  }
+  /* error state recolours the ring to red */
+  .check.err { background: rgba(255,93,93,.12); border-color: rgba(255,93,93,.5); animation: none; }
+
+  .kicker { font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #8b7cf6; margin-bottom: 10px; }
+  h1 { margin: 0 0 12px; font-size: 30px; font-weight: 700; letter-spacing: -.02em; color: #f3f1ff; line-height: 1.2; }
+  .sub { margin: 0 auto; max-width: 400px; font-size: 14px; line-height: 1.6; color: #c3cbdd; }
+
+  .acct {
+    margin: 26px 0 0; display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 14px; background: #101728;
+    border: 1px solid rgba(255,255,255,.08); text-align: left;
+  }
+  .acct-avatar { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; background: #241f45; color: #c4b5fd; font-size: 14px; font-weight: 700; }
+  .acct-main { flex: 1; min-width: 0; }
+  .acct-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #7c87a0; margin-bottom: 3px; }
+  .acct-name { font-size: 15px; font-weight: 600; color: #f3f1ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acct-badge { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 5px; background: #11331f; color: #5fe39a; font-size: 10px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+
+  .footer-row { margin-top: 26px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 8px; height: 8px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 6px rgba(61,220,132,.7); }
+  .close-note { font-size: 11px; color: #7c87a0; }
+
+  .support { margin: 18px 0 0; text-align: center; font-size: 11px; color: #626d85; }
+
+  footer { padding: 22px 24px; border-top: 1px solid rgba(255,255,255,.07); display: flex; justify-content: center; }
+  .foot-inner { width: 100%; max-width: 1100px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; font-size: 11px; color: #626d85; }
+
+  @keyframes ggRise { from { transform: translateY(10px); } to { transform: translateY(0); } }
+  @keyframes ggPulse { 0%,100% { box-shadow: 0 0 8px rgba(61,220,132,.55); } 50% { box-shadow: 0 0 18px rgba(61,220,132,.9); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+
+<script is:inline>
+  // Supabase returns the session/token in the URL fragment. We don't sign in here
+  // (the app confirms the account by retrying sign-in) — we just decode the JWT to
+  // greet the verified account, and handle the recovery / expired-link variants.
+  (function () {
+    var params = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+    var err = params.get('error_description') || params.get('error');
+    var type = params.get('type') || '';
+    var token = params.get('access_token') || '';
+
+    var check = document.getElementById('check');
+    var headline = document.getElementById('headline');
+    var sub = document.getElementById('sub');
+
+    if (err) {
+      check.classList.add('err');
+      check.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ff5d5d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>';
+      headline.textContent = 'That link didn’t work';
+      sub.textContent = decodeURIComponent(err).replace(/\+/g, ' ') +
+        ' — request a fresh verification email from the GridGlow app and try again.';
+      document.getElementById('footerRow').style.display = 'none';
+      return;
+    }
+
+    if (type === 'recovery') {
+      headline.textContent = 'Identity confirmed';
+      sub.textContent = 'Head back to the GridGlow app to set your new password.';
+    }
+
+    // Greet the account: decode user_metadata.full_name (falls back to email).
+    function b64url(s) {
+      s = s.replace(/-/g, '+').replace(/_/g, '/');
+      try {
+        return decodeURIComponent(atob(s).split('').map(function (c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+      } catch (e) { try { return atob(s); } catch (_) { return ''; } }
+    }
+    try {
+      var payload = JSON.parse(b64url(token.split('.')[1] || ''));
+      var meta = payload.user_metadata || {};
+      var name = (meta.full_name || meta.name || meta.display_name || '').trim()
+        || (payload.email ? payload.email.split('@')[0] : '');
+      if (name) {
+        document.getElementById('acctName').textContent = name;
+        document.getElementById('acctInitial').textContent = (name[0] || '?').toUpperCase();
+        document.getElementById('acct').hidden = false;
+      }
+    } catch (e) { /* no/opaque token — leave the account row hidden */ }
+  })();
+</script>
+
+</body>
+</html>
