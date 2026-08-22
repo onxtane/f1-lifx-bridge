@@ -111,6 +111,8 @@
   // ---- post-verification welcome ----
   let welcomeShown = false;           // play the cinematic at most once per app run
   let verifiedSignupPending = false;  // set while a just-signed-up account is being verified
+  let verifyPendingEmail = null;      // the account we're waiting on — gates the welcome so a
+                                      // stale in-flight sign-in for a superseded account can't fire it
   let _stopVerify = () => {};         // assigned by injectModals() to halt verify polling
   // Play the welcome sequence once, landing the user on the Workshop behind it.
   function fireWelcome(sess) {
@@ -419,6 +421,7 @@
     function startVerify(email, pass) {
       stopVerify();                                    // clear any prior run first
       vEmail = email; vPass = pass; vTries = 0; verifiedSignupPending = true;
+      verifyPendingEmail = (email || '').trim().toLowerCase();   // only THIS account's SIGNED_IN welcomes
       setMode('verify', email);
       // Return-from-browser is the fast path; a gentle interval (auto-stopped
       // after ~2.5 min) is the fallback, keeping well clear of auth rate limits.
@@ -432,12 +435,12 @@
     window._wsOpenLogin = () => { setMode('signin'); lgBackdrop.classList.add('open'); setTimeout(()=>document.getElementById('wsLgEmail').focus(),60); };
     // Closing abandons the verify flow — stop polling, drop creds, and clear the
     // pending flag so a later unrelated SIGNED_IN can't fire a stray welcome.
-    const closeLg = () => { stopVerify(); verifiedSignupPending = false; lgBackdrop.classList.remove('open'); };
+    const closeLg = () => { stopVerify(); verifiedSignupPending = false; verifyPendingEmail = null; lgBackdrop.classList.remove('open'); };
     document.getElementById('wsLgClose').addEventListener('click', closeLg);
     dismissOnBackdrop(lgBackdrop, closeLg);
     document.getElementById('wsLgSwitch').addEventListener('click', ()=>setMode(lgMode==='signup'?'signin':'signup'));
     document.getElementById('wsLgVerifyContinue').addEventListener('click', ()=>attemptVerify(true));
-    document.getElementById('wsLgVerifyBack').addEventListener('click', ()=>{ stopVerify(); verifiedSignupPending=false; setMode('signup'); document.getElementById('wsLgEmail').focus(); });
+    document.getElementById('wsLgVerifyBack').addEventListener('click', ()=>{ stopVerify(); verifiedSignupPending=false; verifyPendingEmail=null; setMode('signup'); document.getElementById('wsLgEmail').focus(); });
     document.getElementById('wsLgForgot').addEventListener('click', async ()=>{ const email=document.getElementById('wsLgEmail').value.trim(); if(!email){lgMsg('Enter your email above first.');return;} if(!sb) return; const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href}); lgMsg(error?error.message:'Password reset link sent — check your email.', !error); });
     async function submit() {
       if (!sb) { lgMsg('Auth unavailable.'); return; }
@@ -621,8 +624,13 @@
       sb.auth.onAuthStateChange((evt, sess)=>{ renderAuth(sess); callApi('set_workshop_token', sess?sess.access_token:null);
         if(evt==='PASSWORD_RECOVERY') { openAccount('password'); return; }
         if(evt==='SIGNED_IN') {
-          if(verifiedSignupPending) { verifiedSignupPending=false; _stopVerify(); if(lgBackdrop) lgBackdrop.classList.remove('open'); fireWelcome(sess); }
-          else if(freshVerify) fireWelcome(sess);
+          const em = (sess && sess.user && (sess.user.email||'')).trim().toLowerCase();
+          // Only welcome when the session is for the account we're verifying — a
+          // late/stale sign-in for a superseded account must not fire it.
+          if(verifiedSignupPending && em && em === verifyPendingEmail) {
+            verifiedSignupPending=false; verifyPendingEmail=null; _stopVerify();
+            if(lgBackdrop) lgBackdrop.classList.remove('open'); fireWelcome(sess);
+          } else if(freshVerify) fireWelcome(sess);
         } }); }
     else renderAuth(null);
     document.getElementById('wsUploadBtn').addEventListener('click', openUpload);
