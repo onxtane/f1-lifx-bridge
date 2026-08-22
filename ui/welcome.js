@@ -71,7 +71,9 @@
     var root = document.createElement('div');
     root.className = 'gw-root';
     root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');   // keep AT out of the dimmed app behind us
     root.setAttribute('aria-label', 'Welcome to GridGlow');
+    root.tabIndex = -1;                         // focusable container so focus can move in
     root.innerHTML =
       '<div class="gw-dim"></div>' +
       '<div class="gw-halo"></div>' +
@@ -215,15 +217,21 @@
       sub.style.width = Math.min(470, cardW - 88) + 'px';
 
       // action
+      // Controls are interactive/tabbable only while visible — a hidden control
+      // must not take clicks or a Tab stop.
       var op = enter(0, 1, 2.80, 3.14)(T) * (1 - outroP);
       btnPrimary.style.opacity = op.toFixed(3);
       btnPrimary.style.transform = 'translateY(' + enter(10, 0, 2.80, 3.14)(T) + 'px)';
       btnPrimary.style.pointerEvents = op > 0.6 ? 'auto' : 'none';
-      skip.style.opacity = (0.9 * enter(0, 1, 1.0, 1.6)(T) * (1 - outroP)).toFixed(3);
+      btnPrimary.tabIndex = op > 0.6 ? 0 : -1;
+      var skOp = 0.9 * enter(0, 1, 1.0, 1.6)(T) * (1 - outroP);
+      skip.style.opacity = skOp.toFixed(3);
+      skip.style.pointerEvents = skOp > 0.5 ? 'auto' : 'none';
+      skip.tabIndex = skOp > 0.5 ? 0 : -1;
     }
 
     // ── run loop ──────────────────────────────────────────────────────────────
-    var phase = 'intro', raf = 0, t0 = performance.now(), outroStart = 0, contAtOutro = 0, pending = null;
+    var phase = 'intro', raf = 0, t0 = 0, outroStart = 0, contAtOutro = 0, pending = null;
 
     function cleanup() {
       if (raf) cancelAnimationFrame(raf);
@@ -241,21 +249,27 @@
       contAtOutro = (outroStart - t0) / 1000;
     }
     function frame(now) {
-      var el = (now - t0) / 1000;
-      if (phase === 'intro') {
-        var T = Math.min(el, INTRO_END);
-        render(T, el, draw(0, 1, 3.60, 5.40)(T), 0);
-        if (el >= INTRO_END) phase = 'hold';
-      } else if (phase === 'hold') {
-        var hc = (el - INTRO_END) % 2.6;              // slow highlight travels the strip on a loop
-        var hv = hc < 1.8 ? hc / 1.8 : -1;
-        render(INTRO_END, el, hv, 0);
-      } else if (phase === 'outro') {
-        var op = Math.min(1, (now - outroStart) / 1000 / OUTRO_DUR);
-        render(INTRO_END, contAtOutro + (now - outroStart) / 1000, -1, E.inCubic(op));
-        if (op >= 1) { cleanup(); phase = 'done'; return; }
+      raf = requestAnimationFrame(frame);   // reschedule FIRST — a render throw must not kill the loop
+      if (!t0) t0 = now;                     // anchor to the first real frame, not mount time
+      try {
+        var el = (now - t0) / 1000;
+        if (phase === 'intro') {
+          var T = Math.min(el, INTRO_END);
+          render(T, el, draw(0, 1, 3.60, 5.40)(T), 0);
+          if (el >= INTRO_END) phase = 'hold';
+        } else if (phase === 'hold') {
+          var hc = (el - INTRO_END) % 2.6;              // slow highlight travels the strip on a loop
+          var hv = hc < 1.8 ? hc / 1.8 : -1;
+          render(INTRO_END, el, hv, 0);
+        } else if (phase === 'outro') {
+          var op = Math.min(1, (now - outroStart) / 1000 / OUTRO_DUR);
+          render(INTRO_END, contAtOutro + (now - outroStart) / 1000, -1, E.inCubic(op));
+          if (op >= 1) { phase = 'done'; cleanup(); }
+        }
+      } catch (err) {
+        if (window.console) console.error('[welcome] frame error', err);
+        phase = 'done'; cleanup();           // tear down rather than lock the app behind the overlay
       }
-      raf = requestAnimationFrame(frame);
     }
 
     // ── actions ───────────────────────────────────────────────────────────────
@@ -272,8 +286,10 @@
       if (appEl) appEl.style.filter = 'saturate(0.9)';
       dim.style.opacity = '0.66';
       skip.style.opacity = '0.9';
+      skip.style.pointerEvents = 'auto'; skip.tabIndex = 0;
       btnPrimary.focus();
     } else {
+      root.focus();   // move focus into the dialog so Tab/AT stay inside it
       raf = requestAnimationFrame(frame);
     }
   }

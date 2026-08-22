@@ -354,7 +354,7 @@
       + '<div id="wsLgVerify" style="display:none;">'
       +   '<div class="lg-verify-mark"><span class="lg-verify-dot"></span></div>'
       +   '<p class="lg-verify-sub">We sent a verification link to <b id="wsLgVerifyEmail"></b>. Open it in your browser, then come back — GridGlow picks it up automatically.</p>'
-      +   '<div class="lg-msg" id="wsLgVerifyMsg"></div>'
+      +   '<div class="lg-msg" id="wsLgVerifyMsg" role="status" aria-live="polite"></div>'
       +   '<button class="btn btn-primary btn-sm" id="wsLgVerifyContinue" type="button" style="width:100%;justify-content:center;">I\'ve verified — continue</button>'
       +   '<div class="up-foot" style="justify-content:center;margin-top:10px;"><button class="lg-switch" id="wsLgVerifyBack" type="button">Use a different email</button></div>'
       + '</div></div></div>'
@@ -372,6 +372,8 @@
         document.getElementById('wsLgSub').textContent = 'One more step to finish your account.';
         document.getElementById('wsLgVerifyEmail').textContent = email || '';
         form.style.display = 'none'; verify.style.display = ''; vMsg('');
+        // The just-clicked submit button is now hidden — move focus into the panel.
+        document.getElementById('wsLgVerifyContinue').focus();
         return;
       }
       form.style.display = ''; verify.style.display = 'none';
@@ -388,40 +390,54 @@
     // file://), but clicking the link confirms the address server-side anyway.
     // We detect that by retrying sign-in: it fails "email not confirmed" until
     // the link is clicked, then succeeds and hands us a session in-app.
-    let vEmail = null, vPass = null, vTimer = null, vFocus = null, vTries = 0;
-    function stopVerify() { if (vTimer) { clearInterval(vTimer); vTimer = null; } if (vFocus) { window.removeEventListener('focus', vFocus); vFocus = null; } }
+    let vEmail = null, vPass = null, vTimer = null, vFocus = null, vTries = 0, vBusy = false;
+    function stopAutoPoll() { if (vTimer) { clearInterval(vTimer); vTimer = null; } if (vFocus) { window.removeEventListener('focus', vFocus); vFocus = null; } }
+    // Full teardown: stop polling AND drop the plaintext password — don't retain
+    // it past the retry window.
+    function stopVerify() { stopAutoPoll(); vEmail = vPass = null; }
     _stopVerify = stopVerify;
     async function attemptVerify(manual) {
-      if (!vEmail || !vPass || !sb) return;
+      if (vBusy || !vEmail || !vPass || !sb) return;   // one request at a time (focus storms / interval overlap)
+      vBusy = true;
       if (manual) vMsg('Checking…');
-      const { error } = await sb.auth.signInWithPassword({ email: vEmail, password: vPass });
-      if (error) {
-        if (/not confirmed|not been confirmed/i.test(error.message || '')) {
-          if (manual) vMsg('Not verified yet — click the link in your email, then try again.');
-        } else { vMsg(error.message || 'Could not verify.'); }
-        return;
-      }
-      // Success — a session now exists; onAuthStateChange SIGNED_IN closes the
-      // modal and fires the welcome (verifiedSignupPending). Clean up here.
-      stopVerify(); vEmail = vPass = null;
+      try {
+        const { error } = await sb.auth.signInWithPassword({ email: vEmail, password: vPass });
+        if (error) {
+          const notConfirmed = error.code === 'email_not_confirmed'
+            || /not confirmed|not been confirmed/i.test(error.message || '');
+          // Stay silent on the background poll; only speak up on a manual check.
+          if (manual) vMsg(notConfirmed
+            ? 'Not verified yet — click the link in your email, then try again.'
+            : (error.message || 'Could not verify.'));
+          return;
+        }
+        // Success — a session now exists; onAuthStateChange SIGNED_IN closes the
+        // modal and fires the welcome (verifiedSignupPending).
+        stopVerify();
+      } finally { vBusy = false; }
     }
     function startVerify(email, pass) {
+      stopVerify();                                    // clear any prior run first
       vEmail = email; vPass = pass; vTries = 0; verifiedSignupPending = true;
       setMode('verify', email);
-      stopVerify();
       // Return-from-browser is the fast path; a gentle interval (auto-stopped
       // after ~2.5 min) is the fallback, keeping well clear of auth rate limits.
       vFocus = () => attemptVerify(false); window.addEventListener('focus', vFocus);
-      vTimer = setInterval(() => { if (++vTries > 30) { stopVerify(); return; } attemptVerify(false); }, 5000);
+      vTimer = setInterval(() => {
+        if (++vTries > 30) { stopAutoPoll(); vMsg('Taking a while? Open the link, then tap “I’ve verified — continue”.'); return; }
+        attemptVerify(false);
+      }, 5000);
     }
 
     window._wsOpenLogin = () => { setMode('signin'); lgBackdrop.classList.add('open'); setTimeout(()=>document.getElementById('wsLgEmail').focus(),60); };
-    const closeLg = () => { stopVerify(); lgBackdrop.classList.remove('open'); };
+    // Closing abandons the verify flow — stop polling, drop creds, and clear the
+    // pending flag so a later unrelated SIGNED_IN can't fire a stray welcome.
+    const closeLg = () => { stopVerify(); verifiedSignupPending = false; lgBackdrop.classList.remove('open'); };
     document.getElementById('wsLgClose').addEventListener('click', closeLg);
     dismissOnBackdrop(lgBackdrop, closeLg);
     document.getElementById('wsLgSwitch').addEventListener('click', ()=>setMode(lgMode==='signup'?'signin':'signup'));
     document.getElementById('wsLgVerifyContinue').addEventListener('click', ()=>attemptVerify(true));
-    document.getElementById('wsLgVerifyBack').addEventListener('click', ()=>{ stopVerify(); vEmail=vPass=null; verifiedSignupPending=false; setMode('signup'); });
+    document.getElementById('wsLgVerifyBack').addEventListener('click', ()=>{ stopVerify(); verifiedSignupPending=false; setMode('signup'); document.getElementById('wsLgEmail').focus(); });
     document.getElementById('wsLgForgot').addEventListener('click', async ()=>{ const email=document.getElementById('wsLgEmail').value.trim(); if(!email){lgMsg('Enter your email above first.');return;} if(!sb) return; const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href}); lgMsg(error?error.message:'Password reset link sent — check your email.', !error); });
     async function submit() {
       if (!sb) { lgMsg('Auth unavailable.'); return; }
@@ -601,7 +617,7 @@
       // email-verification / magic-link click — capture it before we strip the hash.
       const authType = (location.hash.match(/[#&?]type=([a-z_]+)/) || [])[1] || '';
       const freshVerify = /^(signup|email|magiclink)$/.test(authType);   // rare: tokens actually reached the app via URL
-      sb.auth.getSession().then(({data})=>{ renderAuth(data.session); callApi('set_workshop_token', data.session?data.session.access_token:null); if(freshVerify) fireWelcome(data.session); if(/access_token|[?&#]type=/.test(location.hash)) history.replaceState(null,'',location.pathname+location.search); });
+      sb.auth.getSession().then(({data})=>{ renderAuth(data.session); callApi('set_workshop_token', data.session?data.session.access_token:null); if(freshVerify) fireWelcome(data.session); if(/access_token|[?&#]type=/.test(location.hash)) history.replaceState(null,'',location.pathname+location.search); }).catch(e=>{ renderAuth(null); console.warn('[workshop] getSession failed', e); });
       sb.auth.onAuthStateChange((evt, sess)=>{ renderAuth(sess); callApi('set_workshop_token', sess?sess.access_token:null);
         if(evt==='PASSWORD_RECOVERY') { openAccount('password'); return; }
         if(evt==='SIGNED_IN') {

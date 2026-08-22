@@ -57,6 +57,7 @@
   animation:ws_verifyPulse 1.8s ease-in-out infinite;
 }
 @keyframes ws_verifyPulse { 0%,100%{ opacity:.5; transform:scale(.9);} 50%{ opacity:1; transform:scale(1.05);} }
+@media (prefers-reduced-motion: reduce) { #page-workshop .lg-verify-dot::after { animation:none; } }
 #page-workshop .lg-verify-sub { font-size:13px; color:var(--text-muted); line-height:1.55; margin:0 0 14px; text-align:center; }
 #page-workshop .lg-verify-sub b { color:var(--text-main); font-weight:600; }
 #page-workshop .ws-toast { position:absolute; bottom:18px; left:50%; z-index:120; transform:translateX(-50%) translateY(10px);
