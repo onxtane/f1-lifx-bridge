@@ -1,0 +1,194 @@
+---
+const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email verified — GridGlow</title>
+  <meta name="description" content="Your GridGlow email address is verified." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+
+  <!-- ═══ NAV ═══ -->
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-dot"></span>
+        GridGlow
+      </a>
+      <div class="nav-actions">
+        <a href="/roadmap" class="btn-ghost">Roadmap</a>
+        <a href={githubUrl} class="btn-ghost" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ VERIFIED ═══ -->
+  <main class="wrap">
+    <div class="glow glow-purple"></div>
+    <div class="card rise">
+      <div class="check" aria-hidden="true">
+        <svg viewBox="0 0 52 52" width="52" height="52">
+          <circle cx="26" cy="26" r="24" fill="none" stroke="var(--purple)" stroke-width="3" opacity="0.9"/>
+          <path d="M16 27 l7 7 l14 -16" fill="none" stroke="var(--text)" stroke-width="4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <div class="kicker" id="kicker">EMAIL VERIFIED</div>
+      <h1 id="headline">You're all set</h1>
+      <p class="sub" id="sub">
+        Your email address is confirmed. Head back to the <strong>GridGlow app</strong> and it'll
+        pick things up automatically — if it's still showing “Verify your email,” just switch back to
+        it (or press <em>“I've verified — continue”</em>).
+      </p>
+
+      <p class="hint">You can close this tab.</p>
+    </div>
+  </main>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0b1020;
+    --card:     rgba(255,255,255,0.05);
+    --border:   rgba(255,255,255,0.10);
+    --border-s: rgba(255,255,255,0.06);
+    --purple:   #8b7cf6;
+    --purple-l: #a78bfa;
+    --text:     #f3f5f9;
+    --muted:    #aab2c5;
+    --radius:   14px;
+    --radius-s: 10px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 200;
+    background: rgba(11,16,32,0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-s);
+  }
+  .nav-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 28px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-size: 15px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+    letter-spacing: -0.2px; text-decoration: none;
+  }
+  .logo-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--purple); box-shadow: 0 0 8px var(--purple); flex-shrink: 0;
+  }
+  .nav-actions { display: flex; align-items: center; gap: 10px; }
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: 14px; font-weight: 500;
+    padding: 9px 18px; border-radius: var(--radius-s);
+    border: 1px solid var(--border); text-decoration: none; background: none;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .btn-ghost:hover {
+    color: var(--text); border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.04);
+  }
+
+  /* ── VERIFIED CARD ── */
+  .wrap {
+    position: relative;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 92px 24px 48px;
+    overflow: hidden;
+  }
+  .glow {
+    position: absolute; width: 620px; height: 620px; border-radius: 50%;
+    top: -140px; left: 50%; transform: translateX(-50%);
+    pointer-events: none; filter: blur(60px); opacity: 0.5;
+  }
+  .glow-purple { background: radial-gradient(closest-side, rgba(139,124,246,0.42), transparent 70%); }
+
+  .card {
+    position: relative;
+    width: min(520px, 100%);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 36px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .check {
+    width: 52px; height: 52px; margin: 0 auto 20px;
+    filter: drop-shadow(0 0 16px rgba(139,124,246,0.45));
+  }
+  .kicker {
+    font-size: 11px; letter-spacing: 3px; font-weight: 600;
+    color: var(--purple-l); text-transform: uppercase; margin-bottom: 10px;
+  }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 12px; }
+  .sub { color: var(--muted); font-size: 15px; margin: 0 auto; max-width: 42ch; }
+  .sub strong { color: var(--text); font-weight: 600; }
+  .sub em { color: var(--purple-l); font-style: normal; }
+  .hint { color: var(--faint, rgba(170,178,197,0.5)); font-size: 13px; margin-top: 22px; }
+
+  .rise { animation: rise 0.5s cubic-bezier(.2,.8,.3,1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
+</style>
+
+<script is:inline>
+  // Supabase returns the token type in the URL fragment (e.g. #type=signup |
+  // recovery | email). Tailor the copy; the tokens themselves aren't needed here —
+  // the app detects the confirmed account by retrying sign-in.
+  (function () {
+    var h = (location.hash || '').replace(/^#/, '');
+    var params = new URLSearchParams(h);
+    var type = params.get('type') || '';
+    var err = params.get('error_description') || params.get('error');
+    var kicker = document.getElementById('kicker');
+    var headline = document.getElementById('headline');
+    var sub = document.getElementById('sub');
+    if (err) {
+      kicker.textContent = 'VERIFICATION PROBLEM';
+      headline.textContent = 'That link didn’t work';
+      sub.textContent = decodeURIComponent(err).replace(/\+/g, ' ') +
+        ' — request a fresh verification email from the GridGlow app and try again.';
+    } else if (type === 'recovery') {
+      kicker.textContent = 'IDENTITY CONFIRMED';
+      headline.textContent = 'Ready to reset';
+      sub.innerHTML = 'Return to the <strong>GridGlow app</strong> to set your new password.';
+    }
+    // signup / email / magiclink keep the default "You're all set" copy.
+  })();
+</script>
+
+</body>
+</html>

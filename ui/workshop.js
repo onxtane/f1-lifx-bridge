@@ -452,7 +452,7 @@
           const full_name = document.getElementById('wsLgName').value.trim();
           // Land the confirmation-link click on the hosted site (a friendly page)
           // rather than a broken file:// URL — the confirm succeeds regardless.
-          const opts = { emailRedirectTo: 'https://gridglow.titanstowers.net/' }; if (full_name) opts.data = { full_name };
+          const opts = { emailRedirectTo: 'https://gridglow.titanstowers.net/auth/verified' }; if (full_name) opts.data = { full_name };
           const { data, error } = await sb.auth.signUp({ email, password: pass, options: opts });
           if (error) throw error;
           if (data.session) lgBackdrop.classList.remove('open');   // confirmation disabled → straight in
