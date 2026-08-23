@@ -5907,14 +5907,10 @@
         },
       },
       {
-        page: 'effects', target: '[data-target="effectsManualBody"]',
-        title: 'Manual Triggers',
-        body: 'You can also fire any effect by hand at any time — great for testing your rig.',
-        beforeShow() {
-          const b = document.getElementById('effectsManualBody');
-          if (b && b.classList.contains('collapsed'))
-            b.closest('.effects-section').querySelector('.collapsible-header').click();
-        },
+        page: 'effects', target: '#effectCustomSection .collapsible-header',
+        preferSide: 'right',
+        title: 'Custom Effect Colours',
+        body: 'Set your own colour for every race event here — one for all lights, per bulb, or per zone. It starts collapsed; open it any time, and tap the “?” for a walkthrough of just this section.',
       },
       {
         page: 'lights', target: '.brightness-row',
@@ -5928,9 +5924,19 @@
         beforeShow() { if (window._settingsSelectCat) window._settingsSelectCat('connection'); },
       },
       {
+        page: 'workshop', target: '#page-workshop .hd',
+        preferSide: 'below',
+        title: 'Community Workshop',
+        body: 'Browse, download and share lighting presets made by the community. Sign in to upload your own setup, like presets, and grab ones built for your games and devices.',
+        beforeShow() {
+          const w = document.querySelector('.nav-btn[data-page="workshop"]');
+          if (w) w.click();   // mount + load the Workshop before we spotlight it
+        },
+      },
+      {
         page: null, target: null, isLast: true,
         title: 'You\'re Ready to Race',
-        body: 'Load into a session, hit Start Bridge, and your lights will respond to every flag, fastest lap, and moment on track. Have a good race.',
+        body: 'Load into a session, hit Start Bridge, and your lights respond to every flag, fastest lap, and moment on track — and the Community Workshop is there any time for more presets. Have a good race.',
       },
     ];
 
@@ -5971,15 +5977,15 @@
       const fits = { below: vh - sr.bottom - gap >= cH + m, above: sr.top - gap >= cH + m,
                      right: vw - sr.right - gap  >= cW + m, left:  sr.left - cW - gap >= m };
       if (preferSide && fits[preferSide]) {
-        if (preferSide === 'below') return { side:'below', left:clX(cx), top:sr.bottom + gap };
-        if (preferSide === 'above') return { side:'above', left:clX(cx), top:sr.top - cH - gap };
-        if (preferSide === 'right') return { side:'right', left:sr.right + gap, top:clY(cy) };
-        if (preferSide === 'left')  return { side:'left',  left:sr.left - cW - gap, top:clY(cy) };
+        if (preferSide === 'below') return { side:'below', left:clX(cx), top:clY(sr.bottom + gap) };
+        if (preferSide === 'above') return { side:'above', left:clX(cx), top:clY(sr.top - cH - gap) };
+        if (preferSide === 'right') return { side:'right', left:clX(sr.right + gap), top:clY(cy) };
+        if (preferSide === 'left')  return { side:'left',  left:clX(sr.left - cW - gap), top:clY(cy) };
       }
-      if (fits.below) return { side:'below', left:clX(cx), top:sr.bottom + gap };
-      if (fits.above) return { side:'above', left:clX(cx), top:sr.top - cH - gap };
-      if (fits.right) return { side:'right', left:sr.right + gap, top:clY(cy) };
-      return                 { side:'left',  left:sr.left - cW - gap, top:clY(cy) };
+      if (fits.below) return { side:'below', left:clX(cx), top:clY(sr.bottom + gap) };
+      if (fits.above) return { side:'above', left:clX(cx), top:clY(sr.top - cH - gap) };
+      if (fits.right) return { side:'right', left:clX(sr.right + gap), top:clY(cy) };
+      return                 { side:'left',  left:clX(sr.left - cW - gap), top:clY(cy) };
     }
 
     function placePointer(sr, side) {
