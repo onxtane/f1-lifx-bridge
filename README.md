@@ -12,7 +12,7 @@ F1 25/24/23/22/21, DiRT Rally 2.0, the Forza titles, and EA SPORTS WRC broadcast
 
 Assetto Corsa doesn't broadcast; it publishes to shared memory instead, which GridGlow reads directly. Same effects, no setup — but it means GridGlow has to run on the same PC as the game.
 
-![Data flow diagram](docs/data_flow.png)
+![Data flow diagram](docs/data_flow2.png)
 
 ---
 
