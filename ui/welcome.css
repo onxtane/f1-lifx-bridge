@@ -11,7 +11,7 @@
   --gw-radius-md:8px; --gw-radius-lg:14px;
   color:var(--gw-text);
 }
-.gw-dim{ position:absolute; inset:0; background:var(--gw-n900); opacity:0; }
+.gw-dim{ position:absolute; inset:0; background:#070912; opacity:0; }   /* near-black, not gray */
 .gw-halo{ position:absolute; inset:0; pointer-events:none; opacity:0; }
 .gw-wash{ position:absolute; width:420px; margin-left:-210px; filter:blur(3px); pointer-events:none; opacity:0; }
 .gw-wash0{ height:2px; } .gw-wash1{ height:3px; }

@@ -135,11 +135,11 @@
 
       // the app, dimmed and pushed back
       if (appEl) {
-        appEl.style.filter = 'blur(' + (2.6 * veil).toFixed(2) + 'px) saturate(' + (1 - 0.25 * veil) + ')';
+        appEl.style.filter = 'blur(' + (2.6 * veil).toFixed(2) + 'px)';   // pure blur — no desaturation (was graying the app)
         appEl.style.transform = 'scale(' + (1 - 0.012 * veil) + ')';
         appEl.style.transformOrigin = '50% 46%';
       }
-      dim.style.opacity = (0.62 * veil).toFixed(3);
+      dim.style.opacity = (0.5 * veil).toFixed(3);
       halo.style.opacity = veil.toFixed(3);
       halo.style.background = 'radial-gradient(58% 52% at 50% 46%, ' + hexA(A_, 0.20 * (0.35 + 0.65 * lit)) + ' 0%, rgba(0,0,0,0) 62%)';
 
@@ -283,8 +283,8 @@
       // once, then swap the heavy blur for a light static dim (blur is GPU-costly
       // and pointless without the push-back animation to justify it).
       render(INTRO_END, 0, -1, 0);
-      if (appEl) appEl.style.filter = 'saturate(0.9)';
-      dim.style.opacity = '0.66';
+      if (appEl) appEl.style.filter = 'blur(2px)';
+      dim.style.opacity = '0.5';
       skip.style.opacity = '0.9';
       skip.style.pointerEvents = 'auto'; skip.tabIndex = 0;
       btnPrimary.focus();

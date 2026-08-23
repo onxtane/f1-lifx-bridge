@@ -1,0 +1,164 @@
+---
+const githubUrl = "https://github.com/onxtane/f1-lifx-bridge";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shared preset — GridGlow</title>
+  <meta name="description" content="A community lighting preset shared from the GridGlow Community Workshop." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+
+<div class="page">
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="brand"><span class="brand-dot"></span> GridGlow</a>
+      <div class="nav-links">
+        <a href="/roadmap" class="nav-link">Roadmap</a>
+        <a href="/request" class="nav-link">Request a title</a>
+        <a href={githubUrl} target="_blank" rel="noopener" class="nav-link">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="wrap">
+      <div id="state" class="card state">Loading preset…</div>
+
+      <div id="preset" class="card" hidden>
+        <div class="kicker">Community Workshop preset</div>
+        <div class="titrow">
+          <h1 id="p-title"></h1>
+          <span id="p-official" class="official" hidden>✓ Official</span>
+        </div>
+        <div id="p-by" class="by"></div>
+        <p id="p-desc" class="desc"></p>
+
+        <div class="stats">
+          <div><span class="k">Game</span><span id="p-game" class="v"></span></div>
+          <div><span class="k">Downloads</span><span id="p-dl" class="v"></span></div>
+          <div><span class="k">Likes</span><span id="p-likes" class="v"></span></div>
+          <div><span class="k">Rating</span><span id="p-rating" class="v"></span></div>
+        </div>
+
+        <div id="p-devices" class="chips"></div>
+        <div id="p-tags" class="tags"></div>
+
+        <div class="cta">
+          <div class="cta-title">Get this preset</div>
+          <p class="cta-sub">Open <strong>GridGlow</strong> → <strong>Community Workshop</strong> and search for
+            “<span id="p-title2"></span>”. Sign in, then Download to apply it to your lights.</p>
+          <a href={githubUrl} class="btn" target="_blank" rel="noopener">Get GridGlow</a>
+        </div>
+      </div>
+
+      <p class="foot-link"><a href="/">← Back to GridGlow</a></p>
+    </div>
+  </main>
+</div>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #070912; }
+  a { color: #c4b5fd; text-decoration: none; }
+  a:hover { color: #e9d5ff; }
+  .page {
+    min-height: 100vh; display: flex; flex-direction: column;
+    background:
+      radial-gradient(900px 520px at 50% -8%, rgba(102,78,200,.22), transparent 70%),
+      radial-gradient(760px 520px at 100% 108%, rgba(158,72,214,.16), transparent 70%),
+      linear-gradient(#0d0c20, #08070f);
+    font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #c3cbdd;
+  }
+  nav { display: flex; justify-content: center; padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .nav-inner { width: 100%; max-width: 1100px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 9px; color: #f3f1ff; font-size: 16px; font-weight: 700; letter-spacing: 1.4px; }
+  .brand-dot { width: 9px; height: 9px; border-radius: 50%; background: #8b7cf6; box-shadow: 0 0 14px rgba(139,124,246,.9); }
+  .nav-links { display: flex; align-items: center; gap: 6px; }
+  .nav-link { padding: 8px 14px; border-radius: 999px; font-size: 13px; color: #c3cbdd; transition: background .15s, color .15s; }
+  .nav-link:hover { background: rgba(255,255,255,.06); color: #f3f1ff; }
+
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 56px 24px; }
+  .wrap { width: 100%; max-width: 560px; }
+  .card {
+    border-radius: 18px; border: 1px solid rgba(255,255,255,.12);
+    background: linear-gradient(158deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 12px 34px rgba(0,0,0,.42);
+    padding: 32px 34px;
+  }
+  .state { text-align: center; color: #9aa3b8; }
+
+  .kicker { font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #8b7cf6; margin-bottom: 10px; }
+  .titrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 27px; font-weight: 700; letter-spacing: -.02em; color: #f3f1ff; line-height: 1.2; }
+  .official { font-size: 11px; font-weight: 600; color: #c4b5fd; background: #241f45; border-radius: 6px; padding: 3px 9px; }
+  .by { font-size: 13px; color: #7c87a0; margin-top: 6px; }
+  .desc { font-size: 14px; line-height: 1.6; color: #c3cbdd; margin: 14px 0 0; }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 22px; margin: 20px 0; padding: 16px 0; border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); }
+  .stats .k { display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #7c87a0; }
+  .stats .v { display: block; font-size: 16px; color: #f3f1ff; margin-top: 4px; }
+
+  .chips, .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { font-size: 11px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); color: #c3cbdd; }
+  .tag { font-size: 11px; color: #9aa3b8; }
+  .tag::before { content: '#'; opacity: .5; }
+
+  .cta { margin-top: 22px; padding: 16px 18px; border-radius: 14px; background: rgba(139,124,246,.08); border: 1px solid rgba(139,124,246,.28); }
+  .cta-title { font-size: 13px; font-weight: 600; color: #f3f1ff; }
+  .cta-sub { font-size: 13px; line-height: 1.55; color: #c3cbdd; margin: 6px 0 14px; }
+  .cta-sub strong { color: #f3f1ff; }
+  .btn { display: inline-flex; align-items: center; background: #8b7cf6; color: #fff; font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 10px; }
+  .btn:hover { background: #7c6de8; color: #fff; }
+
+  .foot-link { text-align: center; margin: 18px 0 0; font-size: 12px; }
+</style>
+
+<script is:inline>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var id = params.get('id') || (location.hash || '').replace(/^#/, '');
+    var stateEl = document.getElementById('state');
+    var card = document.getElementById('preset');
+    var esc = function (s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
+
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id || '')) { stateEl.textContent = 'No preset specified.'; return; }
+
+    fetch('/api/workshop/presets/' + encodeURIComponent(id), { headers: { accept: 'application/json' } })
+      .then(function (r) { if (!r.ok) throw new Error(r.status === 404 ? 'notfound' : 'err'); return r.json(); })
+      .then(function (p) {
+        if (!p || !p.id) throw new Error('notfound');
+        document.getElementById('p-title').textContent = p.title || 'Untitled preset';
+        document.getElementById('p-title2').textContent = p.title || '';
+        if (p.official) document.getElementById('p-official').hidden = false;
+        document.getElementById('p-by').textContent = 'by ' + (p.author_name || 'unknown');
+        var desc = document.getElementById('p-desc');
+        if (p.description) desc.textContent = p.description; else desc.hidden = true;
+        document.getElementById('p-game').textContent = p.game_name || p.game || '—';
+        document.getElementById('p-dl').textContent = (p.downloads != null ? p.downloads : 0);
+        document.getElementById('p-likes').textContent = (p.likes != null ? p.likes : 0);
+        document.getElementById('p-rating').textContent = (p.rating == null ? '—' : (+p.rating).toFixed(1));
+        var devWrap = document.getElementById('p-devices');
+        (p.devices || []).forEach(function (d) {
+          var el = document.createElement('span'); el.className = 'chip';
+          el.textContent = ({ hue: 'Philips Hue', nanoleaf: 'Nanoleaf', lifx: 'LIFX' })[d] || d; devWrap.appendChild(el);
+        });
+        var tagWrap = document.getElementById('p-tags');
+        (p.tags || []).forEach(function (t) { var el = document.createElement('span'); el.className = 'tag'; el.textContent = t; tagWrap.appendChild(el); });
+        stateEl.hidden = true; card.hidden = false;
+        document.title = (p.title || 'Shared preset') + ' — GridGlow';
+      })
+      .catch(function (e) {
+        stateEl.textContent = (e && e.message === 'notfound')
+          ? 'This preset no longer exists (it may have been removed).'
+          : 'Couldn’t load this preset. Please try again later.';
+      });
+  })();
+</script>
+
+</body>
+</html>
