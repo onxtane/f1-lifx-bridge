@@ -77,6 +77,7 @@ Assetto Corsa doesn't broadcast; it publishes to shared memory instead, which Gr
 - Game selector — switch between F1 25–21, DiRT Rally 2.0, Forza (Horizon 6 / 5 / Motorsport), EA SPORTS WRC, and Assetto Corsa; "Remember my choice" skips the screen next time
 - Mini mode — compact 380×100 always-on-top window
 - Profiles — save and switch complete configurations
+- Community Workshop — browse and download community lighting presets, or sign in to upload, share, like, and rate your own. It's the one optional online feature; the telemetry-to-lights pipeline stays fully local either way
 - UDP forwarding — relay packets to a second destination (sim dashboard, second PC)
 - Built-in tutorial overlay
 - Live packet and event log
@@ -228,9 +229,18 @@ f1_lifx_app/
 ├── nanoleaf_controller.py   # Nanoleaf local REST API
 ├── hue_controller.py        # Philips Hue CLIP v2 local API
 ├── assets/wrc/              # WRC telemetry structure installed into the game
-└── ui/
-    └── index.html           # full single-file UI
+└── ui/                      # web UI (HTML + CSS/JS modules, served in the webview)
+    ├── index.html           # main UI shell (dashboard, settings, effects)
+    ├── workshop.js/.css     # Community Workshop — browse / share / download presets
+    ├── welcome.js/.css      # post-sign-in welcome sequence
+    ├── effects-custom.js/.css  # per-event effect colour customization
+    ├── vendor/              # supabase-js + Tabler icons (bundled locally, no CDN)
+    └── logos/               # game wordmarks for the selector
 ```
+
+The Community Workshop's server side (Cloudflare Pages Functions + D1, Supabase auth)
+lives in the separate website repo, not here — the app talks to it over HTTPS at
+`gridglow.titanstowers.net/api/workshop`.
 
 ---
 
